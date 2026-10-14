@@ -225,7 +225,7 @@ function VisualEffects.BuildZonePortal(zoneId: string): Model
 	beam.Size = Vector3.new(10, 2, 2)
 	beam.Anchored = true
 	beam.Color = baseColor
-	beam.Material = Enum.Material.Stone
+	beam.Material = Enum.Material.Slate
 	beam.Position = Vector3.new(0, 12.5, 0)
 	beam.Parent = model
 
@@ -565,7 +565,7 @@ function VisualEffects.BuildDecoration(decoId: string): Model
 		local basePart = Instance.new("Part")
 		basePart.Size = Vector3.new(2, 1, 2)
 		basePart.Color = Color3.fromRGB(100, 100, 100)
-		basePart.Material = Enum.Material.Stone
+		basePart.Material = Enum.Material.Slate
 		basePart.Anchored = true
 		basePart.Position = Vector3.new(0, 0.5, 0)
 		basePart.Parent = model
