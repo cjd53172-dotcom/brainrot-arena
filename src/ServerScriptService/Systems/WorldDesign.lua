@@ -623,7 +623,7 @@ end
 function WorldDesign.Setup()
 	WorldDesign.ApplyLighting()
 	WorldDesign.BuildPlaza()
-	WorldDesign.BuildArchway()
+	-- BuildArchway removed per playtest feedback (clutter).
 	WorldDesign.BuildAllPaths()
 	WorldDesign.BuildLandscaping()
 	WorldDesign.BuildFireflies()

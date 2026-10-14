@@ -975,16 +975,20 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 	-- Build model
 	local model = PlotSystem.BuildDisplayModel(def, false, nil)
-	-- Normalize size: wilds should be ~2.2 studs tall (smaller than player).
+	-- Normalize size: wilds should fit in a ~2.5 stud box (smaller than player).
+	-- Uses max dimension so long/wide models (dolphin) get caught too.
 	pcall(function()
 		local _, bbSize = model:GetBoundingBox()
-		if bbSize and bbSize.Y > 0 then
-			local targetH = 2.2
-			local s = targetH / bbSize.Y
-			-- Only adjust if meaningfully off (avoid jitter on already-correct sizes).
-			if math.abs(s - 1) > 0.15 then
-				s = math.clamp(s, 0.3, 1.5) -- never shrink below 30% or grow above 150%
-				model:ScaleTo(s)
+		if bbSize then
+			local maxDim = math.max(bbSize.X, bbSize.Y, bbSize.Z)
+			if maxDim > 0 then
+				local targetMax = 3.0
+				local s = targetMax / maxDim
+				-- Only adjust if meaningfully off (avoid jitter).
+				if math.abs(s - 1) > 0.15 then
+					s = math.clamp(s, 0.3, 1.5)
+					model:ScaleTo(s)
+				end
 			end
 		end
 	end)
