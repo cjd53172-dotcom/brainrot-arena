@@ -390,12 +390,13 @@ local function spawnOrb(pos: Vector3)
 	local orb = Instance.new("Part")
 	orb.Name = "BrainrotOrb"
 	orb.Shape = Enum.PartType.Ball
-	orb.Size = Vector3.new(2, 2, 2)
+	orb.Size = Vector3.new(2.5, 2.5, 2.5)
 	orb.Position = pos
 	orb.Anchored = true
 	orb.CanCollide = false
 	orb.Material = Enum.Material.Neon
-	orb.Color = Color3.fromRGB(255, 200, 60)
+	-- CYAN (not gold): gold reads as "firefly". Cyan = pickup, unmistakable.
+	orb.Color = Color3.fromRGB(0, 210, 255)
 	-- Lift to terrain surface so orbs aren't buried.
 	pcall(function()
 		local params = RaycastParams.new()
@@ -407,6 +408,23 @@ local function spawnOrb(pos: Vector3)
 		end
 	end)
 	orb.Parent = orbsFolder
+
+	-- Glow + gentle bob: reads as "interactive pickup", not ambient firefly.
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(0, 210, 255)
+	light.Range = 10
+	light.Brightness = 1.5
+	light.Parent = orb
+
+	local baseY = orb.Position.Y
+	local baseX, baseZ = orb.Position.X, orb.Position.Z
+	task.spawn(function()
+		local t = math.random() * math.pi * 2
+		while orb and orb.Parent do
+			t += task.wait()
+			orb.Position = Vector3.new(baseX, baseY + math.sin(t * 2) * 0.5, baseZ)
+		end
+	end)
 
 	local debounce = false
 	orb.Touched:Connect(function(hit: BasePart)
