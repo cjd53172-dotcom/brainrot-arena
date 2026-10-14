@@ -28,6 +28,7 @@ local DailyQuestSystem = require(Systems:WaitForChild("DailyQuestSystem"))
 local EggSystem = require(Systems:WaitForChild("EggSystem"))
 local VisualEffects = require(Systems:WaitForChild("VisualEffects"))
 local FishingSystem = require(Systems:WaitForChild("FishingSystem"))
+local WanderSystem = require(Systems:WaitForChild("WanderSystem"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- // RemoteEvents --------------------------------------------------------------
@@ -35,7 +36,7 @@ local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
 remotes.Parent = ReplicatedStorage
 
-for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate" }) do
+for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught" }) do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes
@@ -399,37 +400,12 @@ local function spawnOrb(pos: Vector3)
 		debounce = true
 		QuestSystem.AddProgress(player, 1)
 
-		-- Brainrot Cache: every 5 orbs earns a random brainrot + coins.
-		-- This is the core repeatable grind loop of the game.
-		data.OrbProgress = (data.OrbProgress or 0) + 1
-		DailyQuestSystem.RecordProgress(player, "orbs", 1)
-		if data.OrbProgress >= 5 then
-			data.OrbProgress = 0
-			local rarity = BrainrotData.RollRewardRarity()
-			local rewardId = BrainrotData.GetRandomIdOfRarity(rarity)
-			if rewardId then
-				local shiny = math.random() < BrainrotData.SHINY_CHANCE
-				local variant = BrainrotData.RollVariant()
-				local instance, err = PlayerData.TryAddBrainrot(player, rewardId, shiny, variant)
-				if instance then
-					PlotSystem.RefreshPlot(player)
-				elseif err == "full" then
-					PlayerData.AddCoins(player, 150)
-				end
-				remotes:WaitForChild("FusionResult"):FireClient(player, {
-					Kind = "Cache",
-					BrainrotId = instance and instance.BrainrotId or nil,
-					Variant = instance and instance.Variant or nil,
-					Shiny = instance and instance.Shiny or false,
-					InventoryFull = err == "full",
-					Coins = 25,
-				})
-			end
-			PlayerData.AddCoins(player, 25)
-			pushCollection(player)
-			QuestSystem.CheckObjective(player, "brainrots")
-			PlayerData.Save(player)
-		end
+		-- Orbs now give coins only (brainrots come from wandering catches).
+		-- Simple, satisfying pickup.
+		PlayerData.AddCoins(player, 10)
+		DailyQuestSystem.RecordProgress(player, "coins_earned", 10)
+		pushCollection(player)
+		PlayerData.Save(player)
 
 		orb.Transparency = 1
 		orb.CanTouch = false
@@ -979,6 +955,247 @@ task.spawn(function()
 				})
 			end
 		end
+	end
+end)
+
+-- // Wandering Brainrots ---------------------------------------------------------------
+-- Wild spawns with rarity-tuned timers. Each player sees their own.
+local wanderModels: { [number]: { [string]: Model } } = {} -- [userId][wanderId] = model
+local wanderBeams: { [number]: { [string]: Model } } = {} -- legendary beams
+
+local function spawnWildVisual(player: Player, wanderId: string)
+	local wander = WanderSystem.GetWanderer(player, wanderId)
+	if not wander then return end
+	local def = BrainrotData.GetBrainrot(wander.BrainrotId)
+	if not def then return end
+
+	-- Build model
+	local model = PlotSystem.BuildDisplayModel(def, false, nil)
+	VisualEffects.AddWildAura(model, wander.Rarity)
+
+	-- Ground position via raycast
+	local spawnPos = wander.SpawnPos
+	pcall(function()
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		local r = workspace:Raycast(
+			Vector3.new(spawnPos.X, 500, spawnPos.Z),
+			Vector3.new(0, -1000, 0),
+			params
+		)
+		if r then
+			spawnPos = r.Position + Vector3.new(0, 2, 0)
+		else
+			spawnPos = Vector3.new(spawnPos.X, 18, spawnPos.Z)
+		end
+	end)
+	model:PivotTo(CFrame.new(spawnPos))
+	model.Parent = workspace
+
+	-- Make catchable via invisible hitbox (easier to touch than small models)
+	local hitbox = Instance.new("Part")
+	hitbox.Name = "WildHitbox"
+	hitbox.Size = Vector3.new(6, 6, 6)
+	hitbox.Transparency = 1
+	hitbox.CanCollide = false
+	hitbox.Anchored = true
+	hitbox.Position = spawnPos
+	hitbox.Parent = model
+	hitbox:SetAttribute("WanderId", wanderId)
+	hitbox:SetAttribute("OwnerId", player.UserId)
+
+	hitbox.Touched:Connect(function(hit: BasePart)
+		local char = hit and hit.Parent
+		local p = char and Players:GetPlayerFromCharacter(char)
+		if p and p.UserId == player.UserId then
+			-- Catch!
+			local result = WanderSystem.Catch(p, wanderId)
+			if result and result.Success then
+				VisualEffects.PlayWildCatch(spawnPos, wander.Rarity)
+				remotes:WaitForChild("WildCaught"):FireClient(p, result)
+				remotes:WaitForChild("ShowHint"):FireClient(p,
+					"Caught: " .. result.BrainrotName .. " (" .. result.Rarity .. ")!" ..
+					(if result.Shiny then " ✨ SHINY!" else ""))
+				pushCollection(p)
+				PlotSystem.RefreshPlot(p)
+			end
+			-- Cleanup
+			if wanderModels[player.UserId] then
+				wanderModels[player.UserId][wanderId] = nil
+			end
+			if model and model.Parent then
+				model:Destroy()
+			end
+			-- Remove beam if legendary
+			if wanderBeams[player.UserId] and wanderBeams[player.UserId][wanderId] then
+				local beam = wanderBeams[player.UserId][wanderId]
+				if beam and beam.Parent then beam:Destroy() end
+				wanderBeams[player.UserId][wanderId] = nil
+			end
+		end
+	end)
+
+	-- Track
+	if not wanderModels[player.UserId] then
+		wanderModels[player.UserId] = {}
+	end
+	wanderModels[player.UserId][wanderId] = model
+	wander.Model = model
+
+	-- Legendary beam + announcement
+	if wander.Rarity == "Legendary" then
+		local beam = VisualEffects.BuildLegendaryBeam(spawnPos)
+		beam.Parent = workspace
+		if not wanderBeams[player.UserId] then
+			wanderBeams[player.UserId] = {}
+		end
+		wanderBeams[player.UserId][wanderId] = beam
+		remotes:WaitForChild("ShowHint"):FireClient(player,
+			"🌟 LEGENDARY BRAINROT SPOTTED! Follow the golden beam! (3 min)")
+	end
+
+	-- Wandering AI: random walk + flee from player
+	task.spawn(function()
+		local cfg = wander.Config
+		local currentPos = spawnPos
+		local targetPos = currentPos
+		local fleeing = false
+		while model and model.Parent do
+			-- Check if player is near (flee)
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			local playerPos = hrp and (hrp :: BasePart).Position
+			if playerPos and cfg.FleeRadius > 0 then
+				local dist = (currentPos - playerPos).Magnitude
+				if dist < cfg.FleeRadius then
+					-- Flee away from player
+					local fleeDir = (currentPos - playerPos).Unit
+					targetPos = currentPos + fleeDir * 20
+					fleeing = true
+				else
+					fleeing = false
+				end
+			end
+			-- Pick new random target if reached or every 5s
+			if (currentPos - targetPos).Magnitude < 3 or math.random() < 0.2 then
+				if not fleeing then
+					targetPos = currentPos + Vector3.new(
+						(math.random() - 0.5) * 40,
+						0,
+						(math.random() - 0.5) * 40
+					)
+				end
+			end
+			-- Move toward target with walk bob
+			local dir = (targetPos - currentPos)
+			dir = Vector3.new(dir.X, 0, dir.Z)
+			if dir.Magnitude > 0.5 then
+				dir = dir.Unit
+				local speed = cfg.WalkSpeed * (if fleeing then 1.5 else 1)
+				currentPos += dir * speed * 0.2
+				-- Bob while walking
+				local bobY = math.abs(math.sin(os.clock() * 8)) * 0.4
+				-- Face movement direction
+				model:PivotTo(CFrame.new(currentPos + Vector3.new(0, bobY, 0), currentPos + dir * 5))
+				-- Move hitbox with model
+				if hitbox and hitbox.Parent then
+					hitbox.Position = currentPos + Vector3.new(0, 1, 0)
+				end
+			end
+			task.wait(0.2)
+		end
+	end)
+end
+
+-- Spawn timers per rarity (staggered)
+-- Tracks last spawn time per player per rarity
+local lastSpawn: { [number]: { [string]: number } } = {}
+task.spawn(function()
+	while true do
+		task.wait(15) -- check every 15s
+		local now = os.time()
+		for _, player in ipairs(Players:GetPlayers()) do
+			local userId = player.UserId
+			if not lastSpawn[userId] then
+				lastSpawn[userId] = {}
+			end
+			-- Check each rarity's timer
+			for _, rarity in ipairs({ "Common", "Rare", "Epic", "Legendary" }) do
+				local cfg = WanderSystem.GetRarityConfig(rarity)
+				if cfg then
+					local last = lastSpawn[userId][rarity] or 0
+					-- Random interval within the rarity's range
+					local interval = math.random(cfg.RespawnSecs[1], cfg.RespawnSecs[2])
+					if now - last >= interval then
+						-- Roll: only spawn if this rarity wins the weight roll
+						-- (prevents every timer firing at once)
+						local roll = math.random() * 100
+						local totalWeight = 60 + 25 + 12 + 3
+						local weight = cfg.Weight / totalWeight * 100
+						-- Scale by how overdue we are (guaranteed eventually)
+						local overdue = (now - last) / interval
+						if roll < weight * overdue then
+							-- Force this rarity by temporarily overriding
+							-- (SpawnWild rolls internally, so we retry until we get it or give up)
+							for attempt = 1, 5 do
+								local wanderId = WanderSystem.SpawnWild(player, PlotSystem)
+								if wanderId then
+									local wander = WanderSystem.GetWanderer(player, wanderId)
+									if wander and wander.Rarity == rarity then
+										spawnWildVisual(player, wanderId)
+										lastSpawn[userId][rarity] = now
+										break
+									else
+										-- Wrong rarity, remove and retry
+										WanderSystem.Remove(player, wanderId)
+									end
+								else
+									break -- at cap
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+		-- Cleanup despawns
+		local despawned = WanderSystem.TickDespawn()
+		for _, item in ipairs(despawned) do
+			local userId = item.UserId
+			local wanderId = item.WanderId
+			if wanderModels[userId] and wanderModels[userId][wanderId] then
+				local model = wanderModels[userId][wanderId]
+				if model and model.Parent then
+					model:Destroy()
+				end
+				wanderModels[userId][wanderId] = nil
+			end
+			if wanderBeams[userId] and wanderBeams[userId][wanderId] then
+				local beam = wanderBeams[userId][wanderId]
+				if beam and beam.Parent then
+					beam:Destroy()
+				end
+				wanderBeams[userId][wanderId] = nil
+			end
+		end
+	end
+end)
+
+-- Cleanup on leave
+Players.PlayerRemoving:Connect(function(player: Player)
+	WanderSystem.ClearPlayer(player)
+	if wanderModels[player.UserId] then
+		for _, model in pairs(wanderModels[player.UserId]) do
+			if model and model.Parent then model:Destroy() end
+		end
+		wanderModels[player.UserId] = nil
+	end
+	if wanderBeams[player.UserId] then
+		for _, beam in pairs(wanderBeams[player.UserId]) do
+			if beam and beam.Parent then beam:Destroy() end
+		end
+		wanderBeams[player.UserId] = nil
 	end
 end)
 

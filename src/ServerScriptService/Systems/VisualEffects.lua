@@ -1492,8 +1492,6 @@ end
 -- Build a 3D fish model for catch visualization.
 -- golden=true for brainrot catches (special gold fish).
 function VisualEffects.BuildFish(golden: boolean): Model
-	local model = Instance.new("Model")
-	model.Name = "CaughtFish"
 
 	local color = golden and Color3.fromRGB(255, 200, 60) or Color3.fromRGB(100, 150, 200)
 
@@ -1551,6 +1549,166 @@ function VisualEffects.BuildFish(golden: boolean): Model
 
 	model.PrimaryPart = body
 	return model
+end
+
+-- // Wandering Brainrots -----------------------------------------------------------------------
+-- Add rarity aura to a wild brainrot model.
+function VisualEffects.AddWildAura(model: Model, rarity: string)
+	local color = BrainrotData.RARITY_COLORS[rarity] or Color3.fromRGB(160, 160, 160)
+	local primary = model.PrimaryPart
+	if not primary then return end
+
+	-- Glow light
+	local light = Instance.new("PointLight")
+	light.Name = "WildAura"
+	light.Color = color
+	light.Range = if rarity == "Legendary" then 15 else 8
+	light.Brightness = if rarity == "Common" then 0.5 else 1.5
+	light.Parent = primary
+
+	-- Particles for Rare+
+	if rarity ~= "Common" then
+		local particles = Instance.new("ParticleEmitter")
+		particles.Name = "WildSparkles"
+		particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		particles.Color = ColorSequence.new(color)
+		particles.Size = NumberSequence.new(0.6)
+		particles.Speed = NumberRange.new(2, 4)
+		particles.Lifetime = NumberRange.new(1, 1.5)
+		particles.Rate = if rarity == "Legendary" then 30 else 10
+		particles.Parent = primary
+	end
+
+	-- Name tag (shows rarity, not name — keeps mystery!)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "WildTag"
+	billboard.Size = UDim2.new(0, 120, 0, 40)
+	billboard.StudsOffset = Vector3.new(0, 4, 0)
+	billboard.AlwaysOnTop = false
+	billboard.Parent = primary
+
+	local tag = Instance.new("TextLabel")
+	tag.Size = UDim2.new(1, 0, 1, 0)
+	tag.BackgroundColor3 = color
+	tag.BackgroundTransparency = 0.3
+	tag.Text = "❓ " .. rarity
+	tag.Font = Enum.Font.GothamBold
+	tag.TextSize = 16
+	tag.TextColor3 = Color3.new(1, 1, 1)
+	tag.TextStrokeTransparency = 0.4
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = tag
+	tag.Parent = billboard
+end
+
+-- Legendary beam: tall light pillar visible across the map.
+-- Returns the beam model (destroy when caught/despawned).
+function VisualEffects.BuildLegendaryBeam(pos: Vector3): Model
+	local model = Instance.new("Model")
+	model.Name = "LegendaryBeam"
+
+	-- Main beam
+	local beam = Instance.new("Part")
+	beam.Size = Vector3.new(4, 200, 4)
+	beam.Color = Color3.fromRGB(255, 150, 0)
+	beam.Material = Enum.Material.Neon
+	beam.Transparency = 0.4
+	beam.Anchored = true
+	beam.CanCollide = false
+	beam.Position = pos + Vector3.new(0, 100, 0)
+	beam.Parent = model
+
+	-- Outer glow
+	local glow = Instance.new("Part")
+	glow.Size = Vector3.new(8, 200, 8)
+	glow.Color = Color3.fromRGB(255, 200, 100)
+	glow.Material = Enum.Material.Neon
+	glow.Transparency = 0.7
+	glow.Anchored = true
+	glow.CanCollide = false
+	glow.Position = pos + Vector3.new(0, 100, 0)
+	glow.Parent = model
+
+	-- Base ring
+	local ring = Instance.new("Part")
+	ring.Size = Vector3.new(12, 1, 12)
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Color = Color3.fromRGB(255, 150, 0)
+	ring.Material = Enum.Material.Neon
+	ring.Transparency = 0.3
+	ring.Anchored = true
+	ring.CanCollide = false
+	ring.Position = pos + Vector3.new(0, 1, 0)
+	ring.Parent = model
+
+	-- Rising particles
+	local particles = Instance.new("ParticleEmitter")
+	particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Color = ColorSequence.new(Color3.fromRGB(255, 180, 60))
+	particles.Size = NumberSequence.new(1.2)
+	particles.Speed = NumberRange.new(15, 25)
+	particles.Lifetime = NumberRange.new(1.5, 2.5)
+	particles.Rate = 40
+	particles.Parent = beam
+
+	-- Light
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 150, 0)
+	light.Range = 30
+	light.Brightness = 3
+	light.Parent = beam
+
+	-- Pulse animation
+	task.spawn(function()
+		while beam and beam.Parent do
+			local t = os.clock()
+			local scale = 1 + math.sin(t * 3) * 0.15
+			beam.Size = Vector3.new(4 * scale, 200, 4 * scale)
+			task.wait(0.05)
+		end
+	end)
+
+	return model
+end
+
+-- Catch effect: poof + sparkles at catch position.
+function VisualEffects.PlayWildCatch(pos: Vector3, rarity: string)
+	local color = BrainrotData.RARITY_COLORS[rarity] or Color3.fromRGB(200, 200, 200)
+
+	-- Poof
+	local poof = Instance.new("ParticleEmitter")
+	poof.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	poof.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+	poof.Size = NumberSequence.new(2)
+	poof.Speed = NumberRange.new(5, 10)
+	poof.Lifetime = NumberRange.new(0.5, 0.8)
+	poof.Rate = 30
+
+	-- Sparkles
+	local sparkles = Instance.new("ParticleEmitter")
+	sparkles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparkles.Color = ColorSequence.new(color)
+	sparkles.Size = NumberSequence.new(1)
+	sparkles.Speed = NumberRange.new(10, 20)
+	sparkles.Lifetime = NumberRange.new(0.8, 1.2)
+	sparkles.Rate = 50
+
+	local anchor = Instance.new("Part")
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.Transparency = 1
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.Position = pos
+	anchor.Parent = workspace
+	poof.Parent = anchor
+	sparkles.Parent = anchor
+
+	task.delay(1, function()
+		if anchor and anchor.Parent then
+			anchor:Destroy()
+		end
+	end)
 end
 
 return VisualEffects
