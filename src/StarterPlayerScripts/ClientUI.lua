@@ -77,6 +77,49 @@ local function pad(parent: Instance, px: number)
 	p.Parent = parent
 end
 
+-- // UI Theme: mobile-friendly + pretty -------------------------------------------
+local camera = workspace.CurrentCamera
+local viewportSize = camera and camera.ViewportSize or Vector2.new(1920, 1080)
+local isMobile = viewportSize.X < 900 or viewportSize.Y < 700
+local uiScale = if isMobile then 1.25 else 1.0
+
+-- Modern color palette
+local THEME = {
+	Background = Color3.fromRGB(22, 22, 35),
+	Panel = Color3.fromRGB(30, 30, 48),
+	Card = Color3.fromRGB(42, 42, 62),
+	Accent = Color3.fromRGB(255, 180, 80),
+	AccentDark = Color3.fromRGB(200, 130, 40),
+	Success = Color3.fromRGB(80, 200, 120),
+	Danger = Color3.fromRGB(220, 80, 80),
+	Text = Color3.fromRGB(255, 255, 255),
+	TextDim = Color3.fromRGB(180, 180, 200),
+	Gradient1 = Color3.fromRGB(45, 45, 70),
+	Gradient2 = Color3.fromRGB(25, 25, 40),
+}
+
+-- Apply pretty styling: gradient background + subtle stroke
+local function styleFrame(frame: GuiObject, useAccent: boolean?)
+	local grad = Instance.new("UIGradient")
+	grad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, THEME.Gradient1),
+		ColorSequenceKeypoint.new(1, THEME.Gradient2),
+	})
+	grad.Rotation = 90
+	grad.Parent = frame
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = if useAccent then THEME.Accent else Color3.fromRGB(70, 70, 95)
+	stroke.Thickness = 1
+	stroke.Transparency = 0.4
+	stroke.Parent = frame
+end
+
+-- Scale a pixel value for mobile
+local function sp(px: number): number
+	return math.floor(px * uiScale)
+end
+
 -- // Quest tracker (top-left) ------------------------------------------------------
 local tracker = Instance.new("Frame")
 tracker.Name = "QuestTracker"
@@ -86,7 +129,8 @@ tracker.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 tracker.BackgroundTransparency = 0.15
 tracker.BorderSizePixel = 0
 tracker.Parent = gui
-corner(tracker, 10)
+corner(tracker, 12)
+styleFrame(tracker, true)
 
 local questTitle = Instance.new("TextLabel")
 questTitle.Size = UDim2.new(1, -20, 0, 28)
@@ -148,7 +192,8 @@ collectionBtn.Font = Enum.Font.GothamBold
 collectionBtn.TextSize = 14
 collectionBtn.TextColor3 = Color3.new(1, 1, 1)
 collectionBtn.Parent = gui
-corner(collectionBtn, 10)
+corner(collectionBtn, 12)
+styleFrame(collectionBtn, false)
 
 local workBtn = Instance.new("TextButton")
 workBtn.Size = UDim2.new(0, 104, 0, 48)
@@ -159,7 +204,8 @@ workBtn.Font = Enum.Font.GothamBold
 workBtn.TextSize = 14
 workBtn.TextColor3 = Color3.fromRGB(180, 255, 170)
 workBtn.Parent = gui
-corner(workBtn, 10)
+corner(workBtn, 12)
+styleFrame(workBtn, false)
 
 local fusionBtn = Instance.new("TextButton")
 fusionBtn.Size = UDim2.new(0, 104, 0, 48)
@@ -170,7 +216,8 @@ fusionBtn.Font = Enum.Font.GothamBold
 fusionBtn.TextSize = 14
 fusionBtn.TextColor3 = Color3.fromRGB(220, 170, 255)
 fusionBtn.Parent = gui
-corner(fusionBtn, 10)
+corner(fusionBtn, 12)
+styleFrame(fusionBtn, false)
 
 local arenaBtn = Instance.new("TextButton")
 arenaBtn.Size = UDim2.new(0, 104, 0, 48)
@@ -181,7 +228,8 @@ arenaBtn.Font = Enum.Font.GothamBold
 arenaBtn.TextSize = 14
 arenaBtn.TextColor3 = Color3.fromRGB(255, 170, 170)
 arenaBtn.Parent = gui
-corner(arenaBtn, 10)
+corner(arenaBtn, 12)
+styleFrame(arenaBtn, false)
 
 local showcaseBtn = Instance.new("TextButton")
 showcaseBtn.Size = UDim2.new(0, 104, 0, 48)
@@ -192,7 +240,8 @@ showcaseBtn.Font = Enum.Font.GothamBold
 showcaseBtn.TextSize = 14
 showcaseBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 showcaseBtn.Parent = gui
-corner(showcaseBtn, 10)
+corner(showcaseBtn, 12)
+styleFrame(showcaseBtn, false)
 
 -- // Materials strip (top-center) ------------------------------------------------------
 local materialsBar = Instance.new("Frame")
@@ -202,7 +251,8 @@ materialsBar.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 materialsBar.BackgroundTransparency = 0.15
 materialsBar.BorderSizePixel = 0
 materialsBar.Parent = gui
-corner(materialsBar, 10)
+corner(materialsBar, 12)
+styleFrame(materialsBar, false)
 
 local materialLabels: { [string]: TextLabel } = {}
 do
@@ -1149,14 +1199,33 @@ corner(statsBtn, 10)
 -- Helper to make a panel
 local function makePanel(title: string, titleColor: Color3): (Frame, TextLabel)
 	local panel = Instance.new("ScrollingFrame")
-	panel.Size = UDim2.new(0, 560, 0, 520)
-	panel.Position = UDim2.new(0.5, -280, 0.5, -260)
-	panel.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+	-- Responsive: 90% width on mobile, fixed max size on desktop
+	if isMobile then
+		panel.Size = UDim2.new(0.92, 0, 0.78, 0)
+		panel.Position = UDim2.new(0.04, 0, 0.11, 0)
+	else
+		panel.Size = UDim2.new(0, 560, 0, 520)
+		panel.Position = UDim2.new(0.5, -280, 0.5, -260)
+	end
+	panel.BackgroundColor3 = THEME.Panel
 	panel.BorderSizePixel = 0
 	panel.Visible = false
 	panel.Parent = gui
 	panel.ScrollBarThickness = 6
-	corner(panel, 12)
+	panel.ScrollingDirection = Enum.ScrollingDirection.Y
+	corner(panel, 16)
+	styleFrame(panel, false)
+	-- Drop shadow
+	local shadow = Instance.new("ImageLabel")
+	shadow.Name = "Shadow"
+	shadow.Size = UDim2.new(1, 12, 1, 12)
+	shadow.Position = UDim2.new(0, -6, 0, -6)
+	shadow.BackgroundTransparency = 1
+	shadow.Image = "rbxassetid://6014261993"
+	shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.ImageTransparency = 0.5
+	shadow.ZIndex = -1
+	shadow.Parent = panel
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 8)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -2444,3 +2513,85 @@ end)
 
 refreshButtons()
 print("[Brainrot Arena] Client UI ready.")
+
+-- // Mobile: compact bottom bar (replaces fixed desktop buttons) -------------------------
+if isMobile then
+	-- Hide desktop buttons on mobile
+	for _, btn in ipairs({ collectionBtn, workBtn, fusionBtn, arenaBtn, showcaseBtn,
+		exploreBtn, dailyBtn, eggBtn, mineBtn, styleBtn, statsBtn }) do
+		if btn then btn.Visible = false end
+	end
+	-- Also hide fishBtn if it exists
+	pcall(function() fishBtn.Visible = false end)
+
+	-- Scrollable bottom bar
+	local mobileBar = Instance.new("ScrollingFrame")
+	mobileBar.Name = "MobileBar"
+	mobileBar.Size = UDim2.new(1, 0, 0, 72)
+	mobileBar.Position = UDim2.new(0, 0, 1, -72)
+	mobileBar.BackgroundColor3 = THEME.Background
+	mobileBar.BackgroundTransparency = 0.1
+	mobileBar.BorderSizePixel = 0
+	mobileBar.ScrollBarThickness = 0
+	mobileBar.ScrollingDirection = Enum.ScrollingDirection.X
+	mobileBar.Parent = gui
+	corner(mobileBar, 0)
+
+	local mobileLayout = Instance.new("UIListLayout")
+	mobileLayout.FillDirection = Enum.FillDirection.Horizontal
+	mobileLayout.Padding = UDim.new(0, 8)
+	mobileLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	mobileLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	mobileLayout.Parent = mobileBar
+	local mobilePad = Instance.new("UIPadding")
+	mobilePad.PaddingLeft = UDim.new(0, 8)
+	mobilePad.PaddingRight = UDim.new(0, 8)
+	mobilePad.Parent = mobileBar
+
+	-- Panel toggle helper (shared logic)
+	local function toggleMobilePanel(panel: ScrollingFrame, refreshFn: (() -> ())?)
+		local was = panel.Visible
+		hideAllPanels()
+		if not was then
+			panel.Visible = true
+			if refreshFn then refreshFn() end
+		end
+	end
+
+	-- Compact icon buttons (64x56 touch-friendly)
+	local mobileButtons = {
+		{ Icon = "🧠", Label = "Pets", Panel = collectionPanel, Refresh = refreshCollectionPanel },
+		{ Icon = "⚒️", Label = "Work", Panel = workPanel, Refresh = refreshWorkPanel },
+		{ Icon = "⚗️", Label = "Fuse", Panel = fusionPanel, Refresh = refreshFusionPanel },
+		{ Icon = "⚔️", Label = "Arena", Panel = arenaPanel, Refresh = refreshArenaPanel },
+		{ Icon = "⭐", Label = "Show", Panel = editorPanel, Refresh = refreshEditorPanel },
+		{ Icon = "🗺️", Label = "Explore", Panel = expeditionPanel, Refresh = nil },
+		{ Icon = "📅", Label = "Daily", Panel = dailyPanel, Refresh = refreshDailyPanel },
+		{ Icon = "🥚", Label = "Eggs", Panel = eggPanel, Refresh = refreshEggPanel },
+		{ Icon = "⛏️", Label = "Mine", Panel = minePanel, Refresh = refreshMinePanel },
+		{ Icon = "🎨", Label = "Style", Panel = customizePanel, Refresh = refreshCustomizePanel },
+		{ Icon = "📊", Label = "Stats", Panel = statsPanel, Refresh = refreshStatsPanel },
+	}
+	for _, item in ipairs(mobileButtons) do
+		local mBtn = Instance.new("TextButton")
+		mBtn.Size = UDim2.new(0, 64, 0, 56)
+		mBtn.BackgroundColor3 = THEME.Card
+		mBtn.Text = item.Icon .. "\n" .. item.Label
+		mBtn.Font = Enum.Font.GothamBold
+		mBtn.TextSize = 11
+		mBtn.TextColor3 = THEME.Text
+		mBtn.Parent = mobileBar
+		corner(mBtn, 12)
+		styleFrame(mBtn, false)
+		if item.Panel then
+			local panel = item.Panel
+			local refreshFn = item.Refresh
+			mBtn.MouseButton1Click:Connect(function()
+				toggleMobilePanel(panel, refreshFn)
+			end)
+		end
+	end
+end
+
+
+
