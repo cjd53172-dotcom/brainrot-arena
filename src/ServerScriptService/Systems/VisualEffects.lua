@@ -259,13 +259,13 @@ function VisualEffects.BuildZonePortal(zoneId: string): Model
 	light.Brightness = 2
 	light.Parent = portal
 
-	-- Zone name sign
+	-- Zone name sign (large, readable from a distance).
 	local sign = Instance.new("Part")
-	sign.Size = Vector3.new(8, 2, 0.5)
+	sign.Size = Vector3.new(12, 3, 0.5)
 	sign.Anchored = true
-	sign.Color = Color3.fromRGB(60, 40, 20)
+	sign.Color = Color3.fromRGB(40, 30, 20)
 	sign.Material = Enum.Material.Wood
-	sign.Position = Vector3.new(0, 15, 0)
+	sign.Position = Vector3.new(0, 15.5, 0)
 	sign.Parent = model
 
 	local signGui = Instance.new("SurfaceGui")
@@ -276,9 +276,9 @@ function VisualEffects.BuildZonePortal(zoneId: string): Model
 	signLabel.BackgroundTransparency = 1
 	signLabel.Text = zone and zone.Name or "???"
 	signLabel.Font = Enum.Font.GothamBold
-	signLabel.TextSize = 24
-	signLabel.TextColor3 = Color3.new(1, 1, 1)
-	signLabel.TextStrokeTransparency = 0.5
+	signLabel.TextScaled = true -- auto-fit, always readable
+	signLabel.TextColor3 = Color3.new(1, 0.9, 0.3) -- gold text
+	signLabel.TextStrokeTransparency = 0.3
 	signLabel.Parent = signGui
 
 	model.PrimaryPart = portal

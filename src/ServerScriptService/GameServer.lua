@@ -471,9 +471,9 @@ end)
 
 -- Zone portals: physical entrances to expedition zones.
 -- Placed in a row near the expedition board. Walking through discovers the zone.
-local PORTAL_SPACING = 15
-local PORTAL_START_X = 120
-local PORTAL_Z = 40 -- north of plots (plots end at Z~64), near expedition board
+local PORTAL_SPACING = 18
+local PORTAL_START_X = 100
+local PORTAL_Z = 155 -- south of plots (plots end at Z~132), clear of colosseum
 for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	local portal = VisualEffects.BuildZonePortal(zoneId)
 	local x = PORTAL_START_X + (i - 1) * PORTAL_SPACING
@@ -975,6 +975,18 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 	-- Build model
 	local model = PlotSystem.BuildDisplayModel(def, false, nil)
+	-- Normalize size: wilds should be ~2.5 studs tall (smaller than player).
+	-- Some specs render oversized; clamp the height.
+	pcall(function()
+		local _, bbSize = model:GetBoundingBox()
+		if bbSize and bbSize.Y > 0 then
+			local targetH = 2.5
+			if bbSize.Y > 4 then -- only shrink if clearly oversized
+				local s = targetH / bbSize.Y
+				model:ScaleTo(s)
+			end
+		end
+	end)
 	VisualEffects.AddWildAura(model, wander.Rarity)
 
 	-- Ground position via raycast
