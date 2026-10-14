@@ -33,6 +33,7 @@ local SoundSystem = require(Systems:WaitForChild("SoundSystem"))
 local WeatherSystem = require(Systems:WaitForChild("WeatherSystem"))
 local AchievementSystem = require(Systems:WaitForChild("AchievementSystem"))
 local LeaderboardSystem = require(Systems:WaitForChild("LeaderboardSystem"))
+local WorldDesign = require(Systems:WaitForChild("WorldDesign"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- // RemoteEvents --------------------------------------------------------------
@@ -1324,6 +1325,11 @@ task.spawn(function()
 			)
 		end
 	end
+end)
+
+-- World beauty pass: plaza, paths, landscaping, ambient life, lighting.
+pcall(function()
+	WorldDesign.Setup()
 end)
 
 -- Day/night cycle: 10-minute full cycle for atmosphere.
