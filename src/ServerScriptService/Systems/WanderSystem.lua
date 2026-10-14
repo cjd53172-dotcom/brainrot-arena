@@ -51,16 +51,23 @@ local RARITY_CONFIG = {
 
 WanderSystem.MAX_WANDERERS = 8
 
--- Roll a rarity by weight.
-local function rollRarity(): string
+-- Roll a rarity by weight. luckMult boosts Rare+ weights.
+local function rollRarity(luckMult: number?): string
+	luckMult = luckMult or 1
+	local weights = {}
 	local total = 0
-	for _, cfg in pairs(RARITY_CONFIG) do
-		total += cfg.Weight
+	for rarity, cfg in pairs(RARITY_CONFIG) do
+		local w = cfg.Weight
+		if rarity ~= "Common" then
+			w *= luckMult
+		end
+		weights[rarity] = w
+		total += w
 	end
 	local roll = math.random() * total
 	local cumulative = 0
-	for rarity, cfg in pairs(RARITY_CONFIG) do
-		cumulative += cfg.Weight
+	for rarity, w in pairs(weights) do
+		cumulative += w
 		if roll <= cumulative then
 			return rarity
 		end
@@ -78,7 +85,8 @@ local function getWanderers(player: Player): { [string]: any }
 end
 
 -- Spawn a wild brainrot for a player. Returns wanderId or nil.
-function WanderSystem.SpawnWild(player: Player, plotSystem: any): string?
+-- luckMult: from Lucky Charm upgrade (boosts Rare+ odds).
+function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: number?): string?
 	local list = getWanderers(player)
 	-- Count active
 	local count = 0
@@ -87,7 +95,7 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any): string?
 		return nil
 	end
 
-	local rarity = rollRarity()
+	local rarity = rollRarity(luckMult)
 	local brainrotId = BrainrotData.GetRandomIdOfRarity(rarity)
 	if not brainrotId then return nil end
 

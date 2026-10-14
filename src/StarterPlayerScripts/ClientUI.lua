@@ -1134,6 +1134,18 @@ styleBtn.TextColor3 = Color3.fromRGB(220, 180, 255)
 styleBtn.Parent = gui
 corner(styleBtn, 10)
 
+-- Stats button
+local statsBtn = Instance.new("TextButton")
+statsBtn.Size = UDim2.new(0, 104, 0, 40)
+statsBtn.Position = UDim2.new(0.5, 284, 1, -64)
+statsBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 20)
+statsBtn.Text = "📊 Stats"
+statsBtn.Font = Enum.Font.GothamBold
+statsBtn.TextSize = 13
+statsBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
+statsBtn.Parent = gui
+corner(statsBtn, 10)
+
 -- Helper to make a panel
 local function makePanel(title: string, titleColor: Color3): (Frame, TextLabel)
 	local panel = Instance.new("ScrollingFrame")
@@ -1210,6 +1222,7 @@ local minePanel, _mineTitle = makePanel("⛏ Gold Mine — coins while you play"
 
 -- Customize Panel
 local customizePanel, _custTitle = makePanel("🎨 Customize Your Plot", Color3.fromRGB(220, 180, 255))
+local statsPanel, _statsTitle = makePanel("📊 Stat Upgrades", Color3.fromRGB(255, 200, 100))
 
 -- Button handlers
 exploreBtn.MouseButton1Click:Connect(function()
@@ -1236,6 +1249,14 @@ styleBtn.MouseButton1Click:Connect(function()
 	local was = customizePanel.Visible
 	hideAllPanels()
 	if not was then customizePanel.Visible = true end
+end)
+statsBtn.MouseButton1Click:Connect(function()
+	local was = statsPanel.Visible
+	hideAllPanels()
+	if not was then
+		statsPanel.Visible = true
+		refreshStatsPanel()
+	end
 end)
 
 -- Fishing button (second row, after Style)
@@ -1424,6 +1445,7 @@ local function hideAllPanels()
 	minePanel.Visible = false
 	customizePanel.Visible = false
 	fishingPanel.Visible = false
+	statsPanel.Visible = false
 end
 
 fusionBtn.MouseButton1Click:Connect(function()
@@ -1879,6 +1901,12 @@ collectionRemote.OnClientEvent:Connect(function(payload: any)
 	end
 	workingIds = payload.Working or {}
 	coinsLabel.Text = "Coins: " .. tostring(payload.Coins or 0)
+	if payload.Upgrades then
+		upgradeTiers = payload.Upgrades
+		if statsPanel.Visible then
+			refreshStatsPanel()
+		end
+	end
 	refreshButtons()
 	refreshCollectionPanel()
 	if editorPanel.Visible then
@@ -2238,6 +2266,69 @@ local function refreshMinePanel()
 		collectPassiveRemote:FireServer()
 	end)
 	makeLabel(minePanel, "Tip: stay in-game to keep earning. Bank caps at 2 hours.", 12, Color3.fromRGB(180, 180, 180), order)
+end
+
+-- Stat upgrade definitions (mirrors PlayerData.UPGRADE_DEFS)
+local STAT_DEFS = {
+	Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+2 movement speed per tier" },
+	Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+5 jump power per tier" },
+	Reach = { Name = "🧲 Catcher's Reach", MaxTier = 3, Costs = { 1000, 3000, 8000 }, Desc = "Bigger catch radius for wild brainrots" },
+	Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 2000, 6000, 15000 }, Desc = "Better odds for Rare+ wild spawns" },
+}
+
+-- Current upgrade tiers (synced from server via collection state)
+local upgradeTiers = { Speed = 0, Jump = 0, Reach = 0, Luck = 0 }
+
+local function refreshStatsPanel()
+	for _, c in ipairs(statsPanel:GetChildren()) do
+		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+			c:Destroy()
+		end
+	end
+	local order = 1
+	makeLabel(statsPanel, "Spend coins to boost your character!", 15, Color3.fromRGB(255, 200, 100), order)
+	order += 1
+
+	for _, statKey in ipairs({ "Speed", "Jump", "Reach", "Luck" }) do
+		local def = STAT_DEFS[statKey]
+		local tier = upgradeTiers[statKey] or 0
+		local isMax = tier >= def.MaxTier
+
+		local row = makeRow(statsPanel, order, 80)
+		order += 1
+
+		-- Tier pips
+		local pips = ""
+		for i = 1, def.MaxTier do
+			pips ..= if i <= tier then "●" else "○"
+		end
+
+		local info = makeLabel(row, def.Name .. "\n" .. def.Desc .. "\n" .. pips .. "  Tier " .. tostring(tier) .. "/" .. tostring(def.MaxTier), 13, Color3.new(1,1,1), 1)
+		info.Size = UDim2.new(0.65, 0, 1, 0)
+
+		if not isMax then
+			local cost = def.Costs[tier + 1]
+			local buyBtn = Instance.new("TextButton")
+			buyBtn.Size = UDim2.new(0.32, 0, 0, 44)
+			buyBtn.Position = UDim2.new(0.66, 0, 0.5, -22)
+			buyBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 50)
+			buyBtn.Text = "Buy\n" .. tostring(cost) .. " 🪙"
+			buyBtn.Font = Enum.Font.GothamBold
+			buyBtn.TextSize = 13
+			buyBtn.TextColor3 = Color3.new(1, 1, 1)
+			buyBtn.Parent = row
+			corner(buyBtn, 8)
+			buyBtn.MouseButton1Click:Connect(function()
+				remotes:WaitForChild("BuyUpgrade"):FireServer(statKey)
+				task.wait(0.3)
+				refreshStatsPanel()
+			end)
+		else
+			local maxLbl = makeLabel(row, "MAX", 14, Color3.fromRGB(255, 200, 100), 1)
+			maxLbl.Size = UDim2.new(0.32, 0, 1, 0)
+			maxLbl.Position = UDim2.new(0.66, 0, 0, 0)
+		end
+	end
 end
 
 local function refreshCustomizePanel()

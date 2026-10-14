@@ -36,7 +36,7 @@ local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
 remotes.Parent = ReplicatedStorage
 
-for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught" }) do
+for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", "BuyUpgrade" }) do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes
@@ -50,6 +50,7 @@ local function pushCollection(player: Player)
 			Showcase = data.Showcase,
 			Coins = data.Coins,
 			Working = PlayerData.GetWorkingIds(player),
+			Upgrades = data.Upgrades or { Speed = 0, Jump = 0, Reach = 0, Luck = 0 },
 		})
 	end
 end
@@ -993,10 +994,15 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	model:PivotTo(CFrame.new(spawnPos))
 	model.Parent = workspace
 
-	-- Make catchable via invisible hitbox (easier to touch than small models)
+	-- Make catchable via invisible hitbox (size scales with Reach upgrade)
+	local reachTier = PlayerData.GetUpgradeTier(player, "Reach")
+	local hitboxSize = 6
+	if reachTier > 0 then
+		hitboxSize = PlayerData.UPGRADE_DEFS.Reach.Values[reachTier]
+	end
 	local hitbox = Instance.new("Part")
 	hitbox.Name = "WildHitbox"
-	hitbox.Size = Vector3.new(6, 6, 6)
+	hitbox.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
 	hitbox.Transparency = 1
 	hitbox.CanCollide = false
 	hitbox.Anchored = true
@@ -1138,8 +1144,14 @@ task.spawn(function()
 						if roll < weight * overdue then
 							-- Force this rarity by temporarily overriding
 							-- (SpawnWild rolls internally, so we retry until we get it or give up)
+							-- Lucky Charm boost
+							local luckTier = PlayerData.GetUpgradeTier(player, 'Luck')
+							local luckMult = 1
+							if luckTier > 0 then
+								luckMult = PlayerData.UPGRADE_DEFS.Luck.Values[luckTier]
+							end
 							for attempt = 1, 5 do
-								local wanderId = WanderSystem.SpawnWild(player, PlotSystem)
+								local wanderId = WanderSystem.SpawnWild(player, PlotSystem, luckMult)
 								if wanderId then
 									local wander = WanderSystem.GetWanderer(player, wanderId)
 									if wander and wander.Rarity == rarity then
@@ -1180,6 +1192,25 @@ task.spawn(function()
 			end
 		end
 	end
+end)
+
+-- Stat upgrade purchase
+remotes:WaitForChild("BuyUpgrade").OnServerEvent:Connect(function(player: Player, stat: any)
+	local statName = tostring(stat)
+	local success, msg = PlayerData.BuyUpgrade(player, statName)
+	if success then
+		PlayerData.ApplyStats(player)
+		pushCollection(player) -- refresh coin display
+	end
+	remotes:WaitForChild("ShowHint"):FireClient(player, msg)
+end)
+
+-- Apply stats on spawn
+Players.PlayerAdded:Connect(function(player: Player)
+	player.CharacterAdded:Connect(function()
+		task.wait(0.5) -- let character load
+		PlayerData.ApplyStats(player)
+	end)
 end)
 
 -- Cleanup on leave
