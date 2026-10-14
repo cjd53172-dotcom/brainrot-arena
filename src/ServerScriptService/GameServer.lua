@@ -1369,3 +1369,21 @@ task.spawn(function()
 end)
 
 print("[Brainrot Arena] Server online — milestone 1 prototype.")
+
+-- Admin: chat "/wipebrainrots" to clear your caught brainrots (testing).
+game:GetService("Players").PlayerAdded:Connect(function(player: Player)
+	player.Chatted:Connect(function(msg: string)
+		if msg:lower() == "/wipebrainrots" then
+			local data = PlayerData.Get(player)
+			if data then
+				data.Brainrots = {}
+				data.Showcase = {}
+				PlayerData.Save(player)
+				pushCollection(player)
+				PlotSystem.RefreshPlot(player)
+				remotes:WaitForChild("ShowHint"):FireClient(player, "Brainrot inventory wiped!")
+				print("[Admin] Wiped brainrots for " .. player.Name)
+			end
+		end
+	end)
+end)
