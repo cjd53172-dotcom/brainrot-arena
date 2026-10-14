@@ -2593,5 +2593,237 @@ if isMobile then
 	end
 end
 
+-- // Sound playback ---------------------------------------------------------------
+local soundRemote = remotes:WaitForChild("PlaySound")
+local activeSounds = {}
 
+soundRemote.OnClientEvent:Connect(function(soundName: string, position: Vector3?)
+	-- Simple sound player (IDs should match SoundSystem.SOUNDS)
+	-- For now, play a generic click; full IDs configured in SoundSystem
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://3926305904" -- default click
+	sound.Volume = 0.5
+	if position then
+		-- 3D positioned sound
+		local part = Instance.new("Part")
+		part.Anchored = true
+		part.CanCollide = false
+		part.Transparency = 1
+		part.Position = position
+		part.Parent = workspace
+		sound.Parent = part
+		sound:Play()
+		task.delay(3, function()
+			if part and part.Parent then part:Destroy() end
+		end)
+	else
+		sound.Parent = gui
+		sound:Play()
+		task.delay(2, function()
+			if sound and sound.Parent then sound:Destroy() end
+		end)
+	end
+end)
 
+-- // Background music ---------------------------------------------------------------
+local musicTracks = {
+	"rbxassetid://1837879082",
+	"rbxassetid://1837464237",
+}
+local currentTrack = 1
+local musicSound = Instance.new("Sound")
+musicSound.Name = "BackgroundMusic"
+musicSound.SoundId = musicTracks[1]
+musicSound.Volume = 0.25
+musicSound.Looped = false
+musicSound.Parent = gui
+
+local function playNextTrack()
+	currentTrack = currentTrack % #musicTracks + 1
+	musicSound.SoundId = musicTracks[currentTrack]
+	musicSound:Play()
+end
+
+musicSound.Ended:Connect(playNextTrack)
+task.delay(2, function()
+	pcall(function() musicSound:Play() end)
+end)
+
+-- // Weather display ---------------------------------------------------------------
+local weatherRemote = remotes:WaitForChild("WeatherUpdate")
+local weatherLabel = Instance.new("TextLabel")
+weatherLabel.Name = "WeatherDisplay"
+weatherLabel.Size = if isMobile then UDim2.new(0, 120, 0, 36) else UDim2.new(0, 180, 0, 40)
+weatherLabel.Position = if isMobile then UDim2.new(1, -128, 0, 8) else UDim2.new(1, -196, 0, 16)
+weatherLabel.BackgroundColor3 = THEME.Panel
+weatherLabel.BackgroundTransparency = 0.15
+weatherLabel.Text = "☀️ Clear"
+weatherLabel.Font = Enum.Font.GothamBold
+weatherLabel.TextSize = 14
+weatherLabel.TextColor3 = THEME.Text
+weatherLabel.Parent = gui
+corner(weatherLabel, 10)
+styleFrame(weatherLabel, false)
+
+weatherRemote.OnClientEvent:Connect(function(info: any)
+	local weather = info.Current or "Clear"
+	local icon = if weather == "Rain" then "🌧️"
+		elseif weather == "Storm" then "⛈️"
+		elseif weather == "Fog" then "🌫️"
+		else "☀️"
+	weatherLabel.Text = icon .. " " .. weather
+
+	-- Client-side rain particles
+	if weather == "Rain" or weather == "Storm" then
+		-- Simple rain effect via particles on camera
+		pcall(function()
+			local rain = Instance.new("ParticleEmitter")
+			rain.Name = "RainEffect"
+			rain.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+			rain.Color = ColorSequence.new(Color3.fromRGB(150, 180, 220))
+			rain.Size = NumberSequence.new(0.3)
+			rain.Speed = NumberRange.new(30, 40)
+			rain.Lifetime = NumberRange.new(0.5, 0.8)
+			rain.Rate = if weather == "Storm" then 200 else 100
+			rain.EmissionDirection = Enum.NormalId.Bottom
+			-- Attach to a part above camera
+			local camPart = workspace:FindFirstChild("RainEmitter")
+			if not camPart then
+				camPart = Instance.new("Part")
+				camPart.Name = "RainEmitter"
+				camPart.Anchored = true
+				camPart.CanCollide = false
+				camPart.Transparency = 1
+				camPart.Size = Vector3.new(60, 1, 60)
+				camPart.Parent = workspace
+			end
+			-- Clear old
+			for _, child in ipairs(camPart:GetChildren()) do
+				if child:IsA("ParticleEmitter") then child:Destroy() end
+			end
+			rain.Parent = camPart
+			-- Follow camera
+			task.spawn(function()
+				while rain and rain.Parent do
+					local cam = workspace.CurrentCamera
+					if cam then
+						camPart.Position = cam.CFrame.Position + Vector3.new(0, 20, 0)
+					end
+					task.wait(0.5)
+				end
+			end)
+		end)
+	else
+		-- Clear rain
+		pcall(function()
+			local camPart = workspace:FindFirstChild("RainEmitter")
+			if camPart then
+				for _, child in ipairs(camPart:GetChildren()) do
+					if child:IsA("ParticleEmitter") then child:Destroy() end
+				end
+			end
+		end)
+	end
+end)
+
+-- // Achievement popup ---------------------------------------------------------------
+local achRemote = remotes:WaitForChild("AchievementUnlocked")
+achRemote.OnClientEvent:Connect(function(data: any)
+	-- Popup banner
+	local popup = Instance.new("Frame")
+	popup.Size = UDim2.new(0, 320, 0, 80)
+	popup.Position = UDim2.new(0.5, -160, 0, -90)
+	popup.BackgroundColor3 = Color3.fromRGB(40, 35, 20)
+	popup.BorderSizePixel = 0
+	popup.Parent = gui
+	corner(popup, 12)
+	styleFrame(popup, true)
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -20, 0, 30)
+	title.Position = UDim2.new(0, 10, 0, 8)
+	title.BackgroundTransparency = 1
+	title.Text = "🏆 " .. (data.Name or "Achievement!")
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 16
+	title.TextColor3 = Color3.fromRGB(255, 210, 100)
+	title.Parent = popup
+
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(1, -20, 0, 30)
+	desc.Position = UDim2.new(0, 10, 0, 40)
+	desc.BackgroundTransparency = 1
+	desc.Text = data.Desc or ""
+	desc.Font = Enum.Font.Gotham
+	desc.TextSize = 13
+	desc.TextColor3 = THEME.Text
+	desc.TextWrapped = true
+	desc.Parent = popup
+
+	-- Slide down, pause, slide up
+	popup:TweenPosition(UDim2.new(0.5, -160, 0, 20), Enum.EasingDirection.Out, Enum.EasingStyle.Back, 0.5, true)
+	task.wait(3)
+	popup:TweenPosition(UDim2.new(0.5, -160, 0, -90), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.5, true)
+	task.wait(0.6)
+	if popup and popup.Parent then popup:Destroy() end
+end)
+
+-- // Leaderboard panel ---------------------------------------------------------------
+local leaderboardPanel, _lbTitle = makePanel("🏆 Battle Wins Leaderboard", Color3.fromRGB(255, 210, 100))
+local lbRemote = remotes:WaitForChild("LeaderboardUpdate")
+
+local function refreshLeaderboard(data: any)
+	for _, c in ipairs(leaderboardPanel:GetChildren()) do
+		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+			c:Destroy()
+		end
+	end
+	local order = 1
+
+	if data.MyWins then
+		makeLabel(leaderboardPanel, "Your wins: " .. tostring(data.MyWins), 15, Color3.fromRGB(255, 210, 100), order)
+		order += 1
+	end
+
+	makeLabel(leaderboardPanel, "Top Battlers:", 15, THEME.Text, order)
+	order += 1
+
+	local top = data.Top or {}
+	if #top == 0 then
+		makeLabel(leaderboardPanel, "No battles recorded yet. Be the first!", 14, THEME.TextDim, order)
+	else
+		for i, entry in ipairs(top) do
+			local medal = if i == 1 then "🥇" elseif i == 2 then "🥈" elseif i == 3 then "🥉" else tostring(i) .. "."
+			local row = makeRow(leaderboardPanel, order, 40)
+			order += 1
+			makeLabel(row, medal .. " " .. (entry.Name or "?") .. " - " .. tostring(entry.Wins) .. " wins", 14, THEME.Text, 1)
+		end
+	end
+end
+
+lbRemote.OnClientEvent:Connect(function(data: any)
+	refreshLeaderboard(data)
+	if not leaderboardPanel.Visible then
+		hideAllPanels()
+		leaderboardPanel.Visible = true
+	end
+end)
+
+-- Add leaderboard button to mobile bar (if mobile)
+-- (Desktop: add to button row)
+if not isMobile then
+	local lbBtn = Instance.new("TextButton")
+	lbBtn.Size = UDim2.new(0, 104, 0, 40)
+	lbBtn.Position = UDim2.new(0.5, 284, 1, -160)
+	lbBtn.BackgroundColor3 = Color3.fromRGB(60, 50, 20)
+	lbBtn.Text = "🏆 Ranks"
+	lbBtn.Font = Enum.Font.GothamBold
+	lbBtn.TextSize = 13
+	lbBtn.TextColor3 = Color3.fromRGB(255, 210, 100)
+	lbBtn.Parent = gui
+	corner(lbBtn, 10)
+	styleFrame(lbBtn, false)
+	lbBtn.MouseButton1Click:Connect(function()
+		lbRemote:FireServer()
+	end)
+end

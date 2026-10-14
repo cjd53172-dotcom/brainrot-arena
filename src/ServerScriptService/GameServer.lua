@@ -29,6 +29,10 @@ local EggSystem = require(Systems:WaitForChild("EggSystem"))
 local VisualEffects = require(Systems:WaitForChild("VisualEffects"))
 local FishingSystem = require(Systems:WaitForChild("FishingSystem"))
 local WanderSystem = require(Systems:WaitForChild("WanderSystem"))
+local SoundSystem = require(Systems:WaitForChild("SoundSystem"))
+local WeatherSystem = require(Systems:WaitForChild("WeatherSystem"))
+local AchievementSystem = require(Systems:WaitForChild("AchievementSystem"))
+local LeaderboardSystem = require(Systems:WaitForChild("LeaderboardSystem"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- // RemoteEvents --------------------------------------------------------------
@@ -36,7 +40,8 @@ local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
 remotes.Parent = ReplicatedStorage
 
-for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", "BuyUpgrade" }) do
+for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", "BuyUpgrade",
+		"PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate" }) do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes
@@ -285,6 +290,18 @@ remotes:WaitForChild("SubmitMoves").OnServerEvent:Connect(function(player: Playe
 		State = BattleSystem.GetClientState(player),
 	}
 	if result.winner == "player" then
+		-- Leaderboard + achievements
+		LeaderboardSystem.RecordWin(player)
+		SoundSystem.PlayForPlayer(player, "BattleWin")
+		local newAch = AchievementSystem.RecordProgress(player, "battles_won", 1)
+		for _, achId in ipairs(newAch) do
+			local def = AchievementSystem.DEFS[achId]
+			if def then
+				remotes:WaitForChild("AchievementUnlocked"):FireClient(player, {
+					Name = def.Name, Desc = def.Desc,
+				})
+			end
+		end
 		local battle = BattleSystem.GetBattle(player)
 		local rival = battle and BrainrotData.GetRival(battle.rivalId) or nil
 		if rival then
@@ -1019,6 +1036,36 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			local result = WanderSystem.Catch(p, wanderId)
 			if result and result.Success then
 				VisualEffects.PlayWildCatch(spawnPos, wander.Rarity)
+				SoundSystem.PlayForPlayer(p, "Catch" .. wander.Rarity)
+				-- Achievements
+				local newAch = AchievementSystem.RecordProgress(p, "wild_caught", 1)
+				if wander.Rarity == "Rare" then
+					for _, id in ipairs(AchievementSystem.RecordProgress(p, "rare_caught", 1)) do
+						table.insert(newAch, id)
+					end
+				elseif wander.Rarity == "Epic" then
+					for _, id in ipairs(AchievementSystem.RecordProgress(p, "epic_caught", 1)) do
+						table.insert(newAch, id)
+					end
+				elseif wander.Rarity == "Legendary" then
+					for _, id in ipairs(AchievementSystem.RecordProgress(p, "legendary_caught", 1)) do
+						table.insert(newAch, id)
+					end
+				end
+				if result.Shiny then
+					for _, id in ipairs(AchievementSystem.RecordProgress(p, "shinies", 1)) do
+						table.insert(newAch, id)
+					end
+				end
+				for _, achId in ipairs(newAch) do
+					local def = AchievementSystem.DEFS[achId]
+					if def then
+						remotes:WaitForChild("AchievementUnlocked"):FireClient(p, {
+							Name = def.Name, Desc = def.Desc,
+						})
+						SoundSystem.PlayForPlayer(p, "Achievement")
+					end
+				end
 				remotes:WaitForChild("WildCaught"):FireClient(p, result)
 				remotes:WaitForChild("ShowHint"):FireClient(p,
 					"Caught: " .. result.BrainrotName .. " (" .. result.Rarity .. ")!" ..
@@ -1205,6 +1252,16 @@ remotes:WaitForChild("BuyUpgrade").OnServerEvent:Connect(function(player: Player
 	remotes:WaitForChild("ShowHint"):FireClient(player, msg)
 end)
 
+-- Leaderboard request
+remotes:WaitForChild("LeaderboardUpdate").OnServerEvent:Connect(function(player: Player)
+	local top = LeaderboardSystem.GetTop(10)
+	local myStats = LeaderboardSystem.GetPlayerRank(player)
+	remotes:WaitForChild("LeaderboardUpdate"):FireClient(player, {
+		Top = top,
+		MyWins = myStats.Wins,
+	})
+end)
+
 -- Apply stats on spawn
 Players.PlayerAdded:Connect(function(player: Player)
 	player.CharacterAdded:Connect(function()
@@ -1227,6 +1284,45 @@ Players.PlayerRemoving:Connect(function(player: Player)
 			if beam and beam.Parent then beam:Destroy() end
 		end
 		wanderBeams[player.UserId] = nil
+	end
+end)
+
+-- // Weather system ---------------------------------------------------------------
+local function applyWeatherVisuals(weather: string)
+	local lighting = game:GetService("Lighting")
+	if weather == "Rain" then
+		lighting.ClockTime = 14
+		lighting.Brightness = 1.5
+		-- Rain particles handled client-side via WeatherUpdate
+	elseif weather == "Storm" then
+		lighting.ClockTime = 16
+		lighting.Brightness = 1
+	elseif weather == "Fog" then
+		lighting.FogEnd = 200
+		lighting.FogStart = 50
+	else -- Clear
+		lighting.FogEnd = 100000
+		lighting.FogStart = 0
+		lighting.Brightness = 2
+	end
+	-- Notify all clients
+	remotes:WaitForChild("WeatherUpdate"):FireAllClients(WeatherSystem.GetInfo())
+end
+
+-- Weather tick (check every 30s)
+task.spawn(function()
+	while true do
+		task.wait(30)
+		local newWeather = WeatherSystem.Tick()
+		if newWeather then
+			applyWeatherVisuals(newWeather)
+			remotes:WaitForChild("ShowHint"):FireAllClients(
+				if newWeather == "Rain" then "🌧️ Rain! Water-types more common!"
+				elseif newWeather == "Storm" then "⛈️ Storm! Electric-types more common!"
+				elseif newWeather == "Fog" then "🌫️ Fog rolling in... Ghost-types more common!"
+				else "☀️ Clear skies!"
+			)
+		end
 	end
 end)
 
