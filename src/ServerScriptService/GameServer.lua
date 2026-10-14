@@ -37,15 +37,22 @@ local WorldDesign = require(Systems:WaitForChild("WorldDesign"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- // RemoteEvents --------------------------------------------------------------
-local remotes = Instance.new("Folder")
-remotes.Name = "Remotes"
-remotes.Parent = ReplicatedStorage
+-- Idempotent: reuse a Remotes folder saved in the place file instead of
+-- stacking a duplicate on every server start.
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if not remotes then
+	remotes = Instance.new("Folder")
+	remotes.Name = "Remotes"
+	remotes.Parent = ReplicatedStorage
+end
 
 for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", "BuyUpgrade",
 		"PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate" }) do
-	local r = Instance.new("RemoteEvent")
-	r.Name = name
-	r.Parent = remotes
+	if not remotes:FindFirstChild(name) then
+		local r = Instance.new("RemoteEvent")
+		r.Name = name
+		r.Parent = remotes
+	end
 end
 
 local function pushCollection(player: Player)
@@ -479,9 +486,17 @@ prompt.MaxActivationDistance = 12
 prompt.Parent = board
 
 prompt.Triggered:Connect(function(player: Player)
-	local quest, _ = QuestSystem.GetActiveQuest(player)
+	local quest, questId = QuestSystem.GetActiveQuest(player)
 	if quest then
-		remotes:WaitForChild("ShowHint"):FireClient(player, quest.Name .. ": " .. quest.Description)
+		-- Diagnostic (2026-10-14): line 484 threw "attempt to call a nil value".
+		-- FindFirstChild + explicit checks so the output names the culprit.
+		local showHint = remotes and remotes:FindFirstChild("ShowHint")
+		if showHint and showHint:IsA("RemoteEvent") then
+			showHint:FireClient(player, tostring(quest.Name) .. ": " .. tostring(quest.Description))
+		else
+			warn(("[GameServer] QuestBoard: ShowHint remote missing (remotes=%s, showHint=%s, questId=%s)"):format(
+				typeof(remotes), showHint and showHint.ClassName or "nil", tostring(questId)))
+		end
 	else
 		remotes:WaitForChild("ShowHint"):FireClient(player, "No active quests. More adventures coming soon!")
 	end
