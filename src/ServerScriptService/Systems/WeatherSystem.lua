@@ -13,7 +13,7 @@ local WeatherSystem = {}
 
 export type WeatherType = "Clear" | "Rain" | "Storm" | "Fog"
 
-WeatherSystem.Current: WeatherType = "Clear"
+WeatherSystem.Current = "Clear" :: WeatherType
 WeatherSystem.NextChange = os.time() + 300 -- 5 min
 
 -- Type bonuses per weather

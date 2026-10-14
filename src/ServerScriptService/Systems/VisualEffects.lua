@@ -403,11 +403,11 @@ function VisualEffects.ApplyTheme(plot: Model, themeId: string)
 
 	local base = plot:FindFirstChild("Base")
 	if not base or not base:IsA("BasePart") then return end
-	local bp = (base :: BasePart).Position
-	local bs = (base :: BasePart).Size
+	local bp = base.Position
+	local bs = base.Size
 
 	-- Base color
-	(base :: BasePart).Color = theme.Color;
+	base.Color = theme.Color
 
 	if themeId == "crystal" then
 		-- Glass shards + blue lighting
@@ -435,7 +435,7 @@ function VisualEffects.ApplyTheme(plot: Model, themeId: string)
 
 	elseif themeId == "volcanic" then
 		-- Lava cracks + ember particles
-		(base :: BasePart).Material = Enum.Material.CrackedLava
+		base.Material = Enum.Material.CrackedLava
 		for i = 1, 5 do
 			local ember = Instance.new("ParticleEmitter")
 			ember.Texture = "rbxasset://textures/particles/fire_main.dds"
@@ -456,8 +456,8 @@ function VisualEffects.ApplyTheme(plot: Model, themeId: string)
 
 	elseif themeId == "ocean" then
 		-- Water ripples + blue fog
-		(base :: BasePart).Material = Enum.Material.Water
-		(base :: BasePart).Transparency = 0.2
+		base.Material = Enum.Material.Water
+		base.Transparency = 0.2
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(50, 130, 180)
 		light.Range = 25
@@ -467,7 +467,7 @@ function VisualEffects.ApplyTheme(plot: Model, themeId: string)
 
 	elseif themeId == "shadow" then
 		-- Dark fog + purple wisps
-		(base :: BasePart).Color = Color3.fromRGB(40, 40, 60)
+		base.Color = Color3.fromRGB(40, 40, 60)
 		local fog = Instance.new("ParticleEmitter")
 		fog.Texture = "rbxasset://textures/particles/smoke_main.dds"
 		fog.Color = ColorSequence.new(Color3.fromRGB(60, 40, 90))
