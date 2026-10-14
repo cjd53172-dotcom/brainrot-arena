@@ -768,30 +768,6 @@ BrainrotData.ROSTER = {
 		},
 	},
 	{
-		Id = "bananita",
-		Name = "Bananita Dolfinita",
-		Type = "Water",
-		Rarity = "Common",
-		HP = 55, Attack = 55, Defense = 50, Speed = 65,
-		Description = "A banana crossed with a dolphin. Slippery, sweet, and surprisingly fast.",
-		Display = {
-			Shape = "Ball",
-			Color = Color3.fromRGB(250, 225, 70),
-			Size = Vector3.new(2.6, 2.4, 3.8),
-			Face = true,
-			Extras = {
-				{ Name = "Dorsal", Shape = "Wedge", Color = Color3.fromRGB(230, 200, 50), Size = Vector3.new(1.0, 1.2, 0.4), Offset = Vector3.new(0, 1.6, -0.4) },
-				{ Name = "FlukeL", Shape = "Wedge", Color = Color3.fromRGB(230, 200, 50), Size = Vector3.new(1.0, 0.5, 0.8), Offset = Vector3.new(-0.6, 0, -2.2) },
-				{ Name = "FlukeR", Shape = "Wedge", Color = Color3.fromRGB(230, 200, 50), Size = Vector3.new(1.0, 0.5, 0.8), Offset = Vector3.new(0.6, 0, -2.2) },
-				{ Name = "Beak", Shape = "Wedge", Color = Color3.fromRGB(240, 215, 60), Size = Vector3.new(0.7, 0.5, 0.9), Offset = Vector3.new(0, -0.1, 2.1) },
-			},
-		},
-		Moves = {
-			{ Name = "Peel Torpedo", Type = "Water", Power = 45, Accuracy = 100, Description = "A banana with a propulsion system." },
-			{ Name = "Dolphin Dive", Type = "Water", Power = 60, Accuracy = 90,  Description = "From the waves, with potassium." },
-		},
-	},
-	{
 		Id = "cacto",
 		Name = "Il Cacto Ippopotamo",
 		Type = "Wood",
@@ -1150,32 +1126,6 @@ BrainrotData.ROSTER = {
 		Moves = {
 			{ Name = "Rind Wrecker",     Type = "Wood", Power = 70, Accuracy = 95, Description = "The rind is the weapon." },
 			{ Name = "Jungle King Slam", Type = "Wood", Power = 85, Accuracy = 90, Description = "All hail. Then, slam." },
-		},
-	},
-	{
-		Id = "gangster",
-		Name = "Gangster Footera",
-		Type = "Shadow",
-		Rarity = "Epic",
-		HP = 82, Attack = 90, Defense = 68, Speed = 80,
-		Description = "A gangster from the foot clan. Fuhgeddaboudit.",
-		Display = {
-			Shape = "Block",
-			Color = Color3.fromRGB(130, 85, 50),
-			Size = Vector3.new(2.4, 2.0, 3.6),
-			Face = "angry",
-			Extras = {
-				{ Name = "Fedora", Shape = "Cylinder", Color = Color3.fromRGB(50, 50, 55), Size = Vector3.new(1.8, 0.7, 1.8), Offset = Vector3.new(0, 1.4, -0.3) },
-				{ Name = "Brim", Shape = "Cylinder", Color = Color3.fromRGB(45, 45, 50), Size = Vector3.new(2.6, 0.2, 2.6), Offset = Vector3.new(0, 1.05, -0.3) },
-				{ Name = "Chain", Shape = "Block", Color = Color3.fromRGB(250, 200, 80), Size = Vector3.new(1.6, 0.25, 0.15), Offset = Vector3.new(0, 0.2, 1.85) },
-				{ Name = "Lace1", Shape = "Block", Color = Color3.fromRGB(240, 240, 240), Size = Vector3.new(1.2, 0.12, 0.25), Offset = Vector3.new(0, 1.02, 0.6) },
-				{ Name = "Lace2", Shape = "Block", Color = Color3.fromRGB(240, 240, 240), Size = Vector3.new(1.2, 0.12, 0.25), Offset = Vector3.new(0, 1.02, 1.1) },
-				{ Name = "Sole", Shape = "Block", Color = Color3.fromRGB(60, 40, 25), Size = Vector3.new(2.5, 0.3, 3.7), Offset = Vector3.new(0, -1.1, 0) },
-			},
-		},
-		Moves = {
-			{ Name = "Back-Alley Beatdown", Type = "Shadow", Power = 70, Accuracy = 95, Description = "Meet me behind the pizzeria." },
-			{ Name = "Midnight Deal",       Type = "Shadow", Power = 85, Accuracy = 90, Description = "An offer you can't refuse. Or survive." },
 		},
 	},
 	{
