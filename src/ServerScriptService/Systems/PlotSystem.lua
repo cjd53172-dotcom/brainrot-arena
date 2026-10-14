@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 local PlayerData = require(script.Parent:WaitForChild("PlayerData"))
+local VisualEffects = require(script.Parent:WaitForChild("VisualEffects"))
 
 local PlotSystem = {}
 
@@ -1025,6 +1026,10 @@ function PlotSystem.TeleportToPlot(player: Player)
 	end)
 end
 
+function PlotSystem.GetPlot(player: Player): Model?
+	return playerPlots[player.UserId]
+end
+
 function PlotSystem.ReleasePlot(player: Player)
 	local plot = playerPlots[player.UserId]
 	if plot then
@@ -1487,19 +1492,13 @@ function PlotSystem.RefreshPlot(player: Player)
 	PlotSystem.ApplyCustomization(player, plot)
 end
 
--- Apply theme color to plot base and place owned decorations.
+-- Apply theme and decorations using high-quality visuals.
 function PlotSystem.ApplyCustomization(player: Player, plot: Model)
 	local data = PlayerData.Get(player)
 	if not data then return end
 
-	-- Theme color on base
-	local theme = BrainrotData.PLOT_THEMES[data.PlotTheme or "default"]
-	if theme then
-		local base = plot:FindFirstChild("Base")
-		if base and base:IsA("BasePart") then
-			(base :: BasePart).Color = theme.Color
-		end
-	end
+	-- Full theme visual overhaul
+	VisualEffects.ApplyTheme(plot, data.PlotTheme or "default")
 
 	-- Clear old decorations
 	local oldDeco = plot:FindFirstChild("Decorations")
@@ -1513,72 +1512,161 @@ function PlotSystem.ApplyCustomization(player: Player, plot: Model)
 	local bp = (base :: BasePart).Position
 	local bs = (base :: BasePart).Size
 
-	-- Place decorations at plot corners
+	-- Place detailed decorations at plot corners
 	local decoSpots = {
-		Vector3.new(bp.X - bs.X/2 + 3, bp.Y, bp.Z - bs.Z/2 + 3),
-		Vector3.new(bp.X + bs.X/2 - 3, bp.Y, bp.Z - bs.Z/2 + 3),
-		Vector3.new(bp.X - bs.X/2 + 3, bp.Y, bp.Z + bs.Z/2 - 3),
-		Vector3.new(bp.X + bs.X/2 - 3, bp.Y, bp.Z + bs.Z/2 - 3),
+		Vector3.new(bp.X - bs.X/2 + 4, bp.Y, bp.Z - bs.Z/2 + 4),
+		Vector3.new(bp.X + bs.X/2 - 4, bp.Y, bp.Z - bs.Z/2 + 4),
+		Vector3.new(bp.X - bs.X/2 + 4, bp.Y, bp.Z + bs.Z/2 - 4),
+		Vector3.new(bp.X + bs.X/2 - 4, bp.Y, bp.Z + bs.Z/2 - 4),
 	}
 	local spotIdx = 1
 	for decoId, _ in pairs(data.Decorations or {}) do
 		if spotIdx > #decoSpots then break end
 		local pos = decoSpots[spotIdx]
 		spotIdx += 1
-		local part = Instance.new("Part")
-		part.Name = "Deco_" .. decoId
-		part.Anchored = true
-		part.CanCollide = false
-		-- Simple visuals per decoration type
-		if decoId == "banner" then
-			part.Size = Vector3.new(2, 6, 0.5)
-			part.Color = Color3.fromRGB(200, 50, 50)
-			part.Position = pos + Vector3.new(0, 3, 0)
-		elseif decoId == "fountain" then
-			part.Size = Vector3.new(4, 2, 4)
-			part.Shape = Enum.PartType.Cylinder
-			part.Color = Color3.fromRGB(100, 180, 230)
-			part.Position = pos + Vector3.new(0, 1, 0)
-		elseif decoId == "torch" then
-			part.Size = Vector.new(1, 4, 1)
-			part.Color = Color3.fromRGB(120, 70, 30)
-			part.Position = pos + Vector3.new(0, 2, 0)
-			-- Flame
-			local fire = Instance.new("Fire")
-			fire.Size = 5
-			fire.Parent = part
-		elseif decoId == "crystal_deco" then
-			part.Size = Vector3.new(2, 3, 2)
-			part.Color = Color3.fromRGB(150, 200, 255)
-			part.Material = Enum.Material.Glass
-			part.Position = pos + Vector3.new(0, 1.5, 0)
-		elseif decoId == "statue" then
-			part.Size = Vector3.new(2, 5, 2)
-			part.Color = Color3.fromRGB(255, 200, 60)
-			part.Material = Enum.Material.Metal
-			part.Position = pos + Vector3.new(0, 2.5, 0)
-		else
-			part.Size = Vector3.new(2, 2, 2)
-			part.Color = Color3.fromRGB(150, 150, 150)
-			part.Position = pos + Vector3.new(0, 1, 0)
-		end
-		part.Parent = decoFolder
+		local decoModel = VisualEffects.BuildDecoration(decoId)
+		decoModel:PivotTo(CFrame.new(pos))
+		decoModel.Parent = decoFolder
 	end
 
-	-- Gold mine visual (always present, shows level)
-	local mine = Instance.new("Part")
-	mine.Name = "GoldMine"
-	mine.Size = Vector3.new(4, 3, 4)
-	mine.Color = Color3.fromRGB(180, 140, 50)
-	mine.Material = Enum.Material.Metal
-	mine.Anchored = true
-	mine.Position = Vector3.new(bp.X + bs.X/2 - 5, bp.Y + 1.5, bp.Z + bs.Z/2 - 5)
-	mine.Parent = decoFolder
-	-- Sparkles for higher levels
-	if (data.GoldMineLevel or 1) >= 2 then
-		local sparkles = Instance.new("Sparkles")
-		sparkles.SparkleColor = Color3.fromRGB(255, 220, 100)
-		sparkles.Parent = mine
+	-- Detailed gold mine (replaces old simple box)
+	local oldMine = decoFolder:FindFirstChild("GoldMine")
+	if oldMine then oldMine:Destroy() end
+	local mineModel = VisualEffects.BuildGoldMine(data.GoldMineLevel or 1)
+	mineModel:PivotTo(CFrame.new(Vector3.new(bp.X + bs.X/2 - 8, bp.Y, bp.Z + bs.Z/2 - 8)))
+	mineModel.Parent = decoFolder
+end
+
+-- Show 3D eggs for incubating eggs on the plot.
+function PlotSystem.RefreshEggs(player: Player)
+	local plot = playerPlots[player.UserId]
+	if not plot then return end
+	local data = PlayerData.Get(player)
+	if not data then return end
+
+	local oldEggs = plot:FindFirstChild("Eggs")
+	if oldEggs then oldEggs:Destroy() end
+	local eggFolder = Instance.new("Folder")
+	eggFolder.Name = "Eggs"
+	eggFolder.Parent = plot
+
+	local base = plot:FindFirstChild("Base")
+	if not base or not base:IsA("BasePart") then return end
+	local bp = (base :: BasePart).Position
+	local bs = (base :: BasePart).Size
+
+	-- Egg spots along the front edge
+	local idx = 0
+	for eggId, egg in pairs(data.Eggs or {}) do
+		idx += 1
+		if idx > 5 then break end -- max 5 visual eggs
+		local eggModel = VisualEffects.BuildEgg(egg.Tier)
+		local x = bp.X - bs.X/2 + 5 + (idx - 1) * 6
+		local z = bp.Z - bs.Z/2 + 5
+		eggModel:PivotTo(CFrame.new(Vector3.new(x, bp.Y + 2.5, z)))
+		eggModel.Parent = eggFolder
+		-- Store eggId for hatching reference
+		eggModel:SetAttribute("EggId", eggId)
+	end
+end
+
+-- Play hatching animation for an egg, then spawn the brainrot.
+function PlotSystem.PlayHatch(player: Player, eggId: string, brainrotDef: any)
+	local plot = playerPlots[player.UserId]
+	if not plot then return end
+	local eggFolder = plot:FindFirstChild("Eggs")
+	if not eggFolder then return end
+
+	for _, eggModel in ipairs(eggFolder:GetChildren()) do
+		if eggModel:GetAttribute("EggId") == eggId and eggModel:IsA("Model") then
+			VisualEffects.PlayHatch(eggModel, function()
+				-- Spawn the hatched brainrot with a scale-in
+				if brainrotDef then
+					local display = PlotSystem.BuildDisplayModel(brainrotDef, false, nil)
+					local base = plot:FindFirstChild("Base")
+					if base and base:IsA("BasePart") then
+						local bp = (base :: BasePart).Position
+						display:PivotTo(CFrame.new(bp + Vector3.new(0, 5, 0)))
+						display.Parent = plot
+						-- Scale in
+						for _, desc in ipairs(display:GetDescendants()) do
+							if desc:IsA("BasePart") then
+								desc.Transparency = 1
+							end
+						end
+						for i = 1, 10 do
+							for _, desc in ipairs(display:GetDescendants()) do
+								if desc:IsA("BasePart") then
+									desc.Transparency = 1 - (i / 10)
+								end
+							end
+							task.wait(0.05)
+						end
+						task.delay(3, function()
+							if display and display.Parent then
+								display:Destroy()
+							end
+							PlotSystem.RefreshPlot(player)
+						end)
+					end
+				end
+			end)
+			break
+		end
+	end
+end
+
+-- Spawn 3D material pickups on the plot. Touch to collect (visual; grant already done).
+function PlotSystem.SpawnMaterialPickups(player: Player, materials: { [string]: number })
+	local plot = playerPlots[player.UserId]
+	if not plot then return end
+	local base = plot:FindFirstChild("Base")
+	if not base or not base:IsA("BasePart") then return end
+	local bp = (base :: BasePart).Position
+	local bs = (base :: BasePart).Size
+
+	local pickupsFolder = plot:FindFirstChild("MaterialPickups")
+	if not pickupsFolder then
+		pickupsFolder = Instance.new("Folder")
+		pickupsFolder.Name = "MaterialPickups"
+		pickupsFolder.Parent = plot
+	end
+
+	for matName, count in pairs(materials) do
+		for i = 1, math.min(count, 5) do
+			local matModel = VisualEffects.BuildMaterial(matName)
+			local x = bp.X + (math.random() - 0.5) * bs.X * 0.7
+			local z = bp.Z + (math.random() - 0.5) * bs.Z * 0.7
+			matModel:PivotTo(CFrame.new(Vector3.new(x, bp.Y + 2, z)))
+			matModel.Parent = pickupsFolder
+
+			local part = matModel.PrimaryPart
+			if part and part:IsA("BasePart") then
+				(part :: BasePart).Touched:Connect(function(hit: BasePart)
+					local char = hit and hit.Parent
+					local p = char and game:GetService("Players"):GetPlayerFromCharacter(char)
+					if p == player then
+						local burst = Instance.new("ParticleEmitter")
+						burst.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+						burst.Color = ColorSequence.new(Color3.fromRGB(255, 255, 200))
+						burst.Size = NumberSequence.new(0.8)
+						burst.Speed = NumberRange.new(5, 10)
+						burst.Lifetime = NumberRange.new(0.3, 0.6)
+						burst.Rate = 50
+						burst.Parent = part
+						task.wait(0.2)
+						if matModel and matModel.Parent then
+							matModel:Destroy()
+						end
+					end
+				end)
+			end
+			task.delay(60, function()
+				if matModel and matModel.Parent then
+					matModel:Destroy()
+				end
+			end)
+		end
 	end
 end
 

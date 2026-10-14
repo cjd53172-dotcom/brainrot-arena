@@ -26,6 +26,7 @@ local BattleSystem = require(Systems:WaitForChild("BattleSystem"))
 local ExpeditionSystem = require(Systems:WaitForChild("ExpeditionSystem"))
 local DailyQuestSystem = require(Systems:WaitForChild("DailyQuestSystem"))
 local EggSystem = require(Systems:WaitForChild("EggSystem"))
+local VisualEffects = require(Systems:WaitForChild("VisualEffects"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- // RemoteEvents --------------------------------------------------------------
@@ -521,6 +522,41 @@ expPrompt.Triggered:Connect(function(player: Player)
 	remotes:WaitForChild("ShowHint"):FireClient(player, "Open the Explore menu to send expeditions!")
 end)
 
+-- Zone portals: physical entrances to expedition zones.
+-- Placed in a row near the expedition board. Walking through discovers the zone.
+local PORTAL_SPACING = 15
+local PORTAL_START_X = 150
+for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
+	local portal = VisualEffects.BuildZonePortal(zoneId)
+	local x = PORTAL_START_X + (i - 1) * PORTAL_SPACING
+	pcall(function()
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		local r = workspace:Raycast(Vector3.new(x, 500, 80), Vector3.new(0, -1000, 0), params)
+		if r then
+			portal:PivotTo(CFrame.new(Vector3.new(x, r.Position.Y, 80)))
+		else
+			portal:PivotTo(CFrame.new(Vector3.new(x, 16, 80)))
+		end
+	end)
+	portal.Parent = workspace
+
+	-- Discovery trigger: touching the portal unlocks the zone
+	local surface = portal:FindFirstChild("PortalSurface")
+	if surface and surface:IsA("BasePart") then
+		(surface :: BasePart).Touched:Connect(function(hit: BasePart)
+			local char = hit and hit.Parent
+			local player = char and game:GetService("Players"):GetPlayerFromCharacter(char)
+			if player then
+				if ExpeditionSystem.UnlockZone(player, zoneId) then
+					pushExpeditionState(player)
+				end
+			end
+		end)
+	end
+end
+
 -- // Player wiring ----------------------------------------------------------------
 local function sendInitialState(player: Player)
 	local data = PlayerData.Get(player)
@@ -557,6 +593,29 @@ remotes:WaitForChild("StartExpedition").OnServerEvent:Connect(function(player: P
 	if ok then
 		pushExpeditionState(player)
 		pushCollection(player)
+		-- Departure animation: team walks off toward the zone
+		task.spawn(function()
+			local plot = PlotSystem.GetPlot(player)
+			if plot then
+				local base = plot:FindFirstChild("Base")
+				if base and base:IsA("BasePart") then
+					local bp = (base :: BasePart).Position
+					local models = {}
+					for i, instanceId in ipairs(teamIds) do
+						local inst = PlayerData.GetInstance(player, instanceId)
+						local def = inst and BrainrotData.GetBrainrot(inst.BrainrotId)
+						if def then
+							local m = PlotSystem.BuildDisplayModel(def, inst.Shiny == true, inst.Variant)
+							m:PivotTo(CFrame.new(bp + Vector3.new((i - 2) * 4, 3, 0)))
+							m.Parent = workspace
+							table.insert(models, m)
+						end
+					end
+					-- Walk toward expedition board direction (east)
+					VisualEffects.PlayDeparture(models, Vector3.new(1, 0, 0.3))
+				end
+			end
+		end)
 	else
 		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not start expedition")
 	end
@@ -585,6 +644,7 @@ remotes:WaitForChild("ClaimDailyEgg").OnServerEvent:Connect(function(player: Pla
 	if ok then
 		pushDailyState(player)
 		if pushEggStateFn then pushEggStateFn(player) end
+		PlotSystem.RefreshEggs(player)
 		remotes:WaitForChild("ShowHint"):FireClient(player, "Mystery egg added to incubator!")
 	else
 		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not claim egg")
@@ -684,6 +744,7 @@ local function onPlayerAdded(player: Player)
 		pushExpeditionState(player)
 		pushEggState(player)
 		pushCustomizeState(player)
+		PlotSystem.RefreshEggs(player)
 	end)
 end
 
@@ -725,8 +786,10 @@ task.spawn(function()
 				pushCollection(p)
 				for _, r in ipairs(results) do
 					remotes:WaitForChild("ShowHint"):FireClient(p,
-						"Expedition complete! +" .. tostring(r.Coins) .. " coins, materials gathered")
+						"Expedition complete! Materials scattered on your plot!")
 					DailyQuestSystem.RecordProgress(p, "expedition_complete", 1)
+					-- Spawn 3D material pickups on plot (collect by touching)
+					PlotSystem.SpawnMaterialPickups(p, r.Materials)
 				end
 				pushDailyState(p)
 			elseif next(data.Expeditions) ~= nil then
@@ -737,9 +800,13 @@ task.spawn(function()
 			if #hatched > 0 then
 				pushEggState(p)
 				pushCollection(p)
+				PlotSystem.RefreshEggs(p)
 				for _, h in ipairs(hatched) do
 					remotes:WaitForChild("ShowHint"):FireClient(p,
 						"Egg hatched: " .. h.BrainrotName .. " (" .. h.Rarity .. ")!")
+					-- Play 3D hatching animation
+					local def = BrainrotData.GetBrainrot(h.BrainrotId)
+					-- Note: eggId not in hatch result, refresh eggs instead
 				end
 				pushDailyState(p)
 			elseif next(data.Eggs) ~= nil then
