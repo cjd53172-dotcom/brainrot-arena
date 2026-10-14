@@ -397,14 +397,14 @@ local function spawnOrb(pos: Vector3)
 	orb.Material = Enum.Material.Neon
 	-- CYAN (not gold): gold reads as "firefly". Cyan = pickup, unmistakable.
 	orb.Color = Color3.fromRGB(0, 210, 255)
-	-- Lift to terrain surface so orbs aren't buried.
+	-- Ground on the TRUE standing surface (hand-built parts count, not just Terrain).
 	pcall(function()
 		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Include
-		params.FilterDescendantsInstances = { workspace.Terrain }
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { orbsFolder }
 		local r = workspace:Raycast(Vector3.new(pos.X, 500, pos.Z), Vector3.new(0, -1000, 0), params)
 		if r then
-			orb.Position = Vector3.new(pos.X, r.Position.Y + 3, pos.Z)
+			orb.Position = Vector3.new(pos.X, r.Position.Y + 2.5, pos.Z)
 		end
 	end)
 	orb.Parent = orbsFolder
@@ -427,13 +427,10 @@ local function spawnOrb(pos: Vector3)
 	end)
 
 	local debounce = false
-	orb.Touched:Connect(function(hit: BasePart)
+	local prompt: ProximityPrompt
+
+	local function collect(player: Player)
 		if debounce then
-			return
-		end
-		local character = hit.Parent
-		local player = character and Players:GetPlayerFromCharacter(character)
-		if not player then
 			return
 		end
 		local data = PlayerData.Get(player)
@@ -453,10 +450,30 @@ local function spawnOrb(pos: Vector3)
 
 		orb.Transparency = 1
 		orb.CanTouch = false
+		prompt.Enabled = false
 		task.wait(ORB_RESPAWN_SECONDS)
 		orb.Transparency = 0
 		orb.CanTouch = true
+		prompt.Enabled = true
 		debounce = false
+	end
+
+	-- ProximityPrompt: reliable collect even if touch physics miss.
+	prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Collect"
+	prompt.ObjectText = "Brainrot Orb"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = orb
+	prompt.Triggered:Connect(collect)
+
+	orb.Touched:Connect(function(hit: BasePart)
+		local character = hit.Parent
+		local player = character and Players:GetPlayerFromCharacter(character)
+		if player then
+			collect(player)
+		end
 	end)
 end
 
