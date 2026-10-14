@@ -472,7 +472,8 @@ end)
 -- Zone portals: physical entrances to expedition zones.
 -- Placed in a row near the expedition board. Walking through discovers the zone.
 local PORTAL_SPACING = 15
-local PORTAL_START_X = 150
+local PORTAL_START_X = 120
+local PORTAL_Z = 40 -- north of plots (plots end at Z~64), near expedition board
 for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	local portal = VisualEffects.BuildZonePortal(zoneId)
 	local x = PORTAL_START_X + (i - 1) * PORTAL_SPACING
@@ -480,11 +481,11 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Include
 		params.FilterDescendantsInstances = { workspace.Terrain }
-		local r = workspace:Raycast(Vector3.new(x, 500, 80), Vector3.new(0, -1000, 0), params)
+		local r = workspace:Raycast(Vector3.new(x, 500, PORTAL_Z), Vector3.new(0, -1000, 0), params)
 		if r then
-			portal:PivotTo(CFrame.new(Vector3.new(x, r.Position.Y, 80)))
+			portal:PivotTo(CFrame.new(Vector3.new(x, r.Position.Y, PORTAL_Z)))
 		else
-			portal:PivotTo(CFrame.new(Vector3.new(x, 16, 80)))
+			portal:PivotTo(CFrame.new(Vector3.new(x, 16, PORTAL_Z)))
 		end
 	end)
 	portal.Parent = workspace
@@ -1009,6 +1010,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 					(if result.Shiny then " ✨ SHINY!" else ""))
 				pushCollection(p)
 				PlotSystem.RefreshPlot(p)
+				QuestSystem.CheckObjective(p, "brainrots")
 			end
 			-- Cleanup
 			if wanderModels[player.UserId] then

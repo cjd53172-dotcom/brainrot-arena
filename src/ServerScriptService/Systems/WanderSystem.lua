@@ -102,9 +102,12 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 	local wanderId = "wild_" .. tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
 	local cfg = RARITY_CONFIG[rarity]
 
-	-- Spawn position: random around gameplay area
-	local cx = 127 + (math.random() - 0.5) * 120
-	local cz = 98 + (math.random() - 0.5) * 120
+	-- Spawn position: ring OUTSIDE the plot cluster (plots span ~±50).
+	-- Ring: 70-130 studs from gameplay center, so wilds roam the world, not the plots.
+	local angle = math.random() * math.pi * 2
+	local dist = 70 + math.random() * 60
+	local cx = 127 + math.cos(angle) * dist
+	local cz = 98 + math.sin(angle) * dist
 
 	list[wanderId] = {
 		BrainrotId = brainrotId,
