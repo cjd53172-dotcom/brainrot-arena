@@ -1294,6 +1294,9 @@ function BrainrotData.GetById(id: string)
 	return byId[id]
 end
 
+-- Alias: much of the codebase calls this GetBrainrot.
+BrainrotData.GetBrainrot = BrainrotData.GetById
+
 function BrainrotData.GetStarterId(): string
 	return "tung_sahur"
 end
