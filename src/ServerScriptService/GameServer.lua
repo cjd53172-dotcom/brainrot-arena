@@ -607,19 +607,18 @@ local function pushFishingState(player: Player, state: string, reward: any?)
 	})
 end
 
--- Track bobbers per player for bite animation
-local playerBobbers: { [number]: BasePart } = {}
+-- Track fishing gear per player for bite/catch animation
+local playerFishingGear: { [number]: any } = {}
 
 remotes:WaitForChild("CastLine").OnServerEvent:Connect(function(player: Player, spotId: any)
 	if type(spotId) ~= "string" then return end
 	local biteDelay = FishingSystem.Cast(player, spotId)
 	if biteDelay then
-		-- Visual: cast bobber from player toward water
+		-- Visual: rod + bobber with line
 		local char = player.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		if hrp then
 			local fromPos = (hrp :: BasePart).Position + Vector3.new(0, 3, 0)
-			-- Find the dock
 			local dockPos = fromPos + Vector3.new(0, 0, 10)
 			for _, spot in ipairs(fishingSpots) do
 				if spot.Id == spotId then
@@ -630,17 +629,17 @@ remotes:WaitForChild("CastLine").OnServerEvent:Connect(function(player: Player, 
 					break
 				end
 			end
-			local bobber = VisualEffects.CastBobber(fromPos, dockPos)
-			playerBobbers[player.UserId] = bobber
+			local gear = VisualEffects.CastBobber(player, fromPos, dockPos)
+			playerFishingGear[player.UserId] = gear
 		end
 		pushFishingState(player, "Waiting")
 		-- Schedule bite notification
 		task.delay(biteDelay, function()
 			local state = FishingSystem.CheckBite(player)
 			if state == "Bite" then
-				local bobber = playerBobbers[player.UserId]
-				if bobber then
-					VisualEffects.PlayBite(bobber)
+				local gear = playerFishingGear[player.UserId]
+				if gear and gear.Bobber then
+					VisualEffects.PlayBite(gear.Bobber)
 				end
 				pushFishingState(player, "Bite")
 			end
@@ -650,11 +649,13 @@ remotes:WaitForChild("CastLine").OnServerEvent:Connect(function(player: Player, 
 			local state = FishingSystem.GetState(player)
 			if state == "Missed" then
 				pushFishingState(player, "Missed")
-				local bobber = playerBobbers[player.UserId]
-				if bobber and bobber.Parent then
-					bobber:Destroy()
+				local gear = playerFishingGear[player.UserId]
+				if gear then
+					if gear.Bobber and gear.Bobber.Parent then gear.Bobber:Destroy() end
+					if gear.Stripe and gear.Stripe.Parent then gear.Stripe:Destroy() end
+					if gear.Rod and gear.Rod.Parent then gear.Rod:Destroy() end
 				end
-				playerBobbers[player.UserId] = nil
+				playerFishingGear[player.UserId] = nil
 				FishingSystem.Cancel(player)
 			end
 		end)
@@ -664,15 +665,37 @@ end)
 remotes:WaitForChild("ReelIn").OnServerEvent:Connect(function(player: Player, quality: any)
 	local q = tonumber(quality) or 0.5
 	local reward = FishingSystem.Reel(player, q)
-	-- Cleanup bobber
-	local bobber = playerBobbers[player.UserId]
-	if bobber and bobber.Parent then
+	-- Cleanup gear, play catch
+	local gear = playerFishingGear[player.UserId]
+	if gear and gear.Bobber and gear.Bobber.Parent then
+		local bobberPos = gear.Bobber.Position
 		if reward and reward.Kind ~= "Miss" then
-			VisualEffects.PlayCatch(bobber.Position, reward.Kind)
+			VisualEffects.PlayCatch(bobberPos, reward.Kind)
+			-- Spawn 3D fish model for fish/brainrot catches
+			if reward.Kind == "Fish" or reward.Kind == "Brainrot" then
+				local fish = VisualEffects.BuildFish(reward.Kind == "Brainrot")
+				fish:PivotTo(CFrame.new(bobberPos + Vector3.new(0, 1, 0)))
+				fish.Parent = workspace
+				-- Fish jumps and flops
+				task.spawn(function()
+					for i = 1, 15 do
+						if not fish or not fish.Parent then break end
+						local t = i / 15
+						fish:PivotTo(CFrame.new(
+							bobberPos + Vector3.new(0, 1 + math.sin(t * math.pi) * 4, 0)
+						) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
+						task.wait(0.05)
+					end
+					task.wait(1)
+					if fish and fish.Parent then fish:Destroy() end
+				end)
+			end
 		end
-		bobber:Destroy()
+		gear.Bobber:Destroy()
+		if gear.Stripe and gear.Stripe.Parent then gear.Stripe:Destroy() end
+		if gear.Rod and gear.Rod.Parent then gear.Rod:Destroy() end
 	end
-	playerBobbers[player.UserId] = nil
+	playerFishingGear[player.UserId] = nil
 	if reward then
 		pushFishingState(player, "None", reward)
 		pushCollection(player)
@@ -685,11 +708,12 @@ end)
 -- Cancel fishing if player leaves
 Players.PlayerRemoving:Connect(function(player: Player)
 	FishingSystem.Cancel(player)
-	local bobber = playerBobbers[player.UserId]
-	if bobber and bobber.Parent then
-		bobber:Destroy()
+	local gear = playerFishingGear[player.UserId]
+	if gear then
+		if gear.Bobber and gear.Bobber.Parent then gear.Bobber:Destroy() end
+		if gear.Rod and gear.Rod.Parent then gear.Rod:Destroy() end
 	end
-	playerBobbers[player.UserId] = nil
+	playerFishingGear[player.UserId] = nil
 end)
 
 -- // Player wiring ----------------------------------------------------------------

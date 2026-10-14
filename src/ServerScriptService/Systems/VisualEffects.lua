@@ -1135,22 +1135,22 @@ function VisualEffects.BuildFishingSpot(): Model
 	local model = Instance.new("Model")
 	model.Name = "FishingSpot"
 
-	-- Dock planks
-	for i = 1, 5 do
+	-- Dock planks (wider)
+	for i = 1, 6 do
 		local plank = Instance.new("Part")
-		plank.Size = Vector3.new(3, 0.4, 1.2)
+		plank.Size = Vector3.new(4, 0.4, 1.2)
 		plank.Color = Color3.fromRGB(110, 75, 40)
-		plank.Material = Enum.Material.Wood
+		plank.Material = Enum.Material.WoodPlanks
 		plank.Anchored = true
-		plank.Position = Vector3.new(0, 1, (i - 3) * 1.3)
+		plank.Position = Vector3.new(0, 1, (i - 3.5) * 1.3)
 		plank.Parent = model
 	end
 
-	-- Posts
-	for _, x in ipairs({ -1.2, 1.2 }) do
-		for _, z in ipairs({ -2.5, 2.5 }) do
+	-- Support posts
+	for _, x in ipairs({ -1.7, 1.7 }) do
+		for _, z in ipairs({ -3.5, 3.5 }) do
 			local post = Instance.new("Part")
-			post.Size = Vector3.new(0.5, 3, 0.5)
+			post.Size = Vector3.new(0.6, 4, 0.6)
 			post.Color = Color3.fromRGB(80, 55, 30)
 			post.Material = Enum.Material.Wood
 			post.Anchored = true
@@ -1159,13 +1159,83 @@ function VisualEffects.BuildFishingSpot(): Model
 		end
 	end
 
+	-- Railings (back and sides, open front for casting)
+	for _, x in ipairs({ -1.8, 1.8 }) do
+		-- Side rails
+		local rail = Instance.new("Part")
+		rail.Size = Vector3.new(0.25, 0.25, 7)
+		rail.Color = Color3.fromRGB(90, 60, 35)
+		rail.Material = Enum.Material.Wood
+		rail.Anchored = true
+		rail.Position = Vector3.new(x, 2.5, 0)
+		rail.Parent = model
+		-- Rail posts
+		for _, z in ipairs({ -3, 0, 3 }) do
+			local rpost = Instance.new("Part")
+			rpost.Size = Vector3.new(0.25, 1.8, 0.25)
+			rpost.Color = Color3.fromRGB(90, 60, 35)
+			rpost.Anchored = true
+			rpost.Position = Vector3.new(x, 1.8, z)
+			rpost.Parent = model
+		end
+	end
+	-- Back rail
+	local backRail = Instance.new("Part")
+	backRail.Size = Vector3.new(4, 0.25, 0.25)
+	backRail.Color = Color3.fromRGB(90, 60, 35)
+	backRail.Anchored = true
+	backRail.Position = Vector3.new(0, 2.5, -3.5)
+	backRail.Parent = model
+
+	-- Lantern on post
+	local lampPost = Instance.new("Part")
+	lampPost.Size = Vector3.new(0.4, 4, 0.4)
+	lampPost.Color = Color3.fromRGB(70, 70, 80)
+	lampPost.Material = Enum.Material.Metal
+	lampPost.Anchored = true
+	lampPost.Position = Vector3.new(-1.8, 3, -3.2)
+	lampPost.Parent = model
+
+	local lamp = Instance.new("Part")
+	lamp.Size = Vector3.new(0.8, 1, 0.8)
+	lamp.Color = Color3.fromRGB(255, 200, 100)
+	lamp.Material = Enum.Material.Neon
+	lamp.Anchored = true
+	lamp.Position = Vector3.new(-1.8, 5.2, -3.2)
+	lamp.Parent = model
+
+	local lampLight = Instance.new("PointLight")
+	lampLight.Color = Color3.fromRGB(255, 190, 100)
+	lampLight.Range = 12
+	lampLight.Brightness = 1.5
+	lampLight.Parent = lamp
+
+	-- Bucket
+	local bucket = Instance.new("Part")
+	bucket.Size = Vector3.new(1, 1.2, 1)
+	bucket.Shape = Enum.PartType.Cylinder
+	bucket.Color = Color3.fromRGB(120, 120, 130)
+	bucket.Material = Enum.Material.Metal
+	bucket.Anchored = true
+	bucket.Position = Vector3.new(1.2, 1.7, 2.5)
+	bucket.Parent = model
+
+	-- Crate with fish
+	local crate = Instance.new("Part")
+	crate.Size = Vector3.new(1.5, 1.5, 1.5)
+	crate.Color = Color3.fromRGB(130, 90, 50)
+	crate.Material = Enum.Material.WoodPlanks
+	crate.Anchored = true
+	crate.Position = Vector3.new(-1.2, 1.9, 2.8)
+	crate.Parent = model
+
 	-- Sign
 	local sign = Instance.new("Part")
 	sign.Size = Vector3.new(4, 2, 0.4)
 	sign.Color = Color3.fromRGB(60, 40, 20)
 	sign.Material = Enum.Material.Wood
 	sign.Anchored = true
-	sign.Position = Vector3.new(0, 4, -3)
+	sign.Position = Vector3.new(0, 4.5, -3.8)
 	sign.Parent = model
 
 	local signGui = Instance.new("SurfaceGui")
@@ -1174,49 +1244,130 @@ function VisualEffects.BuildFishingSpot(): Model
 	local signLabel = Instance.new("TextLabel")
 	signLabel.Size = UDim2.new(1, 0, 1, 0)
 	signLabel.BackgroundTransparency = 1
-	signLabel.Text = "🎣 FISHING"
+	signLabel.Text = "🎣 FISHING\nCast from the dock!"
 	signLabel.Font = Enum.Font.GothamBold
-	signLabel.TextSize = 28
+	signLabel.TextSize = 22
 	signLabel.TextColor3 = Color3.new(1, 1, 1)
 	signLabel.TextStrokeTransparency = 0.5
 	signLabel.Parent = signGui
 
-	-- Water ripples (animated)
+	-- Water (larger, animated waves)
 	local water = Instance.new("Part")
 	water.Name = "Water"
-	water.Size = Vector3.new(12, 0.5, 12)
+	water.Size = Vector3.new(20, 0.5, 16)
 	water.Color = Color3.fromRGB(50, 130, 180)
 	water.Material = Enum.Material.Water
-	water.Transparency = 0.3
+	water.Transparency = 0.25
 	water.Anchored = true
 	water.CanCollide = false
-	water.Position = Vector3.new(0, 0.2, 6)
+	water.Position = Vector3.new(0, 0.2, 10)
 	water.Parent = model
+
+	-- Animated wave particles
+	local waves = Instance.new("ParticleEmitter")
+	waves.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	waves.Color = ColorSequence.new(Color3.fromRGB(150, 210, 255))
+	waves.Size = NumberSequence.new(0.5)
+	waves.Transparency = NumberSequence.new(0.7)
+	waves.Speed = NumberRange.new(1, 2)
+	waves.Lifetime = NumberRange.new(2, 3)
+	waves.Rate = 8
+	waves.Parent = water
 
 	return model
 end
 
--- Cast animation: bobber flies out with a line.
--- Returns the bobber part for bite animation.
-function VisualEffects.CastBobber(fromPos: Vector3, toPos: Vector3): BasePart
+-- Cast animation: rod appears in hand, bobber flies out with a visible line.
+-- Returns { Bobber, Rod, Line } for bite/catch animation.
+function VisualEffects.CastBobber(player: Player, fromPos: Vector3, toPos: Vector3): any
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+	-- Fishing rod (held diagonally)
+	local rod = Instance.new("Part")
+	rod.Name = "FishingRod"
+	rod.Size = Vector3.new(0.25, 7, 0.25)
+	rod.Color = Color3.fromRGB(110, 75, 40)
+	rod.Material = Enum.Material.Wood
+	rod.Anchored = true
+	rod.CanCollide = false
+	rod.Parent = workspace
+
+	-- Rod handle (grip)
+	local grip = Instance.new("Part")
+	grip.Size = Vector3.new(0.35, 1.5, 0.35)
+	grip.Color = Color3.fromRGB(60, 40, 25)
+	grip.Material = Enum.Material.Wood
+	grip.Anchored = true
+	grip.CanCollide = false
+	grip.Parent = rod
+
+	-- Reel
+	local reel = Instance.new("Part")
+	reel.Size = Vector3.new(0.6, 0.6, 0.4)
+	reel.Shape = Enum.PartType.Cylinder
+	reel.Color = Color3.fromRGB(180, 180, 190)
+	reel.Material = Enum.Material.Metal
+	reel.Anchored = true
+	reel.CanCollide = false
+	reel.Parent = rod
+
+	-- Position rod in player's hand area (diagonal)
+	if hrp then
+		local hrpPos = (hrp :: BasePart).Position
+		local lookDir = (hrp :: BasePart).CFrame.LookVector
+		local rodBase = hrpPos + Vector3.new(0, 2, 0) + lookDir * 1.5
+		-- Angle toward cast direction
+		local toDir = (toPos - rodBase).Unit
+		rod.CFrame = CFrame.new(rodBase + Vector3.new(0, 2, 0), rodBase + toDir * 5 + Vector3.new(0, 3, 0))
+		-- Grip at base
+		grip.CFrame = rod.CFrame * CFrame.new(0, -2.8, 0)
+		reel.CFrame = rod.CFrame * CFrame.new(0.3, -2, 0)
+	end
+	local rodTip = rod.CFrame * CFrame.new(0, 3.5, 0)
+
+	-- Detailed bobber: striped with glow tip
 	local bobber = Instance.new("Part")
 	bobber.Name = "Bobber"
-	bobber.Size = Vector3.new(0.8, 1.2, 0.8)
+	bobber.Size = Vector3.new(0.9, 1.4, 0.9)
 	bobber.Shape = Enum.PartType.Ball
-	bobber.Color = Color3.fromRGB(255, 50, 50)
+	bobber.Color = Color3.fromRGB(255, 60, 60)
 	bobber.Anchored = true
 	bobber.CanCollide = false
 	bobber.Position = fromPos
 	bobber.Parent = workspace
 
-	-- White top
-	local top = Instance.new("Part")
-	top.Size = Vector3.new(0.85, 0.4, 0.85)
-	top.Shape = Enum.PartType.Ball
-	top.Color = Color3.fromRGB(255, 255, 255)
-	top.Anchored = true
-	top.CanCollide = false
-	top.Parent = bobber
+	-- White stripe
+	local stripe = Instance.new("Part")
+	stripe.Size = Vector3.new(0.95, 0.45, 0.95)
+	stripe.Shape = Enum.PartType.Ball
+	stripe.Color = Color3.fromRGB(255, 255, 255)
+	stripe.Anchored = true
+	stripe.CanCollide = false
+	stripe.Parent = bobber
+
+	-- Glow tip (for night visibility)
+	local tipLight = Instance.new("PointLight")
+	tipLight.Color = Color3.fromRGB(255, 100, 100)
+	tipLight.Range = 6
+	tipLight.Brightness = 1.5
+	tipLight.Parent = bobber
+
+	-- Fishing line (Beam from rod tip to bobber)
+	local line = Instance.new("Beam")
+	line.Color = ColorSequence.new(Color3.fromRGB(220, 220, 220))
+	line.Transparency = NumberSequence.new(0.2)
+	line.Width0 = 0.05
+	line.Width1 = 0.05
+	-- Attachments
+	local att0 = Instance.new("Attachment")
+	att0.Position = Vector3.new(0, 3.5, 0)
+	att0.Parent = rod
+	local att1 = Instance.new("Attachment")
+	att1.Parent = bobber
+	line.Attachment0 = att0
+	line.Attachment1 = att1
+	line.Parent = rod
 
 	-- Animate arc
 	task.spawn(function()
@@ -1225,17 +1376,15 @@ function VisualEffects.CastBobber(fromPos: Vector3, toPos: Vector3): BasePart
 			if not bobber or not bobber.Parent then break end
 			local t = i / steps
 			local pos = fromPos:Lerp(toPos, t)
-			-- Arc height
 			pos += Vector3.new(0, math.sin(t * math.pi) * 8, 0)
 			bobber.Position = pos
-			top.Position = pos + Vector3.new(0, 0.4, 0)
+			stripe.Position = pos
 			task.wait(0.05)
 		end
-		-- Splash on landing
 		VisualEffects.PlaySplash(toPos)
 	end)
 
-	return bobber
+	return { Bobber = bobber, Rod = rod, Line = line, Stripe = stripe }
 end
 
 -- Bite animation: bobber dips and shakes.
@@ -1338,6 +1487,70 @@ function VisualEffects.PlayCatch(pos: Vector3, rewardKind: string)
 	task.delay(0.8, function()
 		if anchor and anchor.Parent then anchor:Destroy() end
 	end)
+end
+
+-- Build a 3D fish model for catch visualization.
+-- golden=true for brainrot catches (special gold fish).
+function VisualEffects.BuildFish(golden: boolean): Model
+	local model = Instance.new("Model")
+	model.Name = "CaughtFish"
+
+	local color = golden and Color3.fromRGB(255, 200, 60) or Color3.fromRGB(100, 150, 200)
+
+	-- Body
+	local body = Instance.new("Part")
+	body.Size = Vector3.new(1.2, 0.8, 2.5)
+	body.Shape = Enum.PartType.Ball
+	body.Color = color
+	body.Material = if golden then Enum.Material.Metal else Enum.Material.SmoothPlastic
+	body.Anchored = true
+	body.CanCollide = false
+	body.Parent = model
+
+	-- Tail
+	local tail = Instance.new("Part")
+	tail.Size = Vector3.new(0.2, 1, 1)
+	tail.Color = color
+	tail.Anchored = true
+	tail.CanCollide = false
+	tail.Position = body.Position - Vector3.new(0, 0, 1.5)
+	tail.Rotation = Vector3.new(0, 0, 30)
+	tail.Parent = model
+
+	-- Dorsal fin
+	local fin = Instance.new("Part")
+	fin.Size = Vector3.new(0.2, 0.8, 1)
+	fin.Color = color
+	fin.Anchored = true
+	fin.CanCollide = false
+	fin.Position = body.Position + Vector3.new(0, 0.6, 0)
+	fin.Parent = model
+
+	-- Eyes
+	for _, x in ipairs({ -0.3, 0.3 }) do
+		local eye = Instance.new("Part")
+		eye.Size = Vector3.new(0.25, 0.25, 0.2)
+		eye.Shape = Enum.PartType.Ball
+		eye.Color = Color3.fromRGB(20, 20, 20)
+		eye.Anchored = true
+		eye.CanCollide = false
+		eye.Position = body.Position + Vector3.new(x, 0.2, 1.1)
+		eye.Parent = model
+	end
+
+	if golden then
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = Color3.fromRGB(255, 220, 120)
+		sparkles.Parent = body
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 200, 80)
+		light.Range = 8
+		light.Brightness = 1.5
+		light.Parent = body
+	end
+
+	model.PrimaryPart = body
+	return model
 end
 
 return VisualEffects
