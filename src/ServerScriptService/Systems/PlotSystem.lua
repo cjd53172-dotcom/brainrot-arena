@@ -561,6 +561,20 @@ function PlotSystem.Setup()
 	liftModel(arena, groundY(0 + WORLD_DX, -70 + WORLD_DZ))
 	PlotSystem.ArenaPrompt = arenaPrompt
 
+	-- Colosseum walls around the arena (visual upgrade)
+	local arenaCenter = Vector3.new(0 + WORLD_DX, 2, -70 + WORLD_DZ)
+	pcall(function()
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		local r = workspace:Raycast(Vector3.new(0 + WORLD_DX, 500, -70 + WORLD_DZ), Vector3.new(0, -1000, 0), params)
+		if r then
+			arenaCenter = Vector3.new(0 + WORLD_DX, r.Position.Y + 1, -70 + WORLD_DZ)
+		end
+	end)
+	local colosseum = VisualEffects.BuildColosseum(arenaCenter)
+	colosseum.Parent = plaza
+
 	-- // Terrain: procedural generation DISABLED ------------------------------------
 	-- The game now runs in a hand-built world (pretty place). Procedural terrain
 	-- would pave over it, so this whole block is skipped. Set to true only if

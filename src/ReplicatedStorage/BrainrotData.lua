@@ -1569,6 +1569,10 @@ BrainrotData.PLOT_DECORATIONS = {
 	torch =    { Name = "Ember Torch", Cost = 500, Materials = { ["Ember Crystal"] = 2 } },
 	crystal_deco = { Name = "Crystal Cluster", Cost = 500, Materials = { ["Prism Shard"] = 2 } },
 	statue =   { Name = "Golden Statue", Cost = 2000, Materials = { ["Sunken Gold"] = 5 } },
+	garden =   { Name = "Flower Garden", Cost = 400, Materials = { Timber = 5, ["Glowcap"] = 2 } },
+	flags =    { Name = "Pennant Flags", Cost = 350, Materials = { ["Cloud Cotton"] = 5 } },
+	lantern =  { Name = "Spirit Lantern", Cost = 600, Materials = { ["Echo Stone"] = 2 } },
+	golem =    { Name = "Stone Golem", Cost = 1500, Materials = { ["Dark Stone"] = 10, ["Obsidian"] = 2 } },
 }
 
 return BrainrotData

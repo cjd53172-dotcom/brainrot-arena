@@ -162,6 +162,21 @@ remotes:WaitForChild("FuseBrainrots").OnServerEvent:Connect(function(player: Pla
 			InventoryFull = err == "full",
 			Coins = 0,
 		})
+		-- 3D fusion celebration at player position
+		task.spawn(function()
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if hrp and instance then
+				local def = BrainrotData.GetBrainrot(instance.BrainrotId)
+				if def then
+					local resultModel = PlotSystem.BuildDisplayModel(def, true, instance.Variant)
+					local fusionPos = (hrp :: BasePart).Position + Vector3.new(0, 5, 0)
+					-- Create dummy input models for the animation
+					local dummies = {}
+					VisualEffects.PlayFusion(dummies, fusionPos, resultModel, function() end)
+				end
+			end
+		end)
 	else
 		local resultRarity = BrainrotData.GetFusionResultRarity(rarity)
 		local resultId = resultRarity and BrainrotData.GetRandomIdOfRarity(resultRarity) or nil
@@ -819,6 +834,34 @@ task.spawn(function()
 					Banked = math.floor(data.PassiveBanked or 0),
 				})
 			end
+		end
+	end
+end)
+
+-- Day/night cycle: 10-minute full cycle for atmosphere.
+task.spawn(function()
+	local Lighting = game:GetService("Lighting")
+	local cycleMinutes = 10
+	while true do
+		for minute = 0, cycleMinutes * 60 do
+			-- 0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset
+			local t = (minute / (cycleMinutes * 60)) % 1
+			Lighting.ClockTime = t * 24
+			-- Adjust ambient for night
+			if t < 0.22 or t > 0.78 then
+				-- Night: darker, bluer
+				Lighting.Ambient = Color3.fromRGB(40, 40, 70)
+				Lighting.OutdoorAmbient = Color3.fromRGB(30, 30, 60)
+			elseif t < 0.28 or t > 0.72 then
+				-- Dawn/dusk: warm
+				Lighting.Ambient = Color3.fromRGB(80, 60, 60)
+				Lighting.OutdoorAmbient = Color3.fromRGB(90, 70, 70)
+			else
+				-- Day: bright
+				Lighting.Ambient = Color3.fromRGB(90, 90, 90)
+				Lighting.OutdoorAmbient = Color3.fromRGB(100, 100, 100)
+			end
+			task.wait(1)
 		end
 	end
 end)

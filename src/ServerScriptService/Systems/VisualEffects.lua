@@ -646,6 +646,175 @@ function VisualEffects.BuildDecoration(decoId: string): Model
 		local sparkles = Instance.new("Sparkles")
 		sparkles.SparkleColor = Color3.fromRGB(255, 220, 120)
 		sparkles.Parent = figure
+
+	elseif decoId == "garden" then
+		-- Circular flower bed with colorful flowers
+		local bed = Instance.new("Part")
+		bed.Size = Vector3.new(6, 1, 6)
+		bed.Shape = Enum.PartType.Cylinder
+		bed.Color = Color3.fromRGB(90, 60, 40)
+		bed.Material = Enum.Material.Wood
+		bed.Anchored = true
+		bed.Position = Vector3.new(0, 0.5, 0)
+		bed.Parent = model
+
+		local soil = Instance.new("Part")
+		soil.Size = Vector3.new(5.5, 0.5, 5.5)
+		soil.Shape = Enum.PartType.Cylinder
+		soil.Color = Color3.fromRGB(60, 40, 25)
+		soil.Anchored = true
+		soil.Position = Vector3.new(0, 1.1, 0)
+		soil.Parent = model
+
+		-- Flowers
+		local flowerColors = {
+			Color3.fromRGB(255, 100, 150),
+			Color3.fromRGB(255, 200, 60),
+			Color3.fromRGB(150, 100, 255),
+			Color3.fromRGB(255, 255, 255),
+		}
+		for i = 1, 8 do
+			local angle = (i / 8) * math.pi * 2
+			local stem = Instance.new("Part")
+			stem.Size = Vector3.new(0.2, 1.5, 0.2)
+			stem.Color = Color3.fromRGB(50, 130, 60)
+			stem.Anchored = true
+			stem.Position = Vector3.new(math.cos(angle) * 2, 2, math.sin(angle) * 2)
+			stem.Parent = model
+
+			local bloom = Instance.new("Part")
+			bloom.Size = Vector3.new(0.8, 0.8, 0.8)
+			bloom.Shape = Enum.PartType.Ball
+			bloom.Color = flowerColors[(i % #flowerColors) + 1]
+			bloom.Anchored = true
+			bloom.Position = Vector3.new(math.cos(angle) * 2, 2.8, math.sin(angle) * 2)
+			bloom.Parent = model
+		end
+
+	elseif decoId == "flags" then
+		-- String of pennant flags between two poles
+		for _, x in ipairs({ -4, 4 }) do
+			local pole = Instance.new("Part")
+			pole.Size = Vector3.new(0.4, 8, 0.4)
+			pole.Color = Color3.fromRGB(80, 55, 30)
+			pole.Material = Enum.Material.Wood
+			pole.Anchored = true
+			pole.Position = Vector3.new(x, 4, 0)
+			pole.Parent = model
+		end
+		-- Rope
+		local rope = Instance.new("Part")
+		rope.Size = Vector3.new(8, 0.15, 0.15)
+		rope.Color = Color3.fromRGB(150, 120, 80)
+		rope.Anchored = true
+		rope.Position = Vector3.new(0, 7.8, 0)
+		rope.Parent = model
+		-- Pennants
+		local pennantColors = {
+			Color3.fromRGB(255, 100, 100),
+			Color3.fromRGB(100, 150, 255),
+			Color3.fromRGB(255, 200, 60),
+			Color3.fromRGB(100, 220, 100),
+		}
+		for i = 1, 6 do
+			local pennant = Instance.new("Part")
+			pennant.Size = Vector3.new(0.8, 1.2, 0.1)
+			pennant.Color = pennantColors[(i % #pennantColors) + 1]
+			pennant.Material = Enum.Material.Fabric
+			pennant.Anchored = true
+			pennant.Position = Vector3.new(-3 + i * 1.1, 7.1, 0)
+			pennant.Parent = model
+			-- Wave
+			task.spawn(function()
+				while pennant and pennant.Parent do
+					pennant.Rotation = Vector3.new(0, math.sin(os.clock() * 4 + i) * 15, 0)
+					task.wait(0.05)
+				end
+			end)
+		end
+
+	elseif decoId == "lantern" then
+		-- Floating spirit lantern
+		local post = Instance.new("Part")
+		post.Size = Vector3.new(0.5, 7, 0.5)
+		post.Color = Color3.fromRGB(60, 60, 70)
+		post.Material = Enum.Material.Metal
+		post.Anchored = true
+		post.Position = Vector3.new(0, 3.5, 0)
+		post.Parent = model
+
+		local arm = Instance.new("Part")
+		arm.Size = Vector3.new(2.5, 0.4, 0.4)
+		arm.Color = Color3.fromRGB(60, 60, 70)
+		arm.Material = Enum.Material.Metal
+		arm.Anchored = true
+		arm.Position = Vector3.new(1, 6.8, 0)
+		arm.Parent = model
+
+		local cage = Instance.new("Part")
+		cage.Name = "LanternGlow"
+		cage.Size = Vector3.new(1.2, 1.6, 1.2)
+		cage.Color = Color3.fromRGB(150, 200, 255)
+		cage.Material = Enum.Material.Neon
+		cage.Transparency = 0.3
+		cage.Anchored = true
+		cage.Position = Vector3.new(2, 5.8, 0)
+		cage.Parent = model
+
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(150, 200, 255)
+		light.Range = 12
+		light.Brightness = 2
+		light.Parent = cage
+
+		-- Gentle float
+		task.spawn(function()
+			local baseY = 5.8
+			while cage and cage.Parent do
+				cage.Position = Vector3.new(2, baseY + math.sin(os.clock() * 1.5) * 0.3, 0)
+				task.wait(0.05)
+			end
+		end)
+
+	elseif decoId == "golem" then
+		-- Stone guardian
+		local body = Instance.new("Part")
+		body.Size = Vector3.new(3, 4, 2)
+		body.Color = Color3.fromRGB(100, 100, 110)
+		body.Material = Enum.Material.Slate
+		body.Anchored = true
+		body.Position = Vector3.new(0, 3, 0)
+		body.Parent = model
+
+		local head = Instance.new("Part")
+		head.Size = Vector3.new(1.8, 1.8, 1.8)
+		head.Color = Color3.fromRGB(110, 110, 120)
+		head.Material = Enum.Material.Slate
+		head.Anchored = true
+		head.Position = Vector3.new(0, 6, 0)
+		head.Parent = model
+
+		-- Glowing eyes
+		for _, x in ipairs({ -0.4, 0.4 }) do
+			local eye = Instance.new("Part")
+			eye.Size = Vector3.new(0.3, 0.3, 0.2)
+			eye.Color = Color3.fromRGB(255, 100, 50)
+			eye.Material = Enum.Material.Neon
+			eye.Anchored = true
+			eye.Position = Vector3.new(x, 6.2, 1)
+			eye.Parent = model
+		end
+
+		-- Arms
+		for _, x in ipairs({ -2.2, 2.2 }) do
+			local armPart = Instance.new("Part")
+			armPart.Size = Vector3.new(1, 3.5, 1)
+			armPart.Color = Color3.fromRGB(95, 95, 105)
+			armPart.Material = Enum.Material.Slate
+			armPart.Anchored = true
+			armPart.Position = Vector3.new(x, 3, 0)
+			armPart.Parent = model
+		end
 	end
 
 	return model
@@ -739,6 +908,227 @@ function VisualEffects.PlayDeparture(models: { Model }, direction: Vector3)
 			end
 		end)
 	end
+end
+
+-- // Fusion Lab Animation ----------------------------------------------------------------------
+-- 3D fusion sequence: models spin around fusion point, merge with light burst, result appears.
+function VisualEffects.PlayFusion(models: { Model }, fusionPos: Vector3, resultModel: Model, onComplete: () -> ())
+	-- Phase 1: Models orbit the fusion point (3 seconds)
+	local orbitRadius = 8
+	local orbitTime = 3
+	local steps = 30
+	for i = 1, steps do
+		local t = i / steps
+		local angle = t * math.pi * 4 -- two full rotations
+		-- Spiral inward
+		local radius = orbitRadius * (1 - t * 0.7)
+		for j, model in ipairs(models) do
+			if model and model.Parent then
+				local offsetAngle = angle + (j / #models) * math.pi * 2
+				local pos = fusionPos + Vector3.new(
+					math.cos(offsetAngle) * radius,
+					2 + math.sin(t * 10 + j) * 1,
+					math.sin(offsetAngle) * radius
+				)
+				model:PivotTo(CFrame.new(pos))
+			end
+		end
+		-- Rising pitch particles
+		if i % 5 == 0 then
+			local spark = Instance.new("ParticleEmitter")
+			spark.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+			spark.Color = ColorSequence.new(Color3.fromRGB(200, 150, 255))
+			spark.Size = NumberSequence.new(0.8)
+			spark.Speed = NumberRange.new(5, 10)
+			spark.Lifetime = NumberRange.new(0.5, 1)
+			spark.Rate = 30
+			local anchor = Instance.new("Part")
+			anchor.Size = Vector3.new(1, 1, 1)
+			anchor.Transparency = 1
+			anchor.Anchored = true
+			anchor.CanCollide = false
+			anchor.Position = fusionPos
+			anchor.Parent = workspace
+			spark.Parent = anchor
+			task.delay(1, function()
+				if anchor and anchor.Parent then anchor:Destroy() end
+			end)
+		end
+		task.wait(orbitTime / steps)
+	end
+
+	-- Phase 2: Merge flash
+	local flash = Instance.new("PointLight")
+	flash.Color = Color3.fromRGB(255, 255, 255)
+	flash.Range = 30
+	flash.Brightness = 10
+	local flashPart = Instance.new("Part")
+	flashPart.Size = Vector3.new(1, 1, 1)
+	flashPart.Transparency = 1
+	flashPart.Anchored = true
+	flashPart.Position = fusionPos
+	flashPart.Parent = workspace
+	flash.Parent = flashPart
+
+	-- Destroy input models
+	for _, model in ipairs(models) do
+		if model and model.Parent then
+			model:Destroy()
+		end
+	end
+
+	-- Big burst
+	local burst = Instance.new("ParticleEmitter")
+	burst.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	burst.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200, 150, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 100, 255)),
+	})
+	burst.Size = NumberSequence.new(2)
+	burst.Speed = NumberRange.new(15, 30)
+	burst.Lifetime = NumberRange.new(0.8, 1.5)
+	burst.Rate = 200
+	burst.Parent = flashPart
+	task.wait(0.5)
+	burst.Rate = 0
+	flash.Brightness = 3
+
+	-- Phase 3: Result rises from the light
+	resultModel:PivotTo(CFrame.new(fusionPos - Vector3.new(0, 5, 0)))
+	resultModel.Parent = workspace
+	-- Start invisible, fade in while rising
+	for _, desc in ipairs(resultModel:GetDescendants()) do
+		if desc:IsA("BasePart") then
+			desc.Transparency = 1
+		end
+	end
+	for i = 1, 20 do
+		local t = i / 20
+		local pos = (fusionPos - Vector3.new(0, 5, 0)):Lerp(fusionPos + Vector3.new(0, 2, 0), t)
+		resultModel:PivotTo(CFrame.new(pos))
+		for _, desc in ipairs(resultModel:GetDescendants()) do
+			if desc:IsA("BasePart") then
+				desc.Transparency = 1 - t
+			end
+		end
+		task.wait(0.05)
+	end
+
+	task.wait(1)
+	onComplete()
+
+	-- Cleanup
+	task.delay(2, function()
+		if flashPart and flashPart.Parent then flashPart:Destroy() end
+		if resultModel and resultModel.Parent then resultModel:Destroy() end
+	end)
+end
+
+-- // Arena Colosseum ------------------------------------------------------------------
+-- Build an impressive colosseum structure for battles.
+function VisualEffects.BuildColosseum(centerPos: Vector3): Model
+	local model = Instance.new("Model")
+	model.Name = "Colosseum"
+
+	-- Outer wall (cylinder segments)
+	local wallSegments = 16
+	local radius = 30
+	for i = 1, wallSegments do
+		local angle = (i / wallSegments) * math.pi * 2
+		local wall = Instance.new("Part")
+		wall.Size = Vector3.new(8, 15, 3)
+		wall.Color = Color3.fromRGB(180, 170, 160)
+		wall.Material = Enum.Material.Marble
+		wall.Anchored = true
+		wall.Position = centerPos + Vector3.new(
+			math.cos(angle) * radius,
+			7.5,
+			math.sin(angle) * radius
+		)
+		wall.Orientation = Vector3.new(0, -math.deg(angle) + 90, 0)
+		wall.Parent = model
+
+		-- Arch openings (every other segment is shorter)
+		if i % 2 == 0 then
+			wall.Size = Vector3.new(8, 8, 3)
+			wall.Position = centerPos + Vector3.new(
+				math.cos(angle) * radius,
+				4,
+				math.sin(angle) * radius
+			)
+		end
+	end
+
+	-- Floor (sand)
+	local floor = Instance.new("Part")
+	floor.Name = "ArenaFloor"
+	floor.Size = Vector3.new(radius * 2, 1, radius * 2)
+	floor.Shape = Enum.PartType.Cylinder
+	floor.Color = Color3.fromRGB(220, 190, 140)
+	floor.Material = Enum.Material.Sand
+	floor.Anchored = true
+	floor.Position = centerPos
+	floor.Parent = model
+
+	-- Center emblem
+	local emblem = Instance.new("Part")
+	emblem.Size = Vector3.new(10, 0.5, 10)
+	emblem.Shape = Enum.PartType.Cylinder
+	emblem.Color = Color3.fromRGB(200, 50, 50)
+	emblem.Material = Enum.Material.Marble
+	emblem.Anchored = true
+	emblem.Position = centerPos + Vector3.new(0, 0.8, 0)
+	emblem.Parent = model
+
+	-- Torches around the rim
+	for i = 1, 8 do
+		local angle = (i / 8) * math.pi * 2
+		local torchPos = centerPos + Vector3.new(
+			math.cos(angle) * (radius - 3),
+			0,
+			math.sin(angle) * (radius - 3)
+		)
+		-- Simple torch
+		local post = Instance.new("Part")
+		post.Size = Vector3.new(0.8, 6, 0.8)
+		post.Color = Color3.fromRGB(90, 60, 35)
+		post.Material = Enum.Material.Wood
+		post.Anchored = true
+		post.Position = torchPos + Vector3.new(0, 3, 0)
+		post.Parent = model
+
+		local flame = Instance.new("Fire")
+		flame.Size = 10
+		flame.Parent = post
+
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 150, 50)
+		light.Range = 15
+		light.Brightness = 2
+		light.Parent = post
+	end
+
+	-- Banners
+	for i = 1, 4 do
+		local angle = (i / 4) * math.pi * 2 + math.pi/4
+		local bannerPos = centerPos + Vector3.new(
+			math.cos(angle) * (radius - 1),
+			12,
+			math.sin(angle) * (radius - 1)
+		)
+		local banner = Instance.new("Part")
+		banner.Size = Vector3.new(3, 6, 0.3)
+		banner.Color = Color3.fromRGB(180, 40, 40)
+		banner.Material = Enum.Material.Fabric
+		banner.Anchored = true
+		banner.Position = bannerPos
+		banner.Orientation = Vector3.new(0, -math.deg(angle) + 90, 0)
+		banner.Parent = model
+	end
+
+	model.PrimaryPart = floor
+	return model
 end
 
 return VisualEffects
