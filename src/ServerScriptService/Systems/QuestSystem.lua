@@ -42,14 +42,14 @@ QuestSystem.QUEST_ORDER = {
 QuestSystem.QUESTS = {
 	first_steps = {
 		Name = "First Steps",
-		Description = "Touch 5 glowing Brainrot Orbs around the plaza.",
-		Objective = "orbs",
-		Goal = 5,
+		Description = "Catch 1 wild brainrot roaming the world.",
+		Objective = "brainrots",
+		Goal = 1,
 		Reward = { BrainrotId = "tung_sahur", Coins = 50 },
 	},
 	growing_team = {
 		Name = "Growing Team",
-		Description = "Own 4 brainrots. (Tip: every 5 orbs earns a Brainrot Cache!)",
+		Description = "Own 4 brainrots.",
 		Objective = "brainrots",
 		Goal = 4,
 		Reward = { Coins = 100 },
