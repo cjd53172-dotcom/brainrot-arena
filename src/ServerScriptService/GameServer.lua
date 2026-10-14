@@ -505,6 +505,54 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	end
 end
 
+-- Shared gold mine: ONE mine in the world, 100 studs east of plots.
+-- Anyone can harvest it (per-player cooldown).
+local sharedMine = VisualEffects.BuildGoldMine(1)
+do
+	local mx, mz = 227, 98 -- 100 studs east of plot center (127, 98)
+	local my = 16
+	pcall(function()
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		local r = workspace:Raycast(Vector3.new(mx, 500, mz), Vector3.new(0, -1000, 0), params)
+		if r then my = r.Position.Y end
+	end)
+	sharedMine:PivotTo(CFrame.new(Vector3.new(mx, my + 1, mz)))
+	sharedMine.Parent = workspace
+end
+
+local mineCooldown: { [number]: number } = {} -- [userId] = last harvest time
+local MINE_COOLDOWN_SECS = 60
+local MINE_REWARD = 25
+
+local minePrompt = Instance.new("ProximityPrompt")
+minePrompt.ActionText = "Mine Gold"
+minePrompt.ObjectText = "Shared Gold Mine"
+minePrompt.HoldDuration = 2
+minePrompt.MaxActivationDistance = 12
+minePrompt.RequiresLineOfSight = false
+minePrompt.Parent = sharedMine.PrimaryPart or sharedMine:FindFirstChildWhichIsA("BasePart")
+minePrompt.Triggered:Connect(function(player: Player)
+	local now = os.time()
+	local last = mineCooldown[player.UserId] or 0
+	if now - last < MINE_COOLDOWN_SECS then
+		local waitSecs = MINE_COOLDOWN_SECS - (now - last)
+		remotes:WaitForChild("ShowHint"):FireClient(player,
+			"Mine is exhausted! Come back in " .. waitSecs .. "s.")
+		return
+	end
+	mineCooldown[player.UserId] = now
+	local data = PlayerData.Get(player)
+	if not data then return end
+	PlayerData.AddCoins(player, MINE_REWARD)
+	DailyQuestSystem.RecordProgress(player, "coins_earned", MINE_REWARD)
+	pushCollection(player)
+	PlayerData.Save(player)
+	remotes:WaitForChild("ShowHint"):FireClient(player,
+		"+ " .. MINE_REWARD .. " coins from the gold mine!")
+end)
+
 -- Fishing docks near water.
 local fishingSpots = {}
 for i, spotInfo in ipairs({

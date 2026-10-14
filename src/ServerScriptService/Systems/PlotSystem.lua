@@ -1526,12 +1526,13 @@ function PlotSystem.ApplyCustomization(player: Player, plot: Model)
 	local bp = (base :: BasePart).Position
 	local bs = (base :: BasePart).Size
 
-	-- Place detailed decorations at plot corners
+	-- Place detailed decorations at plot corners (on top of the base, not buried in it).
+	local baseTopY = bp.Y + bs.Y / 2
 	local decoSpots = {
-		Vector3.new(bp.X - bs.X/2 + 4, bp.Y, bp.Z - bs.Z/2 + 4),
-		Vector3.new(bp.X + bs.X/2 - 4, bp.Y, bp.Z - bs.Z/2 + 4),
-		Vector3.new(bp.X - bs.X/2 + 4, bp.Y, bp.Z + bs.Z/2 - 4),
-		Vector3.new(bp.X + bs.X/2 - 4, bp.Y, bp.Z + bs.Z/2 - 4),
+		Vector3.new(bp.X - bs.X/2 + 4, baseTopY, bp.Z - bs.Z/2 + 4),
+		Vector3.new(bp.X + bs.X/2 - 4, baseTopY, bp.Z - bs.Z/2 + 4),
+		Vector3.new(bp.X - bs.X/2 + 4, baseTopY, bp.Z + bs.Z/2 - 4),
+		Vector3.new(bp.X + bs.X/2 - 4, baseTopY, bp.Z + bs.Z/2 - 4),
 	}
 	local spotIdx = 1
 	for decoId, _ in pairs(data.Decorations or {}) do
@@ -1543,12 +1544,7 @@ function PlotSystem.ApplyCustomization(player: Player, plot: Model)
 		decoModel.Parent = decoFolder
 	end
 
-	-- Detailed gold mine (replaces old simple box)
-	local oldMine = decoFolder:FindFirstChild("GoldMine")
-	if oldMine then oldMine:Destroy() end
-	local mineModel = VisualEffects.BuildGoldMine(data.GoldMineLevel or 1)
-	mineModel:PivotTo(CFrame.new(Vector3.new(bp.X + bs.X/2 - 8, bp.Y, bp.Z + bs.Z/2 - 8)))
-	mineModel.Parent = decoFolder
+	-- (Gold mine is now a single shared world location, not per-plot.)
 end
 
 -- Show 3D eggs for incubating eggs on the plot.
