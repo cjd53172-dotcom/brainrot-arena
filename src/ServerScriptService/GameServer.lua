@@ -975,14 +975,15 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 	-- Build model
 	local model = PlotSystem.BuildDisplayModel(def, false, nil)
-	-- Normalize size: wilds should be ~2.5 studs tall (smaller than player).
-	-- Some specs render oversized; clamp the height.
+	-- Normalize size: wilds should be ~2.2 studs tall (smaller than player).
 	pcall(function()
 		local _, bbSize = model:GetBoundingBox()
 		if bbSize and bbSize.Y > 0 then
-			local targetH = 2.5
-			if bbSize.Y > 4 then -- only shrink if clearly oversized
-				local s = targetH / bbSize.Y
+			local targetH = 2.2
+			local s = targetH / bbSize.Y
+			-- Only adjust if meaningfully off (avoid jitter on already-correct sizes).
+			if math.abs(s - 1) > 0.15 then
+				s = math.clamp(s, 0.3, 1.5) -- never shrink below 30% or grow above 150%
 				model:ScaleTo(s)
 			end
 		end
@@ -1148,8 +1149,9 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				currentPos += dir * speed * 0.2
 				-- Bob while walking
 				local bobY = math.abs(math.sin(os.clock() * 8)) * 0.4
-				-- Face movement direction
-				model:PivotTo(CFrame.new(currentPos + Vector3.new(0, bobY, 0), currentPos + dir * 5))
+				-- Face movement direction (face is on +Z, so flip 180° from default -Z forward).
+				local cf = CFrame.new(currentPos + Vector3.new(0, bobY, 0), currentPos + dir * 5)
+				model:PivotTo(cf * CFrame.Angles(0, math.pi, 0))
 				-- Move hitbox with model
 				if hitbox and hitbox.Parent then
 					hitbox.Position = currentPos + Vector3.new(0, 1, 0)

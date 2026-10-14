@@ -278,33 +278,7 @@ function WorldDesign.BuildArchway(): Model
 		model
 	)
 
-	-- Title sign
-	local sign = part(
-		Vector3.new(10, 2.5, 0.5),
-		Vector3.new(ax, gy + 8, az),
-		Color3.fromRGB(40, 30, 20),
-		Enum.Material.Wood,
-		model
-	)
-	local signGui = Instance.new("SurfaceGui")
-	signGui.Face = Enum.NormalId.Front
-	signGui.Parent = sign
-	local signLabel = Instance.new("TextLabel")
-	signLabel.Size = UDim2.new(1, 0, 1, 0)
-	signLabel.BackgroundTransparency = 1
-	signLabel.Text = "🧠 BRAINROT ARENA"
-	signLabel.Font = Enum.Font.GothamBlack
-	signLabel.TextSize = 28
-	signLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
-	signLabel.TextStrokeTransparency = 0.3
-	signLabel.Parent = signGui
-	-- Back face too
-	local signGui2 = Instance.new("SurfaceGui")
-	signGui2.Face = Enum.NormalId.Back
-	signGui2.Parent = sign
-	local signLabel2 = signLabel:Clone()
-	signLabel2.Parent = signGui2
-
+	-- (Title sign removed per playtest feedback — the arch stands alone.)
 	model.Parent = workspace
 	return model
 end
