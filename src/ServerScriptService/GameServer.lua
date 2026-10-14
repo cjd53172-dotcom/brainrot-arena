@@ -1105,6 +1105,7 @@ task.spawn(function()
 	while true do
 		task.wait(15) -- check every 15s
 		local now = os.time()
+		print("[WildSpawn] Tick — players online:", #Players:GetPlayers())
 		for _, player in ipairs(Players:GetPlayers()) do
 			local userId = player.UserId
 			if not lastSpawn[userId] then
@@ -1139,7 +1140,9 @@ task.spawn(function()
 								if wanderId then
 									local wander = WanderSystem.GetWanderer(player, wanderId)
 									if wander and wander.Rarity == rarity then
+										print("[WildSpawn] Spawning", rarity, wanderId, "for", player.Name)
 										spawnWildVisual(player, wanderId)
+										print("[WildSpawn] Visual done for", wanderId)
 										lastSpawn[userId][rarity] = now
 										break
 									else
@@ -1147,6 +1150,7 @@ task.spawn(function()
 										WanderSystem.Remove(player, wanderId)
 									end
 								else
+									print("[WildSpawn] SpawnWild nil (cap?) for", player.Name)
 									break -- at cap
 								end
 							end
