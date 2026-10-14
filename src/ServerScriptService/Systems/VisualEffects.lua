@@ -185,7 +185,7 @@ function VisualEffects.BuildZonePortal(zoneId: string): Model
 		pillar.Size = Vector3.new(2, 12, 2)
 		pillar.Anchored = true
 		pillar.Color = baseColor
-		pillar.Material = Enum.Material.Stone
+		pillar.Material = Enum.Material.Slate
 		pillar.Position = Vector3.new(xOffset, 6, 0)
 		pillar.Parent = model
 
