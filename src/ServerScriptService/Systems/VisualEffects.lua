@@ -1028,6 +1028,8 @@ end
 -- // Arena Colosseum ------------------------------------------------------------------
 -- Build an impressive colosseum structure for battles.
 function VisualEffects.BuildColosseum(centerPos: Vector3): Model
+	local model = Instance.new("Model")
+	model.Name = "Colosseum"
 
 	-- Outer wall (cylinder segments)
 	local wallSegments = 16
