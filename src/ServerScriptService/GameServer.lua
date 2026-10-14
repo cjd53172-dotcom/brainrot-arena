@@ -27,6 +27,7 @@ local ExpeditionSystem = require(Systems:WaitForChild("ExpeditionSystem"))
 local DailyQuestSystem = require(Systems:WaitForChild("DailyQuestSystem"))
 local EggSystem = require(Systems:WaitForChild("EggSystem"))
 local VisualEffects = require(Systems:WaitForChild("VisualEffects"))
+local FishingSystem = require(Systems:WaitForChild("FishingSystem"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- // RemoteEvents --------------------------------------------------------------
@@ -34,7 +35,7 @@ local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
 remotes.Parent = ReplicatedStorage
 
-for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone" }) do
+for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate" }) do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes
@@ -571,6 +572,125 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 		end)
 	end
 end
+
+-- Fishing docks near water.
+local fishingSpots = {}
+for i, spotInfo in ipairs({
+	{ X = 100, Z = 120, Name = "Riverside Dock" },
+	{ X = 160, Z = 130, Name = "Lakeside Pier" },
+}) do
+	local dock = VisualEffects.BuildFishingSpot()
+	pcall(function()
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		local r = workspace:Raycast(
+			Vector3.new(spotInfo.X, 500, spotInfo.Z),
+			Vector3.new(0, -1000, 0),
+			params
+		)
+		if r then
+			dock:PivotTo(CFrame.new(Vector3.new(spotInfo.X, r.Position.Y, spotInfo.Z)))
+		else
+			dock:PivotTo(CFrame.new(Vector3.new(spotInfo.X, 16, spotInfo.Z)))
+		end
+	end)
+	dock.Parent = workspace
+	table.insert(fishingSpots, { Id = "dock" .. i, Model = dock, Name = spotInfo.Name })
+end
+
+-- // Fishing ------------------------------------------------------------------
+local function pushFishingState(player: Player, state: string, reward: any?)
+	remotes:WaitForChild("FishingUpdate"):FireClient(player, {
+		State = state,
+		Reward = reward,
+	})
+end
+
+-- Track bobbers per player for bite animation
+local playerBobbers: { [number]: BasePart } = {}
+
+remotes:WaitForChild("CastLine").OnServerEvent:Connect(function(player: Player, spotId: any)
+	if type(spotId) ~= "string" then return end
+	local biteDelay = FishingSystem.Cast(player, spotId)
+	if biteDelay then
+		-- Visual: cast bobber from player toward water
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local fromPos = (hrp :: BasePart).Position + Vector3.new(0, 3, 0)
+			-- Find the dock
+			local dockPos = fromPos + Vector3.new(0, 0, 10)
+			for _, spot in ipairs(fishingSpots) do
+				if spot.Id == spotId then
+					local water = spot.Model:FindFirstChild("Water")
+					if water and water:IsA("BasePart") then
+						dockPos = (water :: BasePart).Position + Vector3.new(0, 1, 0)
+					end
+					break
+				end
+			end
+			local bobber = VisualEffects.CastBobber(fromPos, dockPos)
+			playerBobbers[player.UserId] = bobber
+		end
+		pushFishingState(player, "Waiting")
+		-- Schedule bite notification
+		task.delay(biteDelay, function()
+			local state = FishingSystem.CheckBite(player)
+			if state == "Bite" then
+				local bobber = playerBobbers[player.UserId]
+				if bobber then
+					VisualEffects.PlayBite(bobber)
+				end
+				pushFishingState(player, "Bite")
+			end
+		end)
+		-- Expire bite after 3s
+		task.delay(biteDelay + 3.5, function()
+			local state = FishingSystem.GetState(player)
+			if state == "Missed" then
+				pushFishingState(player, "Missed")
+				local bobber = playerBobbers[player.UserId]
+				if bobber and bobber.Parent then
+					bobber:Destroy()
+				end
+				playerBobbers[player.UserId] = nil
+				FishingSystem.Cancel(player)
+			end
+		end)
+	end
+end)
+
+remotes:WaitForChild("ReelIn").OnServerEvent:Connect(function(player: Player, quality: any)
+	local q = tonumber(quality) or 0.5
+	local reward = FishingSystem.Reel(player, q)
+	-- Cleanup bobber
+	local bobber = playerBobbers[player.UserId]
+	if bobber and bobber.Parent then
+		if reward and reward.Kind ~= "Miss" then
+			VisualEffects.PlayCatch(bobber.Position, reward.Kind)
+		end
+		bobber:Destroy()
+	end
+	playerBobbers[player.UserId] = nil
+	if reward then
+		pushFishingState(player, "None", reward)
+		pushCollection(player)
+		if reward.Kind == "Brainrot" then
+			PlotSystem.RefreshPlot(player)
+		end
+	end
+end)
+
+-- Cancel fishing if player leaves
+Players.PlayerRemoving:Connect(function(player: Player)
+	FishingSystem.Cancel(player)
+	local bobber = playerBobbers[player.UserId]
+	if bobber and bobber.Parent then
+		bobber:Destroy()
+	end
+	playerBobbers[player.UserId] = nil
+end)
 
 -- // Player wiring ----------------------------------------------------------------
 local function sendInitialState(player: Player)

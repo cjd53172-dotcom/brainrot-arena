@@ -40,6 +40,9 @@ local passiveUpdateRemote = remotes:WaitForChild("PassiveUpdate")
 local unlockThemeRemote = remotes:WaitForChild("UnlockTheme")
 local buyDecorationRemote = remotes:WaitForChild("BuyDecoration")
 local customizeUpdateRemote = remotes:WaitForChild("CustomizeUpdate")
+local castRemote = remotes:WaitForChild("CastLine")
+local reelRemote = remotes:WaitForChild("ReelIn")
+local fishingUpdateRemote = remotes:WaitForChild("FishingUpdate")
 
 -- Forward declarations: defined later in the file, used by M2 UI above.
 local showBanner: (string, number) -> ()
@@ -1235,6 +1238,178 @@ styleBtn.MouseButton1Click:Connect(function()
 	if not was then customizePanel.Visible = true end
 end)
 
+-- Fishing button (second row, after Style)
+local fishBtn = Instance.new("TextButton")
+fishBtn.Size = UDim2.new(0, 104, 0, 40)
+fishBtn.Position = UDim2.new(0.5, 284, 1, -112)
+fishBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 120)
+fishBtn.Text = "🎣 Fish"
+fishBtn.Font = Enum.Font.GothamBold
+fishBtn.TextSize = 13
+fishBtn.TextColor3 = Color3.fromRGB(150, 200, 255)
+fishBtn.Parent = gui
+corner(fishBtn, 10)
+
+-- Fishing panel
+local fishingPanel, _fishTitle = makePanel("🎣 Fishing — catch brainrots and treasures!", Color3.fromRGB(150, 200, 255))
+local fishingState: string = "None"
+local biteTimer: number = 0
+
+fishBtn.MouseButton1Click:Connect(function()
+	local was = fishingPanel.Visible
+	hideAllPanels()
+	if not was then
+		fishingPanel.Visible = true
+		refreshFishingPanel()
+	end
+end)
+
+local function refreshFishingPanel()
+	for _, c in ipairs(fishingPanel:GetChildren()) do
+		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+			c:Destroy()
+		end
+	end
+	local order = 1
+	if fishingState == "None" then
+		makeLabel(fishingPanel, "Find a fishing dock near water, then cast your line!", 14, Color3.new(1,1,1), order)
+		order += 1
+		local castBtn = Instance.new("TextButton")
+		castBtn.Size = UDim2.new(1, 0, 0, 48)
+		castBtn.Text = "🎣 Cast Line"
+		castBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 160)
+		castBtn.TextColor3 = Color3.new(1,1,1)
+		castBtn.Font = Enum.Font.GothamBold
+		castBtn.TextSize = 16
+		castBtn.LayoutOrder = order
+		castBtn.Parent = fishingPanel
+		corner(castBtn, 8)
+		castBtn.MouseButton1Click:Connect(function()
+			castRemote:FireServer("dock1")
+		end)
+	elseif fishingState == "Waiting" then
+		makeLabel(fishingPanel, "⏳ Waiting for a bite...", 16, Color3.fromRGB(150, 200, 255), order)
+		order += 1
+		makeLabel(fishingPanel, "Watch the bobber!", 13, Color3.fromRGB(180, 180, 180), order)
+	elseif fishingState == "Bite" then
+		makeLabel(fishingPanel, "❗ BITE! REEL NOW! ❗", 20, Color3.fromRGB(255, 220, 50), order)
+		order += 1
+		-- Timing bar minigame
+		local barBg = Instance.new("Frame")
+		barBg.Size = UDim2.new(1, 0, 0, 30)
+		barBg.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+		barBg.LayoutOrder = order
+		barBg.Parent = fishingPanel
+		corner(barBg, 8)
+		order += 1
+		-- Green sweet spot (moves)
+		local sweetSpot = Instance.new("Frame")
+		sweetSpot.Size = UDim2.new(0.2, 0, 1, 0)
+		sweetSpot.Position = UDim2.new(0.4, 0, 0, 0)
+		sweetSpot.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
+		sweetSpot.Parent = barBg
+		corner(sweetSpot, 8)
+		-- Moving marker
+		local marker = Instance.new("Frame")
+		marker.Size = UDim2.new(0.05, 0, 1, 0)
+		marker.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		marker.Parent = barBg
+		corner(marker, 4)
+		-- Animate marker
+		local markerPos = 0
+		local direction = 1
+		local reelBtn: TextButton? = nil
+		task.spawn(function()
+			while fishingState == "Bite" and marker and marker.Parent do
+				markerPos += direction * 0.03
+				if markerPos >= 0.95 then direction = -1 end
+				if markerPos <= 0 then direction = 1 end
+				marker.Position = UDim2.new(markerPos, 0, 0, 0)
+				task.wait(0.03)
+			end
+		end)
+		reelBtn = Instance.new("TextButton")
+		reelBtn.Size = UDim2.new(1, 0, 0, 48)
+		reelBtn.Text = "🎣 REEL IN!"
+		reelBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
+		reelBtn.TextColor3 = Color3.new(1,1,1)
+		reelBtn.Font = Enum.Font.GothamBold
+		reelBtn.TextSize = 18
+		reelBtn.LayoutOrder = order
+		reelBtn.Parent = fishingPanel
+		corner(reelBtn, 8)
+		reelBtn.MouseButton1Click:Connect(function()
+			-- Calculate timing quality based on marker position vs sweet spot
+			local quality = 1 - math.abs((markerPos + 0.025) - 0.5) * 2
+			quality = math.clamp(quality, 0, 1)
+			reelRemote:FireServer(quality)
+			fishingState = "None"
+		end)
+	elseif fishingState == "Missed" then
+		makeLabel(fishingPanel, "💨 It got away...", 16, Color3.fromRGB(180, 180, 180), order)
+		order += 1
+		local retryBtn = Instance.new("TextButton")
+		retryBtn.Size = UDim2.new(1, 0, 0, 40)
+		retryBtn.Text = "Try Again"
+		retryBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+		retryBtn.TextColor3 = Color3.new(1,1,1)
+		retryBtn.Font = Enum.Font.GothamBold
+		retryBtn.TextSize = 14
+		retryBtn.LayoutOrder = order
+		retryBtn.Parent = fishingPanel
+		corner(retryBtn, 8)
+		retryBtn.MouseButton1Click:Connect(function()
+			fishingState = "None"
+			refreshFishingPanel()
+		end)
+	end
+end
+
+-- Fishing remote handlers
+fishingUpdateRemote.OnClientEvent:Connect(function(payload: any)
+	if payload.State then
+		fishingState = payload.State
+		if fishingPanel.Visible then
+			refreshFishingPanel()
+		end
+		-- Update button text
+		if fishingState == "Bite" then
+			fishBtn.Text = "❗ BITE!"
+			fishBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
+		elseif fishingState == "Waiting" then
+			fishBtn.Text = "⏳ Waiting..."
+			fishBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+		else
+			fishBtn.Text = "🎣 Fish"
+			fishBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 120)
+		end
+	end
+	if payload.Reward then
+		local r = payload.Reward
+		local msg = ""
+		if r.Kind == "Fish" then
+			msg = "🐟 Caught " .. tostring(r.Amount) .. " Fish!"
+		elseif r.Kind == "Coins" then
+			msg = "🪙 Found " .. tostring(r.Amount) .. " coins!"
+		elseif r.Kind == "Material" then
+			msg = "💎 Got " .. tostring(r.Amount) .. "x " .. r.Name .. "!"
+		elseif r.Kind == "Brainrot" then
+			msg = "🎉 CAUGHT A BRAINROT: " .. (r.BrainrotName or "?") .. "!"
+			if r.Shiny then msg ..= " ✨ SHINY!" end
+		elseif r.Kind == "Miss" then
+			msg = r.Message or "It got away..."
+		end
+		if r.Message and r.Kind ~= "Miss" then
+			msg ..= " (" .. r.Message .. ")"
+		end
+		showBanner(msg, 4)
+		fishingState = "None"
+		if fishingPanel.Visible then
+			refreshFishingPanel()
+		end
+	end
+end)
+
 -- // Shared panel helper -----------------------------------------------------------------
 local function hideAllPanels()
 	collectionPanel.Visible = false
@@ -1248,6 +1423,7 @@ local function hideAllPanels()
 	eggPanel.Visible = false
 	minePanel.Visible = false
 	customizePanel.Visible = false
+	fishingPanel.Visible = false
 end
 
 fusionBtn.MouseButton1Click:Connect(function()

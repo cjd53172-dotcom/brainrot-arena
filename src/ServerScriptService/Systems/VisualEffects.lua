@@ -1028,8 +1028,6 @@ end
 -- // Arena Colosseum ------------------------------------------------------------------
 -- Build an impressive colosseum structure for battles.
 function VisualEffects.BuildColosseum(centerPos: Vector3): Model
-	local model = Instance.new("Model")
-	model.Name = "Colosseum"
 
 	-- Outer wall (cylinder segments)
 	local wallSegments = 16
@@ -1129,6 +1127,217 @@ function VisualEffects.BuildColosseum(centerPos: Vector3): Model
 
 	model.PrimaryPart = floor
 	return model
+end
+
+-- // Fishing ----------------------------------------------------------------------------
+-- Build a fishing dock/pier spot.
+function VisualEffects.BuildFishingSpot(): Model
+	local model = Instance.new("Model")
+	model.Name = "FishingSpot"
+
+	-- Dock planks
+	for i = 1, 5 do
+		local plank = Instance.new("Part")
+		plank.Size = Vector3.new(3, 0.4, 1.2)
+		plank.Color = Color3.fromRGB(110, 75, 40)
+		plank.Material = Enum.Material.Wood
+		plank.Anchored = true
+		plank.Position = Vector3.new(0, 1, (i - 3) * 1.3)
+		plank.Parent = model
+	end
+
+	-- Posts
+	for _, x in ipairs({ -1.2, 1.2 }) do
+		for _, z in ipairs({ -2.5, 2.5 }) do
+			local post = Instance.new("Part")
+			post.Size = Vector3.new(0.5, 3, 0.5)
+			post.Color = Color3.fromRGB(80, 55, 30)
+			post.Material = Enum.Material.Wood
+			post.Anchored = true
+			post.Position = Vector3.new(x, 0, z)
+			post.Parent = model
+		end
+	end
+
+	-- Sign
+	local sign = Instance.new("Part")
+	sign.Size = Vector3.new(4, 2, 0.4)
+	sign.Color = Color3.fromRGB(60, 40, 20)
+	sign.Material = Enum.Material.Wood
+	sign.Anchored = true
+	sign.Position = Vector3.new(0, 4, -3)
+	sign.Parent = model
+
+	local signGui = Instance.new("SurfaceGui")
+	signGui.Face = Enum.NormalId.Front
+	signGui.Parent = sign
+	local signLabel = Instance.new("TextLabel")
+	signLabel.Size = UDim2.new(1, 0, 1, 0)
+	signLabel.BackgroundTransparency = 1
+	signLabel.Text = "🎣 FISHING"
+	signLabel.Font = Enum.Font.GothamBold
+	signLabel.TextSize = 28
+	signLabel.TextColor3 = Color3.new(1, 1, 1)
+	signLabel.TextStrokeTransparency = 0.5
+	signLabel.Parent = signGui
+
+	-- Water ripples (animated)
+	local water = Instance.new("Part")
+	water.Name = "Water"
+	water.Size = Vector3.new(12, 0.5, 12)
+	water.Color = Color3.fromRGB(50, 130, 180)
+	water.Material = Enum.Material.Water
+	water.Transparency = 0.3
+	water.Anchored = true
+	water.CanCollide = false
+	water.Position = Vector3.new(0, 0.2, 6)
+	water.Parent = model
+
+	return model
+end
+
+-- Cast animation: bobber flies out with a line.
+-- Returns the bobber part for bite animation.
+function VisualEffects.CastBobber(fromPos: Vector3, toPos: Vector3): BasePart
+	local bobber = Instance.new("Part")
+	bobber.Name = "Bobber"
+	bobber.Size = Vector3.new(0.8, 1.2, 0.8)
+	bobber.Shape = Enum.PartType.Ball
+	bobber.Color = Color3.fromRGB(255, 50, 50)
+	bobber.Anchored = true
+	bobber.CanCollide = false
+	bobber.Position = fromPos
+	bobber.Parent = workspace
+
+	-- White top
+	local top = Instance.new("Part")
+	top.Size = Vector3.new(0.85, 0.4, 0.85)
+	top.Shape = Enum.PartType.Ball
+	top.Color = Color3.fromRGB(255, 255, 255)
+	top.Anchored = true
+	top.CanCollide = false
+	top.Parent = bobber
+
+	-- Animate arc
+	task.spawn(function()
+		local steps = 20
+		for i = 1, steps do
+			if not bobber or not bobber.Parent then break end
+			local t = i / steps
+			local pos = fromPos:Lerp(toPos, t)
+			-- Arc height
+			pos += Vector3.new(0, math.sin(t * math.pi) * 8, 0)
+			bobber.Position = pos
+			top.Position = pos + Vector3.new(0, 0.4, 0)
+			task.wait(0.05)
+		end
+		-- Splash on landing
+		VisualEffects.PlaySplash(toPos)
+	end)
+
+	return bobber
+end
+
+-- Bite animation: bobber dips and shakes.
+function VisualEffects.PlayBite(bobber: BasePart)
+	task.spawn(function()
+		for i = 1, 10 do
+			if not bobber or not bobber.Parent then break end
+			bobber.Position += Vector3.new(0, -0.3, 0)
+			task.wait(0.1)
+			if not bobber or not bobber.Parent then break end
+			bobber.Position += Vector3.new(
+				(math.random() - 0.5) * 0.5,
+				0.3,
+				(math.random() - 0.5) * 0.5
+			)
+			task.wait(0.1)
+		end
+	end)
+	-- "!" indicator
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.new(0, 60, 0, 60)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = bobber
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "❗"
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 48
+	label.TextColor3 = Color3.fromRGB(255, 220, 50)
+	label.TextStrokeTransparency = 0.3
+	label.Parent = billboard
+end
+
+-- Splash particles.
+function VisualEffects.PlaySplash(pos: Vector3)
+	local splash = Instance.new("ParticleEmitter")
+	splash.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	splash.Color = ColorSequence.new(Color3.fromRGB(150, 210, 255))
+	splash.Size = NumberSequence.new(0.6)
+	splash.Speed = NumberRange.new(8, 15)
+	splash.Lifetime = NumberRange.new(0.4, 0.8)
+	splash.Rate = 50
+	local anchor = Instance.new("Part")
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.Transparency = 1
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.Position = pos
+	anchor.Parent = workspace
+	splash.Parent = anchor
+	task.delay(0.5, function()
+		if anchor and anchor.Parent then anchor:Destroy() end
+	end)
+	-- Ripple ring
+	local ripple = Instance.new("Part")
+	ripple.Size = Vector3.new(3, 0.2, 3)
+	ripple.Shape = Enum.PartType.Cylinder
+	ripple.Color = Color3.fromRGB(150, 210, 255)
+	ripple.Transparency = 0.5
+	ripple.Anchored = true
+	ripple.CanCollide = false
+	ripple.Position = pos
+	ripple.Parent = workspace
+	local tween = game:GetService("TweenService"):Create(ripple,
+		TweenInfo.new(1),
+		{ Size = Vector3.new(8, 0.2, 8), Transparency = 1 }
+	)
+	tween:Play()
+	task.delay(1.2, function()
+		if ripple and ripple.Parent then ripple:Destroy() end
+	end)
+end
+
+-- Catch animation: reward flies up with sparkles.
+function VisualEffects.PlayCatch(pos: Vector3, rewardKind: string)
+	VisualEffects.PlaySplash(pos)
+	-- Sparkle burst
+	local burst = Instance.new("ParticleEmitter")
+	burst.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	local color = Color3.fromRGB(255, 220, 100)
+	if rewardKind == "Brainrot" then
+		color = Color3.fromRGB(255, 150, 255)
+	elseif rewardKind == "Material" then
+		color = Color3.fromRGB(150, 200, 255)
+	end
+	burst.Color = ColorSequence.new(color)
+	burst.Size = NumberSequence.new(1)
+	burst.Speed = NumberRange.new(10, 20)
+	burst.Lifetime = NumberRange.new(0.6, 1)
+	burst.Rate = 80
+	local anchor = Instance.new("Part")
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.Transparency = 1
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.Position = pos + Vector3.new(0, 2, 0)
+	anchor.Parent = workspace
+	burst.Parent = anchor
+	task.delay(0.8, function()
+		if anchor and anchor.Parent then anchor:Destroy() end
+	end)
 end
 
 return VisualEffects
