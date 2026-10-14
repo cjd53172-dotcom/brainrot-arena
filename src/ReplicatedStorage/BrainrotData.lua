@@ -1420,4 +1420,155 @@ function BrainrotData.GetRivalIndex(id: string): number
 	return 0
 end
 
+-- // Exploration & Expeditions ---------------------------------------------------
+-- Five discoverable zones. Each has unique materials and a favored brainrot type.
+-- Send 1-3 brainrots on a 15-minute expedition; type match boosts yields.
+BrainrotData.ZONES = {
+	whispering_woods = {
+		Name = "Whispering Woods",
+		Description = "Ancient trees hum with old magic. Wood types feel at home here.",
+		Color = Color3.fromRGB(45, 130, 70),
+		FavoredType = "Wood",
+		Materials = { "Timber", "Ancient Bark", "Glowcap" },
+		UnlockHint = "Walk into the forest east of the plots",
+	},
+	sunken_ruins = {
+		Name = "Sunken Ruins",
+		Description = "Flooded temples hide treasures below. Water types dive deepest.",
+		Color = Color3.fromRGB(40, 110, 160),
+		FavoredType = "Water",
+		Materials = { "Fish", "Pearl Shard", "Sunken Gold" },
+		UnlockHint = "Follow the river downstream",
+	},
+	ember_peaks = {
+		Name = "Ember Peaks",
+		Description = "Volcanic rock and rivers of lava. Fire types thrive in the heat.",
+		Color = Color3.fromRGB(200, 70, 30),
+		FavoredType = "Fire",
+		Materials = { "Ingots", "Ember Crystal", "Obsidian" },
+		UnlockHint = "Climb toward the smoking mountains",
+	},
+	crystal_caves = {
+		Name = "Crystal Caves",
+		Description = "Light refracts through endless crystal. Sky types navigate the echoes.",
+		Color = Color3.fromRGB(130, 180, 230),
+		FavoredType = "Sky",
+		Materials = { "Cloud Cotton", "Prism Shard", "Echo Stone" },
+		UnlockHint = "Find the cave mouth in the cliffs",
+	},
+	storm_summit = {
+		Name = "Storm Summit",
+		Description = "The highest peak, wrapped in eternal storm. Shadow types slip through unseen.",
+		Color = Color3.fromRGB(70, 70, 100),
+		FavoredType = "Shadow",
+		Materials = { "Dark Stone", "Storm Core", "Void Essence" },
+		UnlockHint = "Reach the very top of the world",
+	},
+}
+BrainrotData.ZONE_ORDER = { "whispering_woods", "sunken_ruins", "ember_peaks", "crystal_caves", "storm_summit" }
+
+-- Expedition tuning.
+BrainrotData.EXPEDITION_DURATION = 15 * 60 -- 15 minutes, as requested
+BrainrotData.EXPEDITION_TEAM_MIN = 1
+BrainrotData.EXPEDITION_TEAM_MAX = 3
+BrainrotData.EXPEDITION_BASE_MATS = 8 -- base materials per expedition (scaled by team/type)
+BrainrotData.EXPEDITION_TYPE_BONUS = 1.5 -- multiplier if any team member matches zone FavoredType
+
+-- Rare expedition-only materials and their colors (for UI).
+BrainrotData.RARE_MATERIALS = {
+	["Ancient Bark"] = Color3.fromRGB(110, 75, 40),
+	["Glowcap"]      = Color3.fromRGB(120, 230, 150),
+	["Pearl Shard"]  = Color3.fromRGB(240, 230, 220),
+	["Sunken Gold"]  = Color3.fromRGB(255, 200, 60),
+	["Ember Crystal"]= Color3.fromRGB(255, 100, 40),
+	["Obsidian"]     = Color3.fromRGB(35, 35, 45),
+	["Prism Shard"]  = Color3.fromRGB(180, 220, 255),
+	["Echo Stone"]   = Color3.fromRGB(150, 150, 190),
+	["Storm Core"]   = Color3.fromRGB(100, 140, 255),
+	["Void Essence"] = Color3.fromRGB(60, 30, 90),
+}
+
+-- // Mystery Eggs ----------------------------------------------------------------
+-- Earned from daily quests. Full mystery: no preview. Hatch with playtime.
+BrainrotData.EGG_TIERS = {
+	small = {
+		Name = "Small Egg",
+		Color = Color3.fromRGB(180, 200, 180),
+		HatchMinutes = 20, -- of active playtime
+		Weights = { Common = 70, Rare = 22, Epic = 7, Legendary = 1 },
+	},
+	big = {
+		Name = "Big Egg",
+		Color = Color3.fromRGB(140, 180, 230),
+		HatchMinutes = 45,
+		Weights = { Common = 40, Rare = 35, Epic = 20, Legendary = 5 },
+	},
+	golden = {
+		Name = "Golden Egg",
+		Color = Color3.fromRGB(255, 200, 60),
+		HatchMinutes = 90,
+		Weights = { Common = 15, Rare = 30, Epic = 35, Legendary = 20 },
+	},
+}
+BrainrotData.EGG_ORDER = { "small", "big", "golden" }
+BrainrotData.INCUBATOR_SLOTS = 3 -- base; more purchasable with coins
+
+-- // Daily Quests -----------------------------------------------------------------
+-- Three tiers per day. Complete all three for a bonus egg.
+BrainrotData.DAILY_TIERS = {
+	easy =   { Name = "Easy",   EggReward = "small",  Color = Color3.fromRGB(120, 200, 120) },
+	medium = { Name = "Medium", EggReward = "big",    Color = Color3.fromRGB(100, 150, 230) },
+	hard =   { Name = "Hard",   EggReward = "golden", Color = Color3.fromRGB(230, 150, 60) },
+}
+-- Quest templates: { Description, Target, RewardCoins }. Target varies by tier.
+BrainrotData.DAILY_QUEST_POOL = {
+	easy = {
+		{ Text = "Collect 10 coins from the obby", Target = 10, Coins = 50 },
+		{ Text = "Collect 3 Brainrot Orbs", Target = 3, Coins = 50 },
+		{ Text = "Collect materials from a workstation", Target = 5, Coins = 50 },
+	},
+	medium = {
+		{ Text = "Win 1 battle in the Arena", Target = 1, Coins = 150 },
+		{ Text = "Complete 1 expedition", Target = 1, Coins = 150 },
+		{ Text = "Fuse 1 brainrot", Target = 1, Coins = 150 },
+		{ Text = "Collect 30 coins from the obby", Target = 30, Coins = 150 },
+	},
+	hard = {
+		{ Text = "Win 3 battles in the Arena", Target = 3, Coins = 400 },
+		{ Text = "Complete 3 expeditions", Target = 3, Coins = 400 },
+		{ Text = "Hatch 1 mystery egg", Target = 1, Coins = 400 },
+		{ Text = "Earn 500 coins", Target = 500, Coins = 400 },
+	},
+}
+
+-- // Passive Income (Gold Mine) -------------------------------------------------------
+-- Single currency: coins. The gold mine on your plot generates coins per minute
+-- while you are actively in-game. Rewards playtime, not idling.
+BrainrotData.PASSIVE_COINS_PER_MINUTE = 5
+BrainrotData.PASSIVE_CAP_MINUTES = 120 -- max 2 hours banked; collect to reset
+BrainrotData.GOLD_MINE_UPGRADES = {
+	-- level -> { Cost, RatePerMinute }
+	{ Cost = 0,    RatePerMinute = 5 },
+	{ Cost = 500,  RatePerMinute = 10 },
+	{ Cost = 1500, RatePerMinute = 20 },
+	{ Cost = 4000, RatePerMinute = 35 },
+}
+
+-- // Base Customization ----------------------------------------------------------------
+-- Spend coins + materials to personalize your plot. Pure self-expression.
+BrainrotData.PLOT_THEMES = {
+	default = { Name = "Meadow", Cost = 0, Materials = {}, Color = Color3.fromRGB(90, 160, 90) },
+	crystal = { Name = "Crystal", Cost = 1000, Materials = { ["Prism Shard"] = 5 }, Color = Color3.fromRGB(150, 200, 255) },
+	volcanic = { Name = "Volcanic", Cost = 1000, Materials = { ["Ember Crystal"] = 5 }, Color = Color3.fromRGB(180, 60, 30) },
+	ocean = { Name = "Ocean", Cost = 1000, Materials = { ["Pearl Shard"] = 5 }, Color = Color3.fromRGB(50, 130, 180) },
+	shadow = { Name = "Shadow", Cost = 2000, Materials = { ["Void Essence"] = 5 }, Color = Color3.fromRGB(60, 60, 90) },
+}
+BrainrotData.PLOT_DECORATIONS = {
+	banner =   { Name = "Victory Banner", Cost = 300, Materials = { Timber = 10 } },
+	fountain = { Name = "Coin Fountain", Cost = 800, Materials = { ["Sunken Gold"] = 3 } },
+	torch =    { Name = "Ember Torch", Cost = 500, Materials = { ["Ember Crystal"] = 2 } },
+	crystal_deco = { Name = "Crystal Cluster", Cost = 500, Materials = { ["Prism Shard"] = 2 } },
+	statue =   { Name = "Golden Statue", Cost = 2000, Materials = { ["Sunken Gold"] = 5 } },
+}
+
 return BrainrotData

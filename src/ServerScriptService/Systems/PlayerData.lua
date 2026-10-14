@@ -52,6 +52,7 @@ local function defaultData()
 		ActiveQuestId = "first_steps",
 		QuestProgress = 0,
 		Materials = { foraging = 0, fishing = 0, smelting = 0, gathering = 0, mining = 0 },
+		RareMaterials = {}, -- [materialName] = count (expedition-only mats)
 		Jobs = {},    -- [instanceId] = { Station = workId, Slot = 1..2 }
 		Stations = {}, -- [workId] = { Stored = 0.0, LastTick = os.time() }
 		-- Milestone 2:
@@ -59,6 +60,27 @@ local function defaultData()
 		LifetimeMaterials = 0,-- materials ever collected (quest objective)
 		Fusions = 0,          -- fusions ever performed (quest objective)
 		RivalsBeaten = {},    -- [rivalId] = true
+		-- Exploration & Expeditions:
+		UnlockedZones = { whispering_woods = true }, -- first zone free
+		Expeditions = {}, -- [expId] = { Zone, Team = {instanceIds}, StartTime, Duration }
+		ExpeditionsCompleted = 0,
+		-- Mystery Eggs:
+		Eggs = {}, -- [eggId] = { Tier, Progress = 0 (playtime minutes) }
+		IncubatorSlots = 3,
+		EggsHatched = 0,
+		-- Daily Quests:
+		DailyDate = "", -- YYYY-MM-DD of current dailies
+		DailyQuests = {}, -- [tier] = { Text, Target, Progress, Done, Coins }
+		DailyEggsClaimed = {}, -- [tier] = true
+		DailyAllComplete = false,
+		-- Passive Income (Gold Mine):
+		GoldMineLevel = 1,
+		PassiveBanked = 0, -- coins accumulated
+		LastPassiveTick = os.time(),
+		-- Base Customization:
+		PlotTheme = "default",
+		UnlockedThemes = { default = true },
+		Decorations = {}, -- [decoId] = true
 	}
 end
 
@@ -522,7 +544,137 @@ function PlayerData.GetWorkView(player: Player): any
 		end)
 		stations[workId] = { Stored = math.floor(st.Stored or 0), Workers = workers }
 	end
-	return { Materials = data.Materials, Stations = stations }
+	return { Materials = data.Materials, RareMaterials = data.RareMaterials, Stations = stations }
+end
+
+-- // Expeditions -----------------------------------------------------------------
+-- Check if a brainrot instance is available (not showcased, working, or on expedition).
+function PlayerData.IsAvailableForExpedition(player: Player, instanceId: string): boolean
+	local data = session[player.UserId]
+	if not data then return false end
+	-- Not on showcase
+	for _, id in ipairs(data.Showcase) do
+		if id == instanceId then return false end
+	end
+	-- Not working
+	if data.Jobs[instanceId] then return false end
+	-- Not already on expedition
+	for _, exp in pairs(data.Expeditions) do
+		for _, teamId in ipairs(exp.Team) do
+			if teamId == instanceId then return false end
+		end
+	end
+	return PlayerData.GetInstance(player, instanceId) ~= nil
+end
+
+function PlayerData.AddRareMaterial(player: Player, matName: string, amount: number)
+	local data = session[player.UserId]
+	if not data then return end
+	data.RareMaterials[matName] = (data.RareMaterials[matName] or 0) + amount
+	data.LifetimeMaterials += amount
+end
+
+function PlayerData.SpendRareMaterials(player: Player, costs: { [string]: number }): boolean
+	local data = session[player.UserId]
+	if not data then return false end
+	for mat, cost in pairs(costs) do
+		if (data.RareMaterials[mat] or 0) < cost then return false end
+	end
+	for mat, cost in pairs(costs) do
+		data.RareMaterials[mat] -= cost
+	end
+	return true
+end
+
+-- // Passive Income ----------------------------------------------------------------
+function PlayerData.TickPassiveIncome(player: Player): number
+	-- Returns coins earned since last tick. Called periodically by GameServer.
+	local data = session[player.UserId]
+	if not data then return 0 end
+	local now = os.time()
+	local elapsed = now - (data.LastPassiveTick or now)
+	data.LastPassiveTick = now
+	if elapsed <= 0 then return 0 end
+	local upgrade = BrainrotData.GOLD_MINE_UPGRADES[data.GoldMineLevel or 1]
+	if not upgrade then return 0 end
+	local ratePerSec = upgrade.RatePerMinute / 60
+	-- Cap: only bank up to PASSIVE_CAP_MINUTES worth.
+	local maxBank = BrainrotData.PASSIVE_CAP_MINUTES * upgrade.RatePerMinute
+	local earned = math.floor(elapsed * ratePerSec)
+	local newBank = math.min(maxBank, (data.PassiveBanked or 0) + earned)
+	local actualGain = newBank - (data.PassiveBanked or 0)
+	data.PassiveBanked = newBank
+	return actualGain
+end
+
+function PlayerData.CollectPassive(player: Player): number
+	local data = session[player.UserId]
+	if not data then return 0 end
+	local amount = math.floor(data.PassiveBanked or 0)
+	data.PassiveBanked = 0
+	if amount > 0 then
+		PlayerData.AddCoins(player, amount)
+	end
+	return amount
+end
+
+-- // Customization ------------------------------------------------------------------
+function PlayerData.UnlockTheme(player: Player, themeId: string): (boolean, string?)
+	local data = session[player.UserId]
+	local theme = BrainrotData.PLOT_THEMES[themeId]
+	if not data or not theme then return false, "Invalid theme" end
+	if data.UnlockedThemes[themeId] then return false, "Already unlocked" end
+	if (data.Coins or 0) < theme.Cost then return false, "Not enough coins" end
+	for mat, cost in pairs(theme.Materials) do
+		if (data.RareMaterials[mat] or 0) < cost then
+			return false, "Need " .. mat
+		end
+	end
+	if not PlayerData.SpendCoins(player, theme.Cost) then return false, "Not enough coins" end
+	if not PlayerData.SpendRareMaterials(player, theme.Materials) then
+		-- Refund coins (shouldn't happen, but safe)
+		PlayerData.AddCoins(player, theme.Cost)
+		return false, "Need materials"
+	end
+	data.UnlockedThemes[themeId] = true
+	data.PlotTheme = themeId
+	return true
+end
+
+function PlayerData.BuyDecoration(player: Player, decoId: string): (boolean, string?)
+	local data = session[player.UserId]
+	local deco = BrainrotData.PLOT_DECORATIONS[decoId]
+	if not data or not deco then return false, "Invalid decoration" end
+	if data.Decorations[decoId] then return false, "Already owned" end
+	if (data.Coins or 0) < deco.Cost then return false, "Not enough coins" end
+	for mat, cost in pairs(deco.Materials) do
+		-- Materials can be regular (Timber etc.) or rare
+		local hasRare = (data.RareMaterials[mat] or 0) >= cost
+		local workId = nil
+		for _, wid in ipairs(BrainrotData.WORK_ORDER) do
+			if BrainrotData.WORK_TYPES[wid].Material == mat then workId = wid break end
+		end
+		local hasRegular = workId and (data.Materials[workId] or 0) >= cost
+		if not (hasRare or hasRegular) then
+			return false, "Need " .. mat
+		end
+	end
+	if not PlayerData.SpendCoins(player, deco.Cost) then return false, "Not enough coins" end
+	-- Spend materials (prefer rare, fall back to regular)
+	for mat, cost in pairs(deco.Materials) do
+		if (data.RareMaterials[mat] or 0) >= cost then
+			data.RareMaterials[mat] -= cost
+		else
+			for _, wid in ipairs(BrainrotData.WORK_ORDER) do
+				if BrainrotData.WORK_TYPES[wid].Material == mat then
+					data.Materials[wid] = math.max(0, (data.Materials[wid] or 0) - cost)
+					break
+				end
+			end
+		end
+	end
+	data.Decorations[decoId] = true
+	return true
 end
 
 return PlayerData

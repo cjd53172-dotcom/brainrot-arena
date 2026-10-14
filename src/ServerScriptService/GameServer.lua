@@ -23,6 +23,9 @@ local PlayerData = require(Systems:WaitForChild("PlayerData"))
 local QuestSystem = require(Systems:WaitForChild("QuestSystem"))
 local PlotSystem = require(Systems:WaitForChild("PlotSystem"))
 local BattleSystem = require(Systems:WaitForChild("BattleSystem"))
+local ExpeditionSystem = require(Systems:WaitForChild("ExpeditionSystem"))
+local DailyQuestSystem = require(Systems:WaitForChild("DailyQuestSystem"))
+local EggSystem = require(Systems:WaitForChild("EggSystem"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- // RemoteEvents --------------------------------------------------------------
@@ -30,7 +33,7 @@ local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
 remotes.Parent = ReplicatedStorage
 
-for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle" }) do
+for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone" }) do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes
@@ -93,6 +96,8 @@ remotes:WaitForChild("CollectStation").OnServerEvent:Connect(function(player: Pl
 			data.LifetimeMaterials = (data.LifetimeMaterials or 0) + granted
 		end
 		QuestSystem.CheckObjective(player, "materials")
+		DailyQuestSystem.RecordProgress(player, "workstation_collect", granted)
+		pushDailyState(player)
 	end
 	pushWorkState(player)
 	pushCollection(player)
@@ -145,6 +150,8 @@ remotes:WaitForChild("FuseBrainrots").OnServerEvent:Connect(function(player: Pla
 		PlayerData.RemoveBrainrotInstances(player, instanceIds)
 		local instance, err = PlayerData.TryAddBrainrot(player, resultId, true, BrainrotData.RollVariant())
 		data.Fusions = (data.Fusions or 0) + 1
+		DailyQuestSystem.RecordProgress(player, "fuse", 1)
+		pushDailyState(player)
 		PlotSystem.RefreshPlot(player)
 		remotes:WaitForChild("FusionResult"):FireClient(player, {
 			Kind = "Fusion",
@@ -179,6 +186,8 @@ remotes:WaitForChild("FuseBrainrots").OnServerEvent:Connect(function(player: Pla
 		local variant = BrainrotData.RollVariant()
 		local instance, err = PlayerData.TryAddBrainrot(player, resultId, shiny, variant)
 		data.Fusions = (data.Fusions or 0) + 1
+		DailyQuestSystem.RecordProgress(player, "fuse", 1)
+		pushDailyState(player)
 		PlotSystem.RefreshPlot(player)
 		remotes:WaitForChild("FusionResult"):FireClient(player, {
 			Kind = "Fusion",
@@ -204,6 +213,8 @@ local function battleReward(player: Player, rival: any)
 	end
 	if rival.RewardCoins then
 		PlayerData.AddCoins(player, rival.RewardCoins)
+		DailyQuestSystem.RecordProgress(player, "battle_win", 1)
+		pushDailyState(player)
 	end
 	local grantedId: string? = nil
 	if rival.RewardRarity then
@@ -374,6 +385,7 @@ local function spawnOrb(pos: Vector3)
 		-- Brainrot Cache: every 5 orbs earns a random brainrot + coins.
 		-- This is the core repeatable grind loop of the game.
 		data.OrbProgress = (data.OrbProgress or 0) + 1
+		DailyQuestSystem.RecordProgress(player, "orbs", 1)
 		if data.OrbProgress >= 5 then
 			data.OrbProgress = 0
 			local rarity = BrainrotData.RollRewardRarity()
@@ -463,6 +475,52 @@ prompt.Triggered:Connect(function(player: Player)
 	end
 end)
 
+-- Expedition board: physical gateway to the expedition system.
+local expBoard = Instance.new("Part")
+expBoard.Name = "ExpeditionBoard"
+expBoard.Size = Vector3.new(6, 5, 0.6)
+expBoard.Anchored = true
+expBoard.Color = Color3.fromRGB(60, 120, 60)
+expBoard.Material = Enum.Material.Wood
+pcall(function()
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { workspace.Terrain }
+	local r = workspace:Raycast(Vector3.new(135, 500, 60), Vector3.new(0, -1000, 0), params)
+	if r then
+		expBoard.Position = Vector3.new(135, r.Position.Y + 3.5, 60)
+	else
+		expBoard.Position = Vector3.new(135, 16, 60)
+	end
+end)
+expBoard.Parent = workspace
+
+local expGui = Instance.new("SurfaceGui")
+expGui.Face = Enum.NormalId.Front
+expGui.Parent = expBoard
+local expLabel = Instance.new("TextLabel")
+expLabel.Size = UDim2.new(1, 0, 1, 0)
+expLabel.BackgroundTransparency = 1
+expLabel.Text = "EXPEDITION BOARD\nSend brainrots to gather!"
+expLabel.TextScaled = true
+expLabel.Font = Enum.Font.GothamBold
+expLabel.TextColor3 = Color3.new(1, 1, 1)
+expLabel.TextStrokeTransparency = 0.6
+expLabel.Parent = expGui
+
+local expPrompt = Instance.new("ProximityPrompt")
+expPrompt.ActionText = "Open"
+expPrompt.ObjectText = "Expedition Board"
+expPrompt.HoldDuration = 0
+expPrompt.MaxActivationDistance = 12
+expPrompt.Parent = expBoard
+
+expPrompt.Triggered:Connect(function(player: Player)
+	-- Tell client to open expedition panel
+	remotes:WaitForChild("ExpeditionUpdate"):FireClient(player, ExpeditionSystem.GetStatus(player))
+	remotes:WaitForChild("ShowHint"):FireClient(player, "Open the Explore menu to send expeditions!")
+end)
+
 -- // Player wiring ----------------------------------------------------------------
 local function sendInitialState(player: Player)
 	local data = PlayerData.Get(player)
@@ -487,6 +545,119 @@ local function sendInitialState(player: Player)
 	})
 end
 
+-- // Expeditions ------------------------------------------------------------------
+local function pushExpeditionState(player: Player)
+	local status = ExpeditionSystem.GetStatus(player)
+	remotes:WaitForChild("ExpeditionUpdate"):FireClient(player, status)
+end
+
+remotes:WaitForChild("StartExpedition").OnServerEvent:Connect(function(player: Player, zoneId: any, teamIds: any)
+	if type(zoneId) ~= "string" or type(teamIds) ~= "table" then return end
+	local ok, msg = ExpeditionSystem.StartExpedition(player, zoneId, teamIds)
+	if ok then
+		pushExpeditionState(player)
+		pushCollection(player)
+	else
+		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not start expedition")
+	end
+end)
+
+remotes:WaitForChild("UnlockZone").OnServerEvent:Connect(function(player: Player, zoneId: any)
+	if type(zoneId) ~= "string" then return end
+	if ExpeditionSystem.UnlockZone(player, zoneId) then
+		pushExpeditionState(player)
+		remotes:WaitForChild("ShowHint"):FireClient(player, "Discovered: " .. (BrainrotData.ZONES[zoneId] and BrainrotData.ZONES[zoneId].Name or zoneId))
+	end
+end)
+
+-- // Daily Quests ------------------------------------------------------------------
+local function pushDailyState(player: Player)
+	local status = DailyQuestSystem.GetStatus(player)
+	remotes:WaitForChild("DailyUpdate"):FireClient(player, status)
+end
+
+-- Forward-declared (defined in Eggs section below, used by ClaimDailyEgg).
+local pushEggStateFn: ((Player) -> ())?
+
+remotes:WaitForChild("ClaimDailyEgg").OnServerEvent:Connect(function(player: Player, tier: any)
+	if type(tier) ~= "string" then return end
+	local ok, msg = DailyQuestSystem.ClaimEgg(player, tier)
+	if ok then
+		pushDailyState(player)
+		if pushEggStateFn then pushEggStateFn(player) end
+		remotes:WaitForChild("ShowHint"):FireClient(player, "Mystery egg added to incubator!")
+	else
+		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not claim egg")
+	end
+end)
+
+-- // Eggs ------------------------------------------------------------------
+local function pushEggState(player: Player)
+	local status = EggSystem.GetStatus(player)
+	remotes:WaitForChild("EggUpdate"):FireClient(player, status)
+end
+pushEggStateFn = pushEggState
+
+remotes:WaitForChild("BuyEggSlot").OnServerEvent:Connect(function(player: Player)
+	local ok, msg = EggSystem.BuySlot(player)
+	if ok then
+		pushEggState(player)
+		pushCollection(player)
+		remotes:WaitForChild("ShowHint"):FireClient(player, "Incubator slot added!")
+	else
+		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not buy slot")
+	end
+end)
+
+-- // Passive Income ------------------------------------------------------------------
+remotes:WaitForChild("CollectPassive").OnServerEvent:Connect(function(player: Player)
+	local amount = PlayerData.CollectPassive(player)
+	if amount > 0 then
+		pushCollection(player)
+		remotes:WaitForChild("PassiveUpdate"):FireClient(player, { Banked = 0, Collected = amount })
+		remotes:WaitForChild("ShowHint"):FireClient(player, "+" .. tostring(amount) .. " coins from gold mine!")
+		DailyQuestSystem.RecordProgress(player, "coins_earned", amount)
+	end
+end)
+
+-- // Customization ------------------------------------------------------------------
+local function pushCustomizeState(player: Player)
+	local data = PlayerData.Get(player)
+	if not data then return end
+	remotes:WaitForChild("CustomizeUpdate"):FireClient(player, {
+		Theme = data.PlotTheme,
+		UnlockedThemes = data.UnlockedThemes,
+		Decorations = data.Decorations,
+		GoldMineLevel = data.GoldMineLevel,
+	})
+end
+
+remotes:WaitForChild("UnlockTheme").OnServerEvent:Connect(function(player: Player, themeId: any)
+	if type(themeId) ~= "string" then return end
+	local ok, msg = PlayerData.UnlockTheme(player, themeId)
+	if ok then
+		pushCustomizeState(player)
+		pushCollection(player)
+		PlotSystem.RefreshPlot(player) -- apply theme visual
+		remotes:WaitForChild("ShowHint"):FireClient(player, "Plot theme unlocked!")
+	else
+		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not unlock theme")
+	end
+end)
+
+remotes:WaitForChild("BuyDecoration").OnServerEvent:Connect(function(player: Player, decoId: any)
+	if type(decoId) ~= "string" then return end
+	local ok, msg = PlayerData.BuyDecoration(player, decoId)
+	if ok then
+		pushCustomizeState(player)
+		pushCollection(player)
+		PlotSystem.RefreshPlot(player) -- show decoration
+		remotes:WaitForChild("ShowHint"):FireClient(player, "Decoration placed!")
+	else
+		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not buy decoration")
+	end
+end)
+
 local function onPlayerAdded(player: Player)
 	PlayerData.Load(player)
 	PlayerData.ResetStationClocks(player) -- workers rest while you're away
@@ -508,6 +679,11 @@ local function onPlayerAdded(player: Player)
 	task.defer(function()
 		sendInitialState(player)
 		pushWorkState(player)
+		DailyQuestSystem.EnsureToday(player)
+		pushDailyState(player)
+		pushExpeditionState(player)
+		pushEggState(player)
+		pushCustomizeState(player)
 	end)
 end
 
@@ -529,13 +705,52 @@ game:BindToClose(function()
 end)
 
 -- Production tick: advance every online player's stations every 30s.
+-- Also: expeditions (check completions), eggs (incubation), passive income.
+local tickCount = 0
 task.spawn(function()
 	while true do
 		task.wait(30)
+		tickCount += 1
 		for _, p in ipairs(Players:GetPlayers()) do
 			local data = PlayerData.Get(p)
-			if data and next(data.Jobs) ~= nil then
+			if not data then continue end
+			-- Workstations
+			if next(data.Jobs) ~= nil then
 				pushWorkState(p)
+			end
+			-- Expeditions: check for completions
+			local results = ExpeditionSystem.TickExpeditions(p)
+			if #results > 0 then
+				pushExpeditionState(p)
+				pushCollection(p)
+				for _, r in ipairs(results) do
+					remotes:WaitForChild("ShowHint"):FireClient(p,
+						"Expedition complete! +" .. tostring(r.Coins) .. " coins, materials gathered")
+					DailyQuestSystem.RecordProgress(p, "expedition_complete", 1)
+				end
+				pushDailyState(p)
+			elseif next(data.Expeditions) ~= nil then
+				pushExpeditionState(p) -- update countdown timers
+			end
+			-- Eggs: 0.5 minutes of incubation per 30s tick
+			local hatched = EggSystem.TickIncubation(p, 0.5)
+			if #hatched > 0 then
+				pushEggState(p)
+				pushCollection(p)
+				for _, h in ipairs(hatched) do
+					remotes:WaitForChild("ShowHint"):FireClient(p,
+						"Egg hatched: " .. h.BrainrotName .. " (" .. h.Rarity .. ")!")
+				end
+				pushDailyState(p)
+			elseif next(data.Eggs) ~= nil then
+				pushEggState(p) -- update progress bars
+			end
+			-- Passive income: bank coins
+			local gained = PlayerData.TickPassiveIncome(p)
+			if gained > 0 then
+				remotes:WaitForChild("PassiveUpdate"):FireClient(p, {
+					Banked = math.floor(data.PassiveBanked or 0),
+				})
 			end
 		end
 	end

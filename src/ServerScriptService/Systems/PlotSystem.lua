@@ -808,6 +808,10 @@ function PlotSystem.Setup()
 			end
 			coin:SetAttribute("Collected", true)
 			PlayerData.AddCoins(player, value)
+			pcall(function()
+				local DQS = require(script.Parent:WaitForChild("DailyQuestSystem"))
+				DQS.RecordProgress(player, "obby_coins", value)
+			end)
 			coin.Transparency = 1
 			-- Respawn after 30 seconds.
 			task.delay(30, function()
@@ -1477,6 +1481,104 @@ function PlotSystem.RefreshPlot(player: Player)
 			display:PivotTo(pivot + (targetPos - pivot.Position))
 			display.Parent = displays
 		end
+	end
+
+	-- Apply plot theme color and decorations
+	PlotSystem.ApplyCustomization(player, plot)
+end
+
+-- Apply theme color to plot base and place owned decorations.
+function PlotSystem.ApplyCustomization(player: Player, plot: Model)
+	local data = PlayerData.Get(player)
+	if not data then return end
+
+	-- Theme color on base
+	local theme = BrainrotData.PLOT_THEMES[data.PlotTheme or "default"]
+	if theme then
+		local base = plot:FindFirstChild("Base")
+		if base and base:IsA("BasePart") then
+			(base :: BasePart).Color = theme.Color
+		end
+	end
+
+	-- Clear old decorations
+	local oldDeco = plot:FindFirstChild("Decorations")
+	if oldDeco then oldDeco:Destroy() end
+	local decoFolder = Instance.new("Folder")
+	decoFolder.Name = "Decorations"
+	decoFolder.Parent = plot
+
+	local base = plot:FindFirstChild("Base")
+	if not base or not base:IsA("BasePart") then return end
+	local bp = (base :: BasePart).Position
+	local bs = (base :: BasePart).Size
+
+	-- Place decorations at plot corners
+	local decoSpots = {
+		Vector3.new(bp.X - bs.X/2 + 3, bp.Y, bp.Z - bs.Z/2 + 3),
+		Vector3.new(bp.X + bs.X/2 - 3, bp.Y, bp.Z - bs.Z/2 + 3),
+		Vector3.new(bp.X - bs.X/2 + 3, bp.Y, bp.Z + bs.Z/2 - 3),
+		Vector3.new(bp.X + bs.X/2 - 3, bp.Y, bp.Z + bs.Z/2 - 3),
+	}
+	local spotIdx = 1
+	for decoId, _ in pairs(data.Decorations or {}) do
+		if spotIdx > #decoSpots then break end
+		local pos = decoSpots[spotIdx]
+		spotIdx += 1
+		local part = Instance.new("Part")
+		part.Name = "Deco_" .. decoId
+		part.Anchored = true
+		part.CanCollide = false
+		-- Simple visuals per decoration type
+		if decoId == "banner" then
+			part.Size = Vector3.new(2, 6, 0.5)
+			part.Color = Color3.fromRGB(200, 50, 50)
+			part.Position = pos + Vector3.new(0, 3, 0)
+		elseif decoId == "fountain" then
+			part.Size = Vector3.new(4, 2, 4)
+			part.Shape = Enum.PartType.Cylinder
+			part.Color = Color3.fromRGB(100, 180, 230)
+			part.Position = pos + Vector3.new(0, 1, 0)
+		elseif decoId == "torch" then
+			part.Size = Vector.new(1, 4, 1)
+			part.Color = Color3.fromRGB(120, 70, 30)
+			part.Position = pos + Vector3.new(0, 2, 0)
+			-- Flame
+			local fire = Instance.new("Fire")
+			fire.Size = 5
+			fire.Parent = part
+		elseif decoId == "crystal_deco" then
+			part.Size = Vector3.new(2, 3, 2)
+			part.Color = Color3.fromRGB(150, 200, 255)
+			part.Material = Enum.Material.Glass
+			part.Position = pos + Vector3.new(0, 1.5, 0)
+		elseif decoId == "statue" then
+			part.Size = Vector3.new(2, 5, 2)
+			part.Color = Color3.fromRGB(255, 200, 60)
+			part.Material = Enum.Material.Metal
+			part.Position = pos + Vector3.new(0, 2.5, 0)
+		else
+			part.Size = Vector3.new(2, 2, 2)
+			part.Color = Color3.fromRGB(150, 150, 150)
+			part.Position = pos + Vector3.new(0, 1, 0)
+		end
+		part.Parent = decoFolder
+	end
+
+	-- Gold mine visual (always present, shows level)
+	local mine = Instance.new("Part")
+	mine.Name = "GoldMine"
+	mine.Size = Vector3.new(4, 3, 4)
+	mine.Color = Color3.fromRGB(180, 140, 50)
+	mine.Material = Enum.Material.Metal
+	mine.Anchored = true
+	mine.Position = Vector3.new(bp.X + bs.X/2 - 5, bp.Y + 1.5, bp.Z + bs.Z/2 - 5)
+	mine.Parent = decoFolder
+	-- Sparkles for higher levels
+	if (data.GoldMineLevel or 1) >= 2 then
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = Color3.fromRGB(255, 220, 100)
+		sparkles.Parent = mine
 	end
 end
 

@@ -27,6 +27,19 @@ local fuseRemote = remotes:WaitForChild("FuseBrainrots")
 local startBattleRemote = remotes:WaitForChild("StartBattle")
 local submitMovesRemote = remotes:WaitForChild("SubmitMoves")
 local forfeitRemote = remotes:WaitForChild("ForfeitBattle")
+-- Exploration & progression remotes
+local startExpeditionRemote = remotes:WaitForChild("StartExpedition")
+local expeditionUpdateRemote = remotes:WaitForChild("ExpeditionUpdate")
+local unlockZoneRemote = remotes:WaitForChild("UnlockZone")
+local claimDailyEggRemote = remotes:WaitForChild("ClaimDailyEgg")
+local dailyUpdateRemote = remotes:WaitForChild("DailyUpdate")
+local buyEggSlotRemote = remotes:WaitForChild("BuyEggSlot")
+local eggUpdateRemote = remotes:WaitForChild("EggUpdate")
+local collectPassiveRemote = remotes:WaitForChild("CollectPassive")
+local passiveUpdateRemote = remotes:WaitForChild("PassiveUpdate")
+local unlockThemeRemote = remotes:WaitForChild("UnlockTheme")
+local buyDecorationRemote = remotes:WaitForChild("BuyDecoration")
+local customizeUpdateRemote = remotes:WaitForChild("CustomizeUpdate")
 
 -- Forward declarations: defined later in the file, used by M2 UI above.
 local showBanner: (string, number) -> ()
@@ -1061,6 +1074,167 @@ forfeitBtn.MouseButton1Click:Connect(function()
 	battlePanel.Visible = false
 end)
 
+-- // Exploration & Progression Panels -----------------------------------------------------
+-- Second row of menu buttons
+local exploreBtn = Instance.new("TextButton")
+exploreBtn.Size = UDim2.new(0, 104, 0, 40)
+exploreBtn.Position = UDim2.new(0.5, -276, 1, -112)
+exploreBtn.BackgroundColor3 = Color3.fromRGB(35, 60, 35)
+exploreBtn.Text = "Explore"
+exploreBtn.Font = Enum.Font.GothamBold
+exploreBtn.TextSize = 13
+exploreBtn.TextColor3 = Color3.fromRGB(170, 255, 170)
+exploreBtn.Parent = gui
+corner(exploreBtn, 10)
+
+local dailyBtn = Instance.new("TextButton")
+dailyBtn.Size = UDim2.new(0, 104, 0, 40)
+dailyBtn.Position = UDim2.new(0.5, -164, 1, -112)
+dailyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+dailyBtn.Text = "Dailies"
+dailyBtn.Font = Enum.Font.GothamBold
+dailyBtn.TextSize = 13
+dailyBtn.TextColor3 = Color3.fromRGB(200, 200, 255)
+dailyBtn.Parent = gui
+corner(dailyBtn, 10)
+
+local eggBtn = Instance.new("TextButton")
+eggBtn.Size = UDim2.new(0, 104, 0, 40)
+eggBtn.Position = UDim2.new(0.5, -52, 1, -112)
+eggBtn.BackgroundColor3 = Color3.fromRGB(80, 65, 30)
+eggBtn.Text = "Eggs"
+eggBtn.Font = Enum.Font.GothamBold
+eggBtn.TextSize = 13
+eggBtn.TextColor3 = Color3.fromRGB(255, 230, 150)
+eggBtn.Parent = gui
+corner(eggBtn, 10)
+
+local mineBtn = Instance.new("TextButton")
+mineBtn.Size = UDim2.new(0, 104, 0, 40)
+mineBtn.Position = UDim2.new(0.5, 60, 1, -112)
+mineBtn.BackgroundColor3 = Color3.fromRGB(70, 55, 20)
+mineBtn.Text = "Gold Mine"
+mineBtn.Font = Enum.Font.GothamBold
+mineBtn.TextSize = 13
+mineBtn.TextColor3 = Color3.fromRGB(255, 210, 100)
+mineBtn.Parent = gui
+corner(mineBtn, 10)
+
+local styleBtn = Instance.new("TextButton")
+styleBtn.Size = UDim2.new(0, 104, 0, 40)
+styleBtn.Position = UDim2.new(0.5, 172, 1, -112)
+styleBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 70)
+styleBtn.Text = "Style"
+styleBtn.Font = Enum.Font.GothamBold
+styleBtn.TextSize = 13
+styleBtn.TextColor3 = Color3.fromRGB(220, 180, 255)
+styleBtn.Parent = gui
+corner(styleBtn, 10)
+
+-- Helper to make a panel
+local function makePanel(title: string, titleColor: Color3): (Frame, TextLabel)
+	local panel = Instance.new("ScrollingFrame")
+	panel.Size = UDim2.new(0, 560, 0, 520)
+	panel.Position = UDim2.new(0.5, -280, 0.5, -260)
+	panel.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+	panel.BorderSizePixel = 0
+	panel.Visible = false
+	panel.Parent = gui
+	panel.ScrollBarThickness = 6
+	corner(panel, 12)
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = panel
+	local pad2 = Instance.new("UIPadding")
+	pad2.PaddingTop = UDim.new(0, 12)
+	pad2.PaddingLeft = UDim.new(0, 16)
+	pad2.PaddingRight = UDim.new(0, 16)
+	pad2.PaddingBottom = UDim.new(0, 12)
+	pad2.Parent = panel
+	local titleLbl = Instance.new("TextLabel")
+	titleLbl.Size = UDim2.new(1, 0, 0, 36)
+	titleLbl.BackgroundTransparency = 1
+	titleLbl.Text = title
+	titleLbl.Font = Enum.Font.GothamBold
+	titleLbl.TextSize = 18
+	titleLbl.TextColor3 = titleColor
+	titleLbl.LayoutOrder = 0
+	titleLbl.Parent = panel
+	return panel, titleLbl
+end
+
+local function makeRow(parent: Instance, order: number, height: number): Frame
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(1, 0, 0, height)
+	row.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+	row.BorderSizePixel = 0
+	row.LayoutOrder = order
+	row.Parent = parent
+	corner(row, 8)
+	return row
+end
+
+local function makeLabel(parent: Instance, text: string, size: number, color: Color3, order: number): TextLabel
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, 0, 0, 24)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = text
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextSize = size
+	lbl.TextColor3 = color
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.LayoutOrder = order
+	lbl.Parent = parent
+	return lbl
+end
+
+-- Expedition Panel
+local expeditionPanel, _expTitle = makePanel("🗺 Expeditions — send brainrots to gather (15 min)", Color3.fromRGB(170, 255, 170))
+local expZoneList: ScrollingFrame? = nil
+local expActiveList: Frame? = nil
+local selectedZone: string? = nil
+local selectedTeam: { string } = {}
+
+-- Daily Panel
+local dailyPanel, _dailyTitle = makePanel("📅 Daily Quests — complete for mystery eggs", Color3.fromRGB(200, 200, 255))
+
+-- Egg Panel
+local eggPanel, _eggTitle = makePanel("🥚 Mystery Eggs — hatch with playtime", Color3.fromRGB(255, 230, 150))
+
+-- Mine Panel
+local minePanel, _mineTitle = makePanel("⛏ Gold Mine — coins while you play", Color3.fromRGB(255, 210, 100))
+
+-- Customize Panel
+local customizePanel, _custTitle = makePanel("🎨 Customize Your Plot", Color3.fromRGB(220, 180, 255))
+
+-- Button handlers
+exploreBtn.MouseButton1Click:Connect(function()
+	local was = expeditionPanel.Visible
+	hideAllPanels()
+	if not was then expeditionPanel.Visible = true end
+end)
+dailyBtn.MouseButton1Click:Connect(function()
+	local was = dailyPanel.Visible
+	hideAllPanels()
+	if not was then dailyPanel.Visible = true end
+end)
+eggBtn.MouseButton1Click:Connect(function()
+	local was = eggPanel.Visible
+	hideAllPanels()
+	if not was then eggPanel.Visible = true end
+end)
+mineBtn.MouseButton1Click:Connect(function()
+	local was = minePanel.Visible
+	hideAllPanels()
+	if not was then minePanel.Visible = true end
+end)
+styleBtn.MouseButton1Click:Connect(function()
+	local was = customizePanel.Visible
+	hideAllPanels()
+	if not was then customizePanel.Visible = true end
+end)
+
 -- // Shared panel helper -----------------------------------------------------------------
 local function hideAllPanels()
 	collectionPanel.Visible = false
@@ -1069,6 +1243,11 @@ local function hideAllPanels()
 	pickerPanel.Visible = false
 	fusionPanel.Visible = false
 	arenaPanel.Visible = false
+	expeditionPanel.Visible = false
+	dailyPanel.Visible = false
+	eggPanel.Visible = false
+	minePanel.Visible = false
+	customizePanel.Visible = false
 end
 
 fusionBtn.MouseButton1Click:Connect(function()
@@ -1618,6 +1797,381 @@ battleUpdateRemote.OnClientEvent:Connect(function(payload: any)
 	elseif payload.Phase == "End" then
 		battlePanel.Visible = false
 		battleActive = false
+	end
+end)
+
+-- // Exploration UI Logic ---------------------------------------------------------------
+local expeditionData: any = { Expeditions = {}, UnlockedZones = {} }
+local dailyData: any = { Quests = {} }
+local eggData: any = { Eggs = {}, Slots = 3 }
+local passiveBanked: number = 0
+local customizeData: any = { Theme = "default", UnlockedThemes = {}, Decorations = {} }
+
+local function clearChildren(parent: Instance)
+	for _, c in ipairs(parent:GetChildren()) do
+		if c:IsA("GuiObject") and c.Name ~= "Title" then
+			c:Destroy()
+		end
+	end
+end
+
+local function refreshExpeditionPanel()
+	-- Clear dynamic content (keep title at LayoutOrder 0)
+	for _, c in ipairs(expeditionPanel:GetChildren()) do
+		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+			c:Destroy()
+		end
+	end
+	local order = 1
+	-- Active expeditions
+	if #expeditionData.Expeditions > 0 then
+		makeLabel(expeditionPanel, "Active Expeditions:", 15, Color3.fromRGB(255, 255, 255), order)
+		order += 1
+		for _, exp in ipairs(expeditionData.Expeditions) do
+			local row = makeRow(expeditionPanel, order, 56)
+			order += 1
+			local mins = math.floor(exp.RemainingSecs / 60)
+			local secs = exp.RemainingSecs % 60
+			local status = exp.Complete and "✅ Complete!" or string.format("⏳ %d:%02d left", mins, secs)
+			makeLabel(row, exp.ZoneName .. " — " .. table.concat(exp.TeamNames, ", "), 13, Color3.new(1,1,1), 1).Position = UDim2.new(0, 8, 0, 4)
+			makeLabel(row, status, 12, Color3.fromRGB(170, 255, 170), 2).Position = UDim2.new(0, 8, 0, 28)
+		end
+	end
+	-- Zone list
+	makeLabel(expeditionPanel, "Zones (walk there to discover):", 15, Color3.fromRGB(255, 255, 255), order)
+	order += 1
+	for _, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
+		local zone = BrainrotData.ZONES[zoneId]
+		local unlocked = expeditionData.UnlockedZones[zoneId]
+		local row = makeRow(expeditionPanel, order, 72)
+		order += 1
+		if unlocked then
+			row.BackgroundColor3 = zone.Color
+			makeLabel(row, "📍 " .. zone.Name, 14, Color3.new(1,1,1), 1).Position = UDim2.new(0, 8, 0, 4)
+			makeLabel(row, "Best: " .. zone.FavoredType .. " | Drops: " .. table.concat(zone.Materials, ", "), 11, Color3.fromRGB(230, 230, 230), 2).Position = UDim2.new(0, 8, 0, 26)
+			makeLabel(row, zone.Description, 11, Color3.fromRGB(210, 210, 210), 3).Position = UDim2.new(0, 8, 0, 44)
+			-- Select button
+			local selBtn = Instance.new("TextButton")
+			selBtn.Size = UDim2.new(0, 80, 0, 28)
+			selBtn.Position = UDim2.new(1, -88, 0, 8)
+			selBtn.Text = if selectedZone == zoneId then "✓" else "Select"
+			selBtn.BackgroundColor3 = if selectedZone == zoneId then Color3.fromRGB(60, 160, 60) else Color3.fromRGB(60, 60, 80)
+			selBtn.TextColor3 = Color3.new(1,1,1)
+			selBtn.Font = Enum.Font.GothamBold
+			selBtn.TextSize = 12
+			selBtn.Parent = row
+			corner(selBtn, 6)
+			selBtn.MouseButton1Click:Connect(function()
+				selectedZone = zoneId
+				refreshExpeditionPanel()
+			end)
+		else
+			makeLabel(row, "❓ ??? (undiscovered)", 14, Color3.fromRGB(150, 150, 150), 1).Position = UDim2.new(0, 8, 0, 4)
+			makeLabel(row, "Hint: " .. zone.UnlockHint, 11, Color3.fromRGB(130, 130, 130), 2).Position = UDim2.new(0, 8, 0, 28)
+		end
+	end
+	-- Team selection & start
+	if selectedZone then
+		makeLabel(expeditionPanel, "Team (tap brainrots to add, max 3):", 15, Color3.fromRGB(255, 255, 255), order)
+		order += 1
+		local teamRow = makeRow(expeditionPanel, order, 40)
+		order += 1
+		local teamText = #selectedTeam == 0 and "No brainrots selected" or table.concat(selectedTeam, ", ")
+		-- Show names instead of IDs
+		local names = {}
+		for _, iid in ipairs(selectedTeam) do
+			for _, inst in ipairs(ownedInstances) do
+				if inst.InstanceId == iid then
+					local def = BrainrotData.GetBrainrot(inst.BrainrotId)
+					table.insert(names, def and def.Name or "?")
+					break
+				end
+			end
+		end
+		makeLabel(teamRow, if #names == 0 then "No brainrots selected" else table.concat(names, ", "), 13, Color3.new(1,1,1), 1).Position = UDim2.new(0, 8, 0, 8)
+		-- Available brainrots (not working/showcase/on expedition)
+		local availCount = 0
+		for _, inst in ipairs(ownedInstances) do
+			local iid = inst.InstanceId
+			if not workingIds[iid] and not showcaseIds[iid] then
+				-- Check not on expedition (simplified: allow, server validates)
+				availCount += 1
+				if availCount > 12 then break end -- limit display
+				local def = BrainrotData.GetBrainrot(inst.BrainrotId)
+				local bBtn = Instance.new("TextButton")
+				bBtn.Size = UDim2.new(0, 160, 0, 28)
+				bBtn.Text = (def and def.Name or "?") .. if table.find(selectedTeam, iid) then " ✓" else ""
+				bBtn.BackgroundColor3 = if table.find(selectedTeam, iid) then Color3.fromRGB(60, 140, 60) else Color3.fromRGB(50, 50, 70)
+				bBtn.TextColor3 = Color3.new(1,1,1)
+				bBtn.Font = Enum.Font.Gotham
+				bBtn.TextSize = 11
+				bBtn.LayoutOrder = order
+				bBtn.Parent = expeditionPanel
+				corner(bBtn, 6)
+				order += 1
+				bBtn.MouseButton1Click:Connect(function()
+					local idx = table.find(selectedTeam, iid)
+					if idx then
+						table.remove(selectedTeam, idx)
+					elseif #selectedTeam < 3 then
+						table.insert(selectedTeam, iid)
+					end
+					refreshExpeditionPanel()
+				end)
+			end
+		end
+		local startBtn = Instance.new("TextButton")
+		startBtn.Size = UDim2.new(1, 0, 0, 44)
+		startBtn.Text = "🚀 Start 15-min Expedition"
+		startBtn.BackgroundColor3 = Color3.fromRGB(60, 140, 60)
+		startBtn.TextColor3 = Color3.new(1,1,1)
+		startBtn.Font = Enum.Font.GothamBold
+		startBtn.TextSize = 15
+		startBtn.LayoutOrder = order
+		startBtn.Parent = expeditionPanel
+		corner(startBtn, 8)
+		startBtn.MouseButton1Click:Connect(function()
+			if selectedZone and #selectedTeam > 0 then
+				startExpeditionRemote:FireServer(selectedZone, selectedTeam)
+				selectedTeam = {}
+			end
+		end)
+	end
+end
+
+local function refreshDailyPanel()
+	for _, c in ipairs(dailyPanel:GetChildren()) do
+		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+			c:Destroy()
+		end
+	end
+	local order = 1
+	for _, q in ipairs(dailyData.Quests) do
+		local row = makeRow(dailyPanel, order, 88)
+		order += 1
+		row.BackgroundColor3 = q.TierColor
+		makeLabel(row, q.TierName .. ": " .. q.Text, 14, Color3.new(1,1,1), 1).Position = UDim2.new(0, 8, 0, 4)
+		makeLabel(row, string.format("Progress: %d/%d", q.Progress, q.Target), 12, Color3.new(1,1,1), 2).Position = UDim2.new(0, 8, 0, 26)
+		-- Progress bar
+		local barBg = Instance.new("Frame")
+		barBg.Size = UDim2.new(1, -16, 0, 10)
+		barBg.Position = UDim2.new(0, 8, 0, 48)
+		barBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+		barBg.Parent = row
+		corner(barBg, 5)
+		local barFill = Instance.new("Frame")
+		barFill.Size = UDim2.new(math.clamp(q.Progress / q.Target, 0, 1), 0, 1, 0)
+		barFill.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+		barFill.Parent = barBg
+		corner(barFill, 5)
+		if q.Done then
+			if not q.EggClaimed then
+				local claimBtn = Instance.new("TextButton")
+				claimBtn.Size = UDim2.new(0, 110, 0, 28)
+				claimBtn.Position = UDim2.new(1, -118, 0, 52)
+				claimBtn.Text = "🥚 Claim Egg"
+				claimBtn.BackgroundColor3 = Color3.fromRGB(200, 160, 50)
+				claimBtn.TextColor3 = Color3.new(1,1,1)
+				claimBtn.Font = Enum.Font.GothamBold
+				claimBtn.TextSize = 12
+				claimBtn.Parent = row
+				corner(claimBtn, 6)
+				claimBtn.MouseButton1Click:Connect(function()
+					claimDailyEggRemote:FireServer(q.Tier)
+				end)
+			else
+				makeLabel(row, "✅ Egg claimed", 12, Color3.fromRGB(170, 255, 170), 3).Position = UDim2.new(1, -118, 0, 56)
+			end
+		end
+	end
+	if dailyData.AllComplete then
+		makeLabel(dailyPanel, "🌟 All dailies complete! Come back tomorrow.", 14, Color3.fromRGB(255, 220, 100), order)
+	end
+end
+
+local function refreshEggPanel()
+	for _, c in ipairs(eggPanel:GetChildren()) do
+		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+			c:Destroy()
+		end
+	end
+	local order = 1
+	makeLabel(eggPanel, string.format("Incubator: %d/%d slots used", eggData.UsedSlots or 0, eggData.Slots or 3), 14, Color3.new(1,1,1), order)
+	order += 1
+	for _, egg in ipairs(eggData.Eggs) do
+		local row = makeRow(eggPanel, order, 64)
+		order += 1
+		row.BackgroundColor3 = egg.Color
+		makeLabel(row, "🥚 " .. egg.TierName .. " (mystery!)", 14, Color3.new(1,1,1), 1).Position = UDim2.new(0, 8, 0, 4)
+		makeLabel(row, string.format("%d / %d min playtime", math.floor(egg.Progress), egg.Needed), 12, Color3.new(1,1,1), 2).Position = UDim2.new(0, 8, 0, 26)
+		local barBg = Instance.new("Frame")
+		barBg.Size = UDim2.new(1, -16, 0, 8)
+		barBg.Position = UDim2.new(0, 8, 0, 48)
+		barBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+		barBg.Parent = row
+		corner(barBg, 4)
+		local barFill = Instance.new("Frame")
+		barFill.Size = UDim2.new(egg.Percent, 0, 1, 0)
+		barFill.BackgroundColor3 = Color3.fromRGB(255, 220, 100)
+		barFill.Parent = barBg
+		corner(barFill, 4)
+	end
+	if (eggData.UsedSlots or 0) == 0 then
+		makeLabel(eggPanel, "No eggs incubating. Complete daily quests!", 13, Color3.fromRGB(180, 180, 180), order)
+		order += 1
+	end
+	local buyBtn = Instance.new("TextButton")
+	buyBtn.Size = UDim2.new(1, 0, 0, 40)
+	buyBtn.Text = "➕ Buy Incubator Slot"
+	buyBtn.BackgroundColor3 = Color3.fromRGB(80, 65, 30)
+	buyBtn.TextColor3 = Color3.new(1,1,1)
+	buyBtn.Font = Enum.Font.GothamBold
+	buyBtn.TextSize = 14
+	buyBtn.LayoutOrder = order
+	buyBtn.Parent = eggPanel
+	corner(buyBtn, 8)
+	buyBtn.MouseButton1Click:Connect(function()
+		buyEggSlotRemote:FireServer()
+	end)
+end
+
+local function refreshMinePanel()
+	for _, c in ipairs(minePanel:GetChildren()) do
+		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+			c:Destroy()
+		end
+	end
+	local order = 1
+	makeLabel(minePanel, "Your gold mine earns coins while you play!", 14, Color3.new(1,1,1), order)
+	order += 1
+	local bankRow = makeRow(minePanel, order, 72)
+	order += 1
+	bankRow.BackgroundColor3 = Color3.fromRGB(70, 55, 20)
+	makeLabel(bankRow, "💰 Banked: " .. tostring(passiveBanked) .. " coins", 16, Color3.fromRGB(255, 220, 100), 1).Position = UDim2.new(0, 8, 0, 8)
+	local collectBtn = Instance.new("TextButton")
+	collectBtn.Size = UDim2.new(0, 120, 0, 32)
+	collectBtn.Position = UDim2.new(0, 8, 0, 34)
+	collectBtn.Text = "Collect"
+	collectBtn.BackgroundColor3 = Color3.fromRGB(200, 160, 50)
+	collectBtn.TextColor3 = Color3.new(1,1,1)
+	collectBtn.Font = Enum.Font.GothamBold
+	collectBtn.TextSize = 14
+	collectBtn.Parent = bankRow
+	corner(collectBtn, 6)
+	collectBtn.MouseButton1Click:Connect(function()
+		collectPassiveRemote:FireServer()
+	end)
+	makeLabel(minePanel, "Tip: stay in-game to keep earning. Bank caps at 2 hours.", 12, Color3.fromRGB(180, 180, 180), order)
+end
+
+local function refreshCustomizePanel()
+	for _, c in ipairs(customizePanel:GetChildren()) do
+		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+			c:Destroy()
+		end
+	end
+	local order = 1
+	makeLabel(customizePanel, "Plot Themes:", 15, Color3.new(1,1,1), order)
+	order += 1
+	for themeId, theme in pairs(BrainrotData.PLOT_THEMES) do
+		local unlocked = customizeData.UnlockedThemes[themeId]
+		local isActive = customizeData.Theme == themeId
+		local row = makeRow(customizePanel, order, 56)
+		order += 1
+		if unlocked then row.BackgroundColor3 = theme.Color end
+		makeLabel(row, (if isActive then "✓ " else "") .. theme.Name, 14, Color3.new(1,1,1), 1).Position = UDim2.new(0, 8, 0, 4)
+		if not unlocked then
+			local matText = ""
+			for mat, cost in pairs(theme.Materials) do
+				matText ..= mat .. " x" .. tostring(cost) .. " "
+			end
+			makeLabel(row, "Cost: " .. tostring(theme.Cost) .. " coins" .. (if matText ~= "" then " + " .. matText else ""), 12, Color3.fromRGB(200, 200, 200), 2).Position = UDim2.new(0, 8, 0, 26)
+			local buyBtn = Instance.new("TextButton")
+			buyBtn.Size = UDim2.new(0, 80, 0, 28)
+			buyBtn.Position = UDim2.new(1, -88, 0, 14)
+			buyBtn.Text = "Unlock"
+			buyBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
+			buyBtn.TextColor3 = Color3.new(1,1,1)
+			buyBtn.Font = Enum.Font.GothamBold
+			buyBtn.TextSize = 12
+			buyBtn.Parent = row
+			corner(buyBtn, 6)
+			buyBtn.MouseButton1Click:Connect(function()
+				unlockThemeRemote:FireServer(themeId)
+			end)
+		end
+	end
+	makeLabel(customizePanel, "Decorations:", 15, Color3.new(1,1,1), order)
+	order += 1
+	for decoId, deco in pairs(BrainrotData.PLOT_DECORATIONS) do
+		local owned = customizeData.Decorations[decoId]
+		local row = makeRow(customizePanel, order, 56)
+		order += 1
+		makeLabel(row, (if owned then "✓ " else "") .. deco.Name, 14, Color3.new(1,1,1), 1).Position = UDim2.new(0, 8, 0, 4)
+		if not owned then
+			local matText = ""
+			for mat, cost in pairs(deco.Materials) do
+				matText ..= mat .. " x" .. tostring(cost) .. " "
+			end
+			makeLabel(row, "Cost: " .. tostring(deco.Cost) .. " coins + " .. matText, 12, Color3.fromRGB(200, 200, 200), 2).Position = UDim2.new(0, 8, 0, 26)
+			local buyBtn = Instance.new("TextButton")
+			buyBtn.Size = UDim2.new(0, 80, 0, 28)
+			buyBtn.Position = UDim2.new(1, -88, 0, 14)
+			buyBtn.Text = "Buy"
+			buyBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
+			buyBtn.TextColor3 = Color3.new(1,1,1)
+			buyBtn.Font = Enum.Font.GothamBold
+			buyBtn.TextSize = 12
+			buyBtn.Parent = row
+			corner(buyBtn, 6)
+			buyBtn.MouseButton1Click:Connect(function()
+				buyDecorationRemote:FireServer(decoId)
+			end)
+		end
+	end
+end
+
+-- Remote handlers
+expeditionUpdateRemote.OnClientEvent:Connect(function(payload: any)
+	expeditionData = payload
+	if expeditionPanel.Visible then
+		refreshExpeditionPanel()
+	end
+end)
+
+dailyUpdateRemote.OnClientEvent:Connect(function(payload: any)
+	dailyData = payload
+	if dailyPanel.Visible then
+		refreshDailyPanel()
+	end
+end)
+
+eggUpdateRemote.OnClientEvent:Connect(function(payload: any)
+	eggData = payload
+	if eggPanel.Visible then
+		refreshEggPanel()
+	end
+end)
+
+passiveUpdateRemote.OnClientEvent:Connect(function(payload: any)
+	if payload.Banked ~= nil then
+		passiveBanked = payload.Banked
+	end
+	if minePanel.Visible then
+		refreshMinePanel()
+	end
+	-- Update mine button text with banked amount
+	if passiveBanked > 0 then
+		mineBtn.Text = "Mine (" .. tostring(passiveBanked) .. ")"
+	else
+		mineBtn.Text = "Gold Mine"
+	end
+end)
+
+customizeUpdateRemote.OnClientEvent:Connect(function(payload: any)
+	customizeData = payload
+	if customizePanel.Visible then
+		refreshCustomizePanel()
 	end
 end)
 

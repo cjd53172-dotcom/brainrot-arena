@@ -25,7 +25,7 @@ local StarterPlayer = game:GetService("StarterPlayer")
 
 -- !!! REPLACE THIS with your GitHub repo raw URL !!!
 -- Format: https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/src/
-local BASE_URL = "https://raw.githubusercontent.com/REPLACE_ME/REPLACE_ME/main/src/"
+local BASE_URL = "https://raw.githubusercontent.com/cjd53172-dotcom/brainrot-arena/main/src/"
 
 -- { github path, where to install, instance name, class }
 local FILES: { { string } } = {
@@ -34,6 +34,9 @@ local FILES: { { string } } = {
 	{ "ServerScriptService/Systems/QuestSystem.lua", "ServerScriptService/Systems", "QuestSystem", "ModuleScript" },
 	{ "ServerScriptService/Systems/PlotSystem.lua", "ServerScriptService/Systems", "PlotSystem", "ModuleScript" },
 	{ "ServerScriptService/Systems/BattleSystem.lua", "ServerScriptService/Systems", "BattleSystem", "ModuleScript" },
+	{ "ServerScriptService/Systems/ExpeditionSystem.lua", "ServerScriptService/Systems", "ExpeditionSystem", "ModuleScript" },
+	{ "ServerScriptService/Systems/DailyQuestSystem.lua", "ServerScriptService/Systems", "DailyQuestSystem", "ModuleScript" },
+	{ "ServerScriptService/Systems/EggSystem.lua", "ServerScriptService/Systems", "EggSystem", "ModuleScript" },
 	{ "ServerScriptService/GameServer.lua", "ServerScriptService", "GameServer", "Script" },
 	{ "StarterPlayerScripts/ClientUI.lua", "StarterPlayer/StarterPlayerScripts", "ClientUI", "LocalScript" },
 }
@@ -82,7 +85,7 @@ end
 -- Install order matters: modules before the scripts that require them.
 -- GameServer (Script) goes last so it starts after all modules exist.
 -- ClientUI (LocalScript) can go any time before players join.
-local installOrder = { 1, 2, 3, 4, 5, 7, 6 }
+local installOrder = { 1, 2, 3, 4, 5, 6, 7, 8, 10, 9 }
 
 print("[GameLoader] Installing Brainrot Arena from " .. BASE_URL)
 local failed = 0
