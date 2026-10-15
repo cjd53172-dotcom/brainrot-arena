@@ -986,7 +986,9 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				local s = targetMax / maxDim
 				-- Only adjust if meaningfully off (avoid jitter).
 				if math.abs(s - 1) > 0.15 then
-					s = math.clamp(s, 0.3, 1.5)
+					-- Allow shrinking as much as needed for oversized pack
+					-- models, but don't grow more than 1.5x.
+					s = math.min(s, 1.5)
 					model:ScaleTo(s)
 				end
 			end
