@@ -259,6 +259,11 @@ function PlotSystem.Setup()
 		end
 	end
 
+	-- Clear any existing Plots folder (idempotent setup).
+	local existing = workspace:FindFirstChild("Plots")
+	if existing then
+		existing:Destroy()
+	end
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
