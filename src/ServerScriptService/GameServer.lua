@@ -1035,6 +1035,12 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			manualWildScale(s)
 		end
 	end
+	-- Strip any built-in name tags from the pack model (we use our own WildTag).
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
+			d:Destroy()
+		end
+	end
 	VisualEffects.AddWildAura(model, wander.Rarity)
 
 	-- Ground position via raycast (hit Terrain or any BasePart, excluding self)
