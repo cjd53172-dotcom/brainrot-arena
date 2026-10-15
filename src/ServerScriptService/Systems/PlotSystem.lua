@@ -170,13 +170,30 @@ local function autoImportPack()
 
 	local imported = 0
 	local matched = 0
+	-- Collect candidate models: direct children, plus children of subfolders
+	-- (some packs group by variant, e.g. Normal/Oro/Lava folders).
+	local candidates: { Instance } = {}
 	for _, child in ipairs(pack:GetChildren()) do
 		if child:IsA("Model") or child:IsA("Folder") or child:IsA("BasePart") then
 			local id = packNameToId(child.Name)
 			if id then
-				matched += 1
+				table.insert(candidates, child)
+			else
+				-- Not a character name; maybe a category folder — check inside.
+				for _, grand in ipairs(child:GetChildren()) do
+					if grand:IsA("Model") or grand:IsA("Folder") or grand:IsA("BasePart") then
+						table.insert(candidates, grand)
+					end
+				end
 			end
-			if id and not modelsFolder:FindFirstChild(id) then
+		end
+	end
+	for _, child in ipairs(candidates) do
+		local id = packNameToId(child.Name)
+		if id then
+			matched += 1
+		end
+		if id and not modelsFolder:FindFirstChild(id) then
 				local copy = child:Clone()
 				-- Strip scripts from the imported copy (Toolbox hygiene).
 				for _, d in ipairs(copy:GetDescendants()) do
@@ -189,7 +206,6 @@ local function autoImportPack()
 				imported += 1
 			end
 		end
-	end
 
 	-- Clean up: the raw pack was only needed as an import source. Remove it
 	-- from the world so 150+ unscaled models aren't floating in the sky.
