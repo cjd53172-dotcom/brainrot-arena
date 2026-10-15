@@ -1386,11 +1386,20 @@ game:GetService("Players").PlayerAdded:Connect(function(player: Player)
 			end
 		elseif msg:lower() == "/listmodels" then
 			print("[Admin] === Brainrot pack contents ===")
-			for _, c in ipairs(workspace:GetChildren()) do
-				if c.Name:lower():find("brainrot") then
-					print("FOUND: " .. c:GetFullName() .. " (" .. c.ClassName .. ")")
-					for _, k in ipairs(c:GetChildren()) do
-						print("  " .. k.ClassName .. ": " .. k.Name)
+			local rs = game:GetService("ReplicatedStorage")
+			for _, root in ipairs({ workspace, rs }) do
+				for _, d in ipairs(root:GetDescendants()) do
+					if (d:IsA("Folder") or d:IsA("Model"))
+						and string.find(string.lower(d.Name), "brainrot", 1, true) then
+						print("FOUND: " .. d:GetFullName() .. " (" .. d.ClassName .. ")")
+						local n = 0
+						for _, k in ipairs(d:GetChildren()) do
+							n += 1
+							if n <= 200 then
+								print("  " .. k.ClassName .. ": " .. k.Name)
+							end
+						end
+						print("  ... total children: " .. n)
 					end
 				end
 			end
