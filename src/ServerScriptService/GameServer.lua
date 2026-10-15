@@ -490,19 +490,45 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	end)
 	portal.Parent = workspace
 
-	-- Discovery trigger: touching the portal unlocks the zone
-	local surface = portal:FindFirstChild("PortalSurface")
-	if surface and surface:IsA("BasePart") then
-		(surface :: BasePart).Touched:Connect(function(hit: BasePart)
-			local char = hit and hit.Parent
-			local player = char and game:GetService("Players"):GetPlayerFromCharacter(char)
-			if player then
-				if ExpeditionSystem.UnlockZone(player, zoneId) then
-					pushExpeditionState(player)
-				end
-			end
-		end)
-	end
+	-- Discovery trigger: walking through the archway unlocks the zone.
+	-- Uses a generous invisible trigger volume (Touched on the thin neon
+	-- surface alone is unreliable).
+	local zoneDef = BrainrotData.ZONES[zoneId]
+	local zoneColor = (zoneDef and zoneDef.Color) or Color3.fromRGB(150, 150, 150)
+	local zoneName = (zoneDef and zoneDef.Name) or zoneId
+	local trigger = Instance.new("Part")
+	trigger.Name = "PortalTrigger"
+	trigger.Size = Vector3.new(10, 12, 8)
+	trigger.Transparency = 1
+	trigger.Anchored = true
+	trigger.CanCollide = false
+	trigger.CanQuery = false
+	-- Position at the archway opening (portal model origin is at ground center).
+	trigger.CFrame = portal:GetPivot()
+	trigger.Parent = portal
+
+	local lastTouch: { [number]: number } = {}
+	trigger.Touched:Connect(function(hit: BasePart)
+		local char = hit and hit.Parent
+		local player = char and game:GetService("Players"):GetPlayerFromCharacter(char)
+		if not player then
+			return
+		end
+		-- Debounce per player (Touched fires repeatedly while inside).
+		local now = os.clock()
+		if lastTouch[player.UserId] and now - lastTouch[player.UserId] < 3 then
+			return
+		end
+		lastTouch[player.UserId] = now
+		if ExpeditionSystem.UnlockZone(player, zoneId) then
+			pushExpeditionState(player)
+			remotes:WaitForChild("ShowHint"):FireClient(
+				player,
+				"✨ Discovered: " .. zoneName .. "! Send brainrots there from 🗺 Explore."
+			)
+			VisualEffects.PlayZoneDiscover(trigger.Position + Vector3.new(0, 4, 0), zoneColor)
+		end
+	end)
 end
 
 -- Shared gold mine: ONE mine in the world, 100 studs east of plots.

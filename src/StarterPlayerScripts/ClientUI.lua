@@ -83,6 +83,16 @@ local viewportSize = camera and camera.ViewportSize or Vector2.new(1920, 1080)
 local isMobile = viewportSize.X < 900 or viewportSize.Y < 700
 local uiScale = if isMobile then 1.25 else 1.0
 
+-- Responsive sizing for legacy fixed-pixel panels: on small screens, fit
+-- within the viewport (same geometry as makePanel's mobile branch) so
+-- panels never overflow the screen and their close buttons stay reachable.
+local function fitLegacyPanel(panel: Instance)
+	if isMobile then
+		(panel :: GuiObject).Size = UDim2.new(0.92, 0, 0.78, 0)
+		(panel :: GuiObject).Position = UDim2.new(0.04, 0, 0.11, 0)
+	end
+end
+
 -- Modern color palette
 local THEME = {
 	Background = Color3.fromRGB(22, 22, 35),
@@ -278,6 +288,7 @@ end
 local collectionPanel = Instance.new("ScrollingFrame")
 collectionPanel.Size = UDim2.new(0, 440, 0, 420)
 collectionPanel.Position = UDim2.new(0.5, -220, 0.5, -210)
+fitLegacyPanel(collectionPanel)
 collectionPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 collectionPanel.BackgroundTransparency = 0.05
 collectionPanel.BorderSizePixel = 0
@@ -293,9 +304,13 @@ collectionLayout.Parent = collectionPanel
 pad(collectionPanel, 12)
 
 -- // Showcase editor panel --------------------------------------------------------------
-local editorPanel = Instance.new("Frame")
+local editorPanel = Instance.new("ScrollingFrame")
 editorPanel.Size = UDim2.new(0, 480, 0, 480)
 editorPanel.Position = UDim2.new(0.5, -240, 0.5, -240)
+editorPanel.CanvasSize = UDim2.new(0, 0, 0, 480)
+editorPanel.ScrollBarThickness = 6
+editorPanel.ScrollingDirection = Enum.ScrollingDirection.Y
+fitLegacyPanel(editorPanel)
 editorPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 editorPanel.BorderSizePixel = 0
 editorPanel.Visible = false
@@ -478,6 +493,7 @@ end
 local fusionPanel = Instance.new("ScrollingFrame")
 fusionPanel.Size = UDim2.new(0, 500, 0, 460)
 fusionPanel.Position = UDim2.new(0.5, -250, 0.5, -230)
+fitLegacyPanel(fusionPanel)
 fusionPanel.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 fusionPanel.BackgroundTransparency = 0.05
 fusionPanel.BorderSizePixel = 0
@@ -594,9 +610,13 @@ local function refreshFusionPanel()
 end
 
 -- // Milestone 2: Arena panel (team + rival select) ----------------------------------
-local arenaPanel = Instance.new("Frame")
+local arenaPanel = Instance.new("ScrollingFrame")
 arenaPanel.Size = UDim2.new(0, 560, 0, 520)
 arenaPanel.Position = UDim2.new(0.5, -280, 0.5, -260)
+arenaPanel.CanvasSize = UDim2.new(0, 0, 0, 520)
+arenaPanel.ScrollBarThickness = 6
+arenaPanel.ScrollingDirection = Enum.ScrollingDirection.Y
+fitLegacyPanel(arenaPanel)
 arenaPanel.BackgroundColor3 = Color3.fromRGB(30, 18, 18)
 arenaPanel.BorderSizePixel = 0
 arenaPanel.Visible = false
@@ -821,9 +841,13 @@ arenaClose.MouseButton1Click:Connect(function()
 end)
 
 -- // Milestone 2: Battle panel ---------------------------------------------------------
-local battlePanel = Instance.new("Frame")
+local battlePanel = Instance.new("ScrollingFrame")
 battlePanel.Size = UDim2.new(0, 640, 0, 560)
 battlePanel.Position = UDim2.new(0.5, -320, 0.5, -280)
+battlePanel.CanvasSize = UDim2.new(0, 0, 0, 560)
+battlePanel.ScrollBarThickness = 6
+battlePanel.ScrollingDirection = Enum.ScrollingDirection.Y
+fitLegacyPanel(battlePanel)
 battlePanel.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 battlePanel.BorderSizePixel = 0
 battlePanel.Visible = false
@@ -1580,6 +1604,7 @@ end
 workPanel = Instance.new("ScrollingFrame")
 workPanel.Size = UDim2.new(0, 500, 0, 460)
 workPanel.Position = UDim2.new(0.5, -250, 0.5, -230)
+fitLegacyPanel(workPanel)
 workPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 workPanel.BackgroundTransparency = 0.05
 workPanel.BorderSizePixel = 0
@@ -1595,9 +1620,13 @@ workLayout.Parent = workPanel
 pad(workPanel, 12)
 
 -- Worker picker (choose a brainrot for a station slot).
-pickerPanel = Instance.new("Frame")
+pickerPanel = Instance.new("ScrollingFrame")
 pickerPanel.Size = UDim2.new(0, 460, 0, 440)
 pickerPanel.Position = UDim2.new(0.5, -230, 0.5, -220)
+pickerPanel.CanvasSize = UDim2.new(0, 0, 0, 440)
+pickerPanel.ScrollBarThickness = 6
+pickerPanel.ScrollingDirection = Enum.ScrollingDirection.Y
+fitLegacyPanel(pickerPanel)
 pickerPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
 pickerPanel.BorderSizePixel = 0
 pickerPanel.Visible = false

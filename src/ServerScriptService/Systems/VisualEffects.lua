@@ -1730,4 +1730,32 @@ function VisualEffects.PlayWildCatch(pos: Vector3, rarity: string)
 	end)
 end
 
+-- Zone discovery burst: colored sparkles when a player discovers a zone portal.
+function VisualEffects.PlayZoneDiscover(pos: Vector3, color: Color3)
+	local sparkles = Instance.new("ParticleEmitter")
+	sparkles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparkles.Color = ColorSequence.new(color)
+	sparkles.Size = NumberSequence.new(1.2)
+	sparkles.Speed = NumberRange.new(8, 18)
+	sparkles.Lifetime = NumberRange.new(0.8, 1.4)
+	sparkles.Rate = 60
+	sparkles.RotSpeed = NumberRange.new(-120, 120)
+
+	local anchor = Instance.new("Part")
+	anchor.Name = "DiscoverBurst"
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.Transparency = 1
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.Position = pos
+	anchor.Parent = workspace
+	sparkles.Parent = anchor
+
+	task.delay(1.2, function()
+		if anchor and anchor.Parent then
+			anchor:Destroy()
+		end
+	end)
+end
+
 return VisualEffects
