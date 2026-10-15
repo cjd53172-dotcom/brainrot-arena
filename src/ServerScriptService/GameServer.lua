@@ -1405,6 +1405,16 @@ game:GetService("Players").PlayerAdded:Connect(function(player: Player)
 			end
 			print("[Admin] === End of list ===")
 			remotes:WaitForChild("ShowHint"):FireClient(player, "Model list printed to Output (Window -> Output)")
+		elseif msg:lower() == "/clearmodels" then
+			local rs = game:GetService("ReplicatedStorage")
+			local mf = rs:FindFirstChild("BrainrotModels")
+			if mf then
+				for _, c in ipairs(mf:GetChildren()) do
+					c:Destroy()
+				end
+				print("[Admin] Cleared BrainrotModels.")
+				remotes:WaitForChild("ShowHint"):FireClient(player, "BrainrotModels cleared. Re-Play to re-import.")
+			end
 		end
 	end)
 end)

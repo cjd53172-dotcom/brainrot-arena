@@ -170,22 +170,29 @@ local function autoImportPack()
 
 	local imported = 0
 	local matched = 0
-	-- Collect candidate models: direct children, plus children of subfolders
-	-- (some packs group by variant, e.g. Normal/Oro/Lava folders).
+	-- Collect candidate models. Packs often group by visual variant
+	-- (Normal/Oro/Lava/etc.); only use the "Normal" group to avoid
+	-- importing stacked variant meshes. Fall back to direct children.
 	local candidates: { Instance } = {}
+	local normalFolder: Instance? = nil
 	for _, child in ipairs(pack:GetChildren()) do
+		if child.Name:lower() == "normal"
+			and (child:IsA("Folder") or child:IsA("Model")) then
+			normalFolder = child
+			break
+		end
+	end
+	local source: Instance = normalFolder or pack
+	for _, child in ipairs(source:GetChildren()) do
 		if child:IsA("Model") or child:IsA("Folder") or child:IsA("BasePart") then
-			local id = packNameToId(child.Name)
-			if id then
-				table.insert(candidates, child)
-			else
-				-- Not a character name; maybe a category folder — check inside.
-				for _, grand in ipairs(child:GetChildren()) do
-					if grand:IsA("Model") or grand:IsA("Folder") or grand:IsA("BasePart") then
-						table.insert(candidates, grand)
-					end
+			-- Skip nested variant folders when scanning the top level.
+			if source == pack then
+				local id = packNameToId(child.Name)
+				if not id then
+					continue
 				end
 			end
+			table.insert(candidates, child)
 		end
 	end
 	for _, child in ipairs(candidates) do
@@ -1511,8 +1518,11 @@ function PlotSystem.RefreshPlot(player: Player)
 			local display = PlotSystem.BuildDisplayModel(def, inst.Shiny == true, inst.Variant)
 			-- Preserve the model's authored rotation when positioning
 			-- (CFrame.new(pos) alone would reset it to identity).
+			-- Measure the ACTUAL model (pack models differ from procedural spec).
 			local pivot = display:GetPivot()
-			local targetPos = (ped :: BasePart).Position + Vector3.new(0, 0.6 + def.Display.Size.Y / 2, 0)
+			local _, bbSize = display:GetBoundingBox()
+			local halfH = bbSize and (bbSize.Y / 2) or (def.Display.Size.Y / 2)
+			local targetPos = (ped :: BasePart).Position + Vector3.new(0, 0.6 + halfH, 0)
 			display:PivotTo(pivot + (targetPos - pivot.Position))
 			display.Parent = displays
 		end
