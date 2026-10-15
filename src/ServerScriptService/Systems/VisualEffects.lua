@@ -1581,38 +1581,44 @@ function VisualEffects.AddWildAura(model: Model, rarity: string, displayName: st
 		particles.Parent = primary
 	end
 
-	-- Name tag (shows name and rarity)
+	-- Name tag, Steal-a-Brainrot style: compact and tidy at any zoom.
+	-- (Billboards render at fixed pixel size while the 3D model shrinks
+	-- with distance, so the tag itself must start small -- otherwise it
+	-- dwarfs the brainrot as you zoom out.)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "WildTag"
-	billboard.Size = UDim2.new(0, 120, 0, 36)
-	billboard.StudsOffset = Vector3.new(0, 3.5, 0)
+	billboard.Size = UDim2.new(0, 96, 0, 32)
+	billboard.StudsOffset = Vector3.new(0, 2.4, 0)
 	billboard.AlwaysOnTop = false
+	-- Fade tags at long range; the legendary beam is the far indicator.
+	billboard.MaxDistance = 200
 	billboard.Parent = primary
 
-	local tag = Instance.new("TextLabel")
-	tag.Size = UDim2.new(1, 0, 0.6, 0)
-	tag.BackgroundTransparency = 1
-	tag.Text = displayName or "???"
-	tag.Font = Enum.Font.GothamBold
-	tag.TextSize = 14
-	tag.TextColor3 = Color3.new(1, 1, 1)
-	tag.TextStrokeTransparency = 0.2
-	tag.Parent = billboard
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, 0, 0, 16)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = displayName or "???"
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextSize = 12
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeTransparency = 0.15
+	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLabel.Parent = billboard
 
-	local rarityTag = Instance.new("TextLabel")
-	rarityTag.Size = UDim2.new(1, 0, 0.4, 0)
-	rarityTag.Position = UDim2.new(0, 0, 0.6, 0)
-	rarityTag.BackgroundColor3 = color
-	rarityTag.BackgroundTransparency = 0.3
-	rarityTag.Text = rarity
-	rarityTag.Font = Enum.Font.GothamBold
-	rarityTag.TextSize = 12
-	rarityTag.TextColor3 = Color3.new(1, 1, 1)
-	rarityTag.TextStrokeTransparency = 0.4
+	local rarityPill = Instance.new("TextLabel")
+	rarityPill.Size = UDim2.new(0, 64, 0, 14)
+	rarityPill.Position = UDim2.new(0.5, -32, 0, 17)
+	rarityPill.BackgroundColor3 = color
+	rarityPill.BackgroundTransparency = 0.25
+	rarityPill.Text = rarity
+	rarityPill.Font = Enum.Font.GothamBold
+	rarityPill.TextSize = 10
+	rarityPill.TextColor3 = Color3.new(1, 1, 1)
+	rarityPill.TextStrokeTransparency = 0.4
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = rarityTag
-	rarityTag.Parent = billboard
+	corner.CornerRadius = UDim.new(0, 7)
+	corner.Parent = rarityPill
+	rarityPill.Parent = billboard
 end
 
 -- Legendary beam: tall light pillar visible across the map.

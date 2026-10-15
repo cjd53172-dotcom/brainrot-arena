@@ -1035,6 +1035,18 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			manualWildScale(s)
 		end
 	end
+	-- Diagnostic: if the model is STILL oversized after all scaling attempts,
+	-- log it so we can see exactly which models defeat the scaler and how.
+	do
+		local _, finalSize = measureWild()
+		local finalMax = finalSize and math.max(finalSize.X, finalSize.Y, finalSize.Z) or 0
+		if finalMax > 6 then
+			print(string.format(
+				"[WildScale] OVERSIZED: %s measured %.1f studs after scaling (target 3.0)",
+				wander.BrainrotId, finalMax
+			))
+		end
+	end
 	-- Strip any built-in name tags from the pack model (we use our own WildTag).
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
