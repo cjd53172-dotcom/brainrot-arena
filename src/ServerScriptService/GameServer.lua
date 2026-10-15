@@ -975,45 +975,87 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 	-- Build model
 	local model = PlotSystem.BuildDisplayModel(def, false, nil)
-	-- Normalize size: wilds should fit in a ~2.5 stud box (smaller than player).
-	-- Uses max dimension so long/wide models (dolphin) get caught too.
-	pcall(function()
-		local _, bbSize = model:GetBoundingBox()
-		if bbSize then
-			local maxDim = math.max(bbSize.X, bbSize.Y, bbSize.Z)
-			if maxDim > 0 then
-				local targetMax = 3.0
-				local s = targetMax / maxDim
-				-- Only adjust if meaningfully off (avoid jitter).
-				if math.abs(s - 1) > 0.15 then
-					-- Allow shrinking as much as needed for oversized pack
-					-- models, but don't grow more than 1.5x.
-					s = math.min(s, 1.5)
-					model:ScaleTo(s)
+	-- Normalize size: wilds should fit in a ~3 stud box (smaller than player).
+	-- Uses max dimension. Includes manual fallback because rigged pack
+	-- models can silently ignore Model:ScaleTo.
+	local function measureWild()
+		local ok, cf, sz = pcall(function() return model:GetBoundingBox() end)
+		if ok and sz then
+			return cf, sz
+		end
+		return nil, nil
+	end
+	local function manualWildScale(s: number)
+		local bbCF = measureWild()
+		if not bbCF then
+			return
+		end
+		local center = (bbCF :: CFrame).Position
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") then
+				local part = d :: BasePart
+				local rel: Vector3 = part.Position - center
+				pcall(function()
+					part.Size = part.Size * s
+					part.CFrame = CFrame.new(center + rel * s) * (part.CFrame - part.CFrame.Position)
+				end)
+				for _, m in ipairs(part:GetChildren()) do
+					if m:IsA("SpecialMesh") then
+						pcall(function()
+							(m :: SpecialMesh).Scale = (m :: SpecialMesh).Scale * s
+						end)
+					elseif m:IsA("DataModelMesh") then
+						pcall(function()
+							(m :: DataModelMesh).Scale = (m :: DataModelMesh).Scale * s
+						end)
+					end
 				end
 			end
 		end
-	end)
+	end
+	for _ = 1, 3 do
+		local _, bbSize = measureWild()
+		if not bbSize then
+			break
+		end
+		local maxDim = math.max(bbSize.X, bbSize.Y, bbSize.Z)
+		if maxDim <= 0 then
+			break
+		end
+		local s = 3.0 / maxDim
+		if math.abs(s - 1) <= 0.15 then
+			break -- close enough
+		end
+		s = math.min(s, 1.5) -- don't grow more than 1.5x
+		pcall(function() model:ScaleTo(s) end)
+		-- Verify ScaleTo worked; fall back to manual if silently ignored.
+		local _, afterSize = measureWild()
+		local afterMax = afterSize and math.max(afterSize.X, afterSize.Y, afterSize.Z) or maxDim
+		if math.abs(afterMax - maxDim) < (maxDim * 0.05) then
+			manualWildScale(s)
+		end
+	end
 	VisualEffects.AddWildAura(model, wander.Rarity)
 
-	-- Ground position via raycast
+	-- Ground position via raycast (hit Terrain or any BasePart, excluding self)
 	local spawnPos = wander.SpawnPos
 	pcall(function()
 		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Include
-		params.FilterDescendantsInstances = { workspace.Terrain }
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { model }
 		local r = workspace:Raycast(
 			Vector3.new(spawnPos.X, 500, spawnPos.Z),
 			Vector3.new(0, -1000, 0),
 			params
 		)
 		if r then
-			-- Sit the model's BASE on the terrain (pivot may be centered).
+			-- Sit the model's BASE on the hit surface (pivot may be centered).
 			local _, bbSize = model:GetBoundingBox()
 			local halfH = (bbSize and bbSize.Y / 2) or 2
 			spawnPos = r.Position + Vector3.new(0, halfH + 0.2, 0)
 		else
-			spawnPos = Vector3.new(spawnPos.X, 18, spawnPos.Z)
+			-- No ground found: spawn high so it can't be buried.
+			spawnPos = Vector3.new(spawnPos.X, 60, spawnPos.Z)
 		end
 	end)
 	-- Preserve authored rotation: shift pivot, don't reset CFrame.
@@ -1160,9 +1202,11 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				currentPos += dir * speed * 0.2
 				-- Bob while walking
 				local bobY = math.abs(math.sin(os.clock() * 8)) * 0.4
-				-- Face movement direction (face is on +Z, so flip 180° from default -Z forward).
+				-- Face movement direction. CFrame.new(pos, target) faces -Z
+				-- toward the target, matching Roblox's -Z forward convention
+				-- used by most pack models.
 				local cf = CFrame.new(currentPos + Vector3.new(0, bobY, 0), currentPos + dir * 5)
-				model:PivotTo(cf * CFrame.Angles(0, math.pi, 0))
+				model:PivotTo(cf)
 				-- Move hitbox with model
 				if hitbox and hitbox.Parent then
 					hitbox.Position = currentPos + Vector3.new(0, 1, 0)
