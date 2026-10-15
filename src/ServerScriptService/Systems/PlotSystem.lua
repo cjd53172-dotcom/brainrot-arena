@@ -218,12 +218,11 @@ local function autoImportPack()
 	-- (The cleaned copies live in BrainrotModels; the pack can be re-inserted
 	-- from the Toolbox any time.) Only destroys when at least one child
 	-- matched the roster, so an unrelated folder is never touched.
-	-- TEMP DISABLED for roster expansion: keep the pack so /listmodels can see it.
-	-- if matched > 0 then
-	-- 	pcall(function()
-	-- 		pack:Destroy()
-	-- 	end)
-	-- end
+	if matched > 0 then
+		pcall(function()
+			pack:Destroy()
+		end)
+	end
 end
 
 -- // Plot construction ----------------------------------------------------------
