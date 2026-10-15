@@ -1041,7 +1041,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			d:Destroy()
 		end
 	end
-	VisualEffects.AddWildAura(model, wander.Rarity)
+	VisualEffects.AddWildAura(model, wander.Rarity, BrainrotData.GetDisplayName(def, nil, false))
 
 	-- Ground position via raycast (hit Terrain or any BasePart, excluding self)
 	local spawnPos = wander.SpawnPos

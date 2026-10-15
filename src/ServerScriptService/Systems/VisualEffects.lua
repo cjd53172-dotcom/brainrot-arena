@@ -1555,7 +1555,7 @@ end
 
 -- // Wandering Brainrots -----------------------------------------------------------------------
 -- Add rarity aura to a wild brainrot model.
-function VisualEffects.AddWildAura(model: Model, rarity: string)
+function VisualEffects.AddWildAura(model: Model, rarity: string, displayName: string?)
 	local color = BrainrotData.RARITY_COLORS[rarity] or Color3.fromRGB(160, 160, 160)
 	local primary = model.PrimaryPart
 	if not primary then return end
@@ -1581,27 +1581,38 @@ function VisualEffects.AddWildAura(model: Model, rarity: string)
 		particles.Parent = primary
 	end
 
-	-- Name tag (shows rarity, not name — keeps mystery!)
+	-- Name tag (shows name and rarity)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "WildTag"
-	billboard.Size = UDim2.new(0, 80, 0, 26)
+	billboard.Size = UDim2.new(0, 120, 0, 36)
 	billboard.StudsOffset = Vector3.new(0, 3.5, 0)
 	billboard.AlwaysOnTop = false
 	billboard.Parent = primary
 
 	local tag = Instance.new("TextLabel")
-	tag.Size = UDim2.new(1, 0, 1, 0)
-	tag.BackgroundColor3 = color
-	tag.BackgroundTransparency = 0.3
-	tag.Text = "❓ " .. rarity
+	tag.Size = UDim2.new(1, 0, 0.6, 0)
+	tag.BackgroundTransparency = 1
+	tag.Text = displayName or "???"
 	tag.Font = Enum.Font.GothamBold
-	tag.TextSize = 13
+	tag.TextSize = 14
 	tag.TextColor3 = Color3.new(1, 1, 1)
-	tag.TextStrokeTransparency = 0.4
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = tag
+	tag.TextStrokeTransparency = 0.2
 	tag.Parent = billboard
+
+	local rarityTag = Instance.new("TextLabel")
+	rarityTag.Size = UDim2.new(1, 0, 0.4, 0)
+	rarityTag.Position = UDim2.new(0, 0, 0.6, 0)
+	rarityTag.BackgroundColor3 = color
+	rarityTag.BackgroundTransparency = 0.3
+	rarityTag.Text = rarity
+	rarityTag.Font = Enum.Font.GothamBold
+	rarityTag.TextSize = 12
+	rarityTag.TextColor3 = Color3.new(1, 1, 1)
+	rarityTag.TextStrokeTransparency = 0.4
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = rarityTag
+	rarityTag.Parent = billboard
 end
 
 -- Legendary beam: tall light pillar visible across the map.
