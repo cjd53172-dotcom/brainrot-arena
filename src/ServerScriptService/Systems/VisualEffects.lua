@@ -1584,8 +1584,8 @@ function VisualEffects.AddWildAura(model: Model, rarity: string)
 	-- Name tag (shows rarity, not name — keeps mystery!)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "WildTag"
-	billboard.Size = UDim2.new(0, 120, 0, 40)
-	billboard.StudsOffset = Vector3.new(0, 4, 0)
+	billboard.Size = UDim2.new(0, 80, 0, 26)
+	billboard.StudsOffset = Vector3.new(0, 3.5, 0)
 	billboard.AlwaysOnTop = false
 	billboard.Parent = primary
 
@@ -1595,7 +1595,7 @@ function VisualEffects.AddWildAura(model: Model, rarity: string)
 	tag.BackgroundTransparency = 0.3
 	tag.Text = "❓ " .. rarity
 	tag.Font = Enum.Font.GothamBold
-	tag.TextSize = 16
+	tag.TextSize = 13
 	tag.TextColor3 = Color3.new(1, 1, 1)
 	tag.TextStrokeTransparency = 0.4
 	local corner = Instance.new("UICorner")

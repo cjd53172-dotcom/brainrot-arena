@@ -201,9 +201,11 @@ local function autoImportPack()
 		end
 		if id and not modelsFolder:FindFirstChild(id) then
 				local copy = child:Clone()
-				-- Strip scripts from the imported copy (Toolbox hygiene).
+				-- Strip scripts and built-in GUIs from the imported copy
+				-- (Toolbox hygiene; we use our own WildTag instead).
 				for _, d in ipairs(copy:GetDescendants()) do
-					if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript") then
+					if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript")
+						or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
 						d:Destroy()
 					end
 				end
@@ -1301,9 +1303,10 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 	end
 	model.Name = BrainrotData.GetDisplayName(def, variantId, isShiny)
 
-	-- Strip scripts (Toolbox safety) and anchor everything.
+	-- Strip scripts and built-in GUIs (Toolbox safety) and anchor everything.
 	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript") then
+		if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript")
+			or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
 			d:Destroy()
 		elseif d:IsA("BasePart") then
 			(d :: BasePart).Anchored = true
