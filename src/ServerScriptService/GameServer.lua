@@ -1384,6 +1384,18 @@ game:GetService("Players").PlayerAdded:Connect(function(player: Player)
 				remotes:WaitForChild("ShowHint"):FireClient(player, "Brainrot inventory wiped!")
 				print("[Admin] Wiped brainrots for " .. player.Name)
 			end
+		elseif msg:lower() == "/listmodels" then
+			print("[Admin] === Brainrot pack contents ===")
+			for _, c in ipairs(workspace:GetChildren()) do
+				if c.Name:lower():find("brainrot") then
+					print("FOUND: " .. c:GetFullName() .. " (" .. c.ClassName .. ")")
+					for _, k in ipairs(c:GetChildren()) do
+						print("  " .. k.ClassName .. ": " .. k.Name)
+					end
+				end
+			end
+			print("[Admin] === End of list ===")
+			remotes:WaitForChild("ShowHint"):FireClient(player, "Model list printed to Output (Window -> Output)")
 		end
 	end)
 end)
