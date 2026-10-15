@@ -1987,6 +1987,36 @@ end
 
 -- AI rival ladder for the Arena. Unlocks sequentially.
 BrainrotData.RIVALS = {
+	{
+		Id = "rival_rookie",
+		Name = "Rookie Rocco",
+		Title = "Backyard Battler",
+		Team = { "tung_sahur", "tralalero", "ballerina" },
+	},
+	{
+		Id = "rival_scout",
+		Name = "Scout Svinina",
+		Title = "Wild Watcher",
+		Team = { "svinina", "lirili", "cacto" },
+	},
+	{
+		Id = "rival_captain",
+		Name = "Captain Bombardiro",
+		Title = "Sky Commander",
+		Team = { "bombardiro", "frigo_camelo", "orcalero" },
+	},
+	{
+		Id = "rival_champion",
+		Name = "Champion Chicleteira",
+		Title = "Arena Legend",
+		Team = { "chicleteira", "cocofanto", "pot_hotspot" },
+	},
+	{
+		Id = "rival_master",
+		Name = "Master Matteo",
+		Title = "Brainrot Master",
+		Team = { "matteo", "odin_din_din_dun", "ta_ta_ta_ta_sahur" },
+	},
 }
 
 local rivalById = {}

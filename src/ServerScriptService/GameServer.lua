@@ -1008,12 +1008,17 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			params
 		)
 		if r then
-			spawnPos = r.Position + Vector3.new(0, 2, 0)
+			-- Sit the model's BASE on the terrain (pivot may be centered).
+			local _, bbSize = model:GetBoundingBox()
+			local halfH = (bbSize and bbSize.Y / 2) or 2
+			spawnPos = r.Position + Vector3.new(0, halfH + 0.2, 0)
 		else
 			spawnPos = Vector3.new(spawnPos.X, 18, spawnPos.Z)
 		end
 	end)
-	model:PivotTo(CFrame.new(spawnPos))
+	-- Preserve authored rotation: shift pivot, don't reset CFrame.
+	local pivot = model:GetPivot()
+	model:PivotTo(pivot + (spawnPos - pivot.Position))
 	model.Parent = workspace
 
 	-- Make catchable via invisible hitbox (size scales with Reach upgrade)
