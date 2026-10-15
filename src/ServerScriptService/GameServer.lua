@@ -1403,6 +1403,38 @@ game:GetService("Players").PlayerAdded:Connect(function(player: Player)
 					end
 				end
 			end
+			-- Also list raw pack character names (deduplicated across variant folders).
+			print("[Admin] === Raw pack unique character names ===")
+			local seen: { [string]: boolean } = {}
+			local names: { string } = {}
+			for _, root in ipairs({ workspace, rs }) do
+				for _, d in ipairs(root:GetDescendants()) do
+					if (d:IsA("Folder") or d:IsA("Model"))
+						and string.find(string.lower(d.Name), "brainrot", 1, true)
+						and d.Name ~= "BrainrotModels" then
+						-- Collect from this folder and all subfolders.
+						for _, desc in ipairs(d:GetDescendants()) do
+							if desc:IsA("Model") or desc:IsA("Folder") then
+								-- Skip the variant group folders themselves.
+								local ln = desc.Name:lower()
+								if ln ~= "normal" and ln ~= "oro" and ln ~= "lava"
+									and ln ~= "diamante" and ln ~= "galaxia"
+									and ln ~= "arcoiris" and ln ~= "hacker" then
+									if not seen[desc.Name] then
+										seen[desc.Name] = true
+										table.insert(names, desc.Name)
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+			table.sort(names)
+			for _, nm in ipairs(names) do
+				print("  CHAR: " .. nm)
+			end
+			print("  ... total unique: " .. #names)
 			print("[Admin] === End of list ===")
 			remotes:WaitForChild("ShowHint"):FireClient(player, "Model list printed to Output (Window -> Output)")
 		elseif msg:lower() == "/clearmodels" then
