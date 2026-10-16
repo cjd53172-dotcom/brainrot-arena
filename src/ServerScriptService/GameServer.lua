@@ -47,7 +47,7 @@ if not remotes then
 end
 
 for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateShowcase", "AssignWorker", "CollectStation", "WorkUpdate", "OpenFusion", "OpenArena", "FusionResult", "BattleUpdate", "FuseBrainrots", "StartBattle", "SubmitMoves", "ForfeitBattle", "StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", "EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", "CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", "BuyUpgrade",
-		"PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate" }) do
+	"PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate" }) do
 	if not remotes:FindFirstChild(name) then
 		local r = Instance.new("RemoteEvent")
 		r.Name = name
@@ -591,7 +591,7 @@ local fishingSpots = {}
 for i, spotInfo in ipairs({
 	{ X = 100, Z = 120, Name = "Riverside Dock" },
 	{ X = 160, Z = 130, Name = "Lakeside Pier" },
-}) do
+	}) do
 	local dock = VisualEffects.BuildFishingSpot()
 	pcall(function()
 		local params = RaycastParams.new()
@@ -689,7 +689,7 @@ remotes:WaitForChild("ReelIn").OnServerEvent:Connect(function(player: Player, qu
 						local t = i / 15
 						fish:PivotTo(CFrame.new(
 							bobberPos + Vector3.new(0, 1 + math.sin(t * math.pi) * 4, 0)
-						) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
+							) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
 						task.wait(0.05)
 					end
 					task.wait(1)
@@ -1107,7 +1107,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				remotes:WaitForChild("WildCaught"):FireClient(p, result)
 				remotes:WaitForChild("ShowHint"):FireClient(p,
 					"Caught: " .. result.BrainrotName .. " (" .. result.Rarity .. ")!" ..
-					(if result.Shiny then " ✨ SHINY!" else ""))
+						(if result.Shiny then " ✨ SHINY!" else ""))
 				pushCollection(p)
 				PlotSystem.RefreshPlot(p)
 				QuestSystem.CheckObjective(p, "brainrots")
@@ -1321,4 +1321,6 @@ end
 
 task.spawn(function()
 	while true do
-		task.wait(
+		task.wait(60)
+	end
+end)
