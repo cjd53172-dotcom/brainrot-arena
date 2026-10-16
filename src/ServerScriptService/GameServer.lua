@@ -55,7 +55,14 @@ for _, name in ipairs({ "QuestUpdate", "CollectionUpdate", "ShowHint", "UpdateSh
 	end
 end
 
-local function pushCollection(player: Player)
+-- Forward-declare helper functions to prevent nil calls before local definition
+local pushCollection: (Player) -> ()
+local pushWorkState: (Player) -> ()
+local pushDailyState: (Player) -> ()
+local pushExpeditionState: (Player) -> ()
+local pushEggState: (Player) -> ()
+
+pushCollection = function(player: Player)
 	local data = PlayerData.Get(player)
 	if data then
 		remotes:WaitForChild("CollectionUpdate"):FireClient(player, {
@@ -78,7 +85,7 @@ remotes:WaitForChild("UpdateShowcase").OnServerEvent:Connect(function(player: Pl
 end)
 
 -- // Work system ------------------------------------------------------------------
-local function pushWorkState(player: Player)
+pushWorkState = function(player: Player)
 	local view = PlayerData.GetWorkView(player)
 	if view then
 		remotes:WaitForChild("WorkUpdate"):FireClient(player, view)
@@ -101,6 +108,11 @@ remotes:WaitForChild("AssignWorker").OnServerEvent:Connect(function(player: Play
 	pushCollection(player)
 	QuestSystem.CheckObjective(player, "workers")
 end)
+
+pushDailyState = function(player: Player)
+	local status = DailyQuestSystem.GetStatus(player)
+	remotes:WaitForChild("DailyUpdate"):FireClient(player, status)
+end
 
 remotes:WaitForChild("CollectStation").OnServerEvent:Connect(function(player: Player, workId: any)
 	if type(workId) ~= "string" then
@@ -409,8 +421,6 @@ prompt.Parent = board
 prompt.Triggered:Connect(function(player: Player)
 	local quest, questId = QuestSystem.GetActiveQuest(player)
 	if quest then
-		-- Diagnostic (2026-10-14): line 484 threw "attempt to call a nil value".
-		-- FindFirstChild + explicit checks so the output names the culprit.
 		local showHint = remotes and remotes:FindFirstChild("ShowHint")
 		if showHint and showHint:IsA("RemoteEvent") then
 			showHint:FireClient(player, tostring(quest.Name) .. ": " .. tostring(quest.Description))
@@ -463,17 +473,20 @@ expPrompt.HoldDuration = 0
 expPrompt.MaxActivationDistance = 12
 expPrompt.Parent = expBoard
 
+pushExpeditionState = function(player: Player)
+	local status = ExpeditionSystem.GetStatus(player)
+	remotes:WaitForChild("ExpeditionUpdate"):FireClient(player, status)
+end
+
 expPrompt.Triggered:Connect(function(player: Player)
-	-- Tell client to open expedition panel
 	remotes:WaitForChild("ExpeditionUpdate"):FireClient(player, ExpeditionSystem.GetStatus(player))
 	remotes:WaitForChild("ShowHint"):FireClient(player, "Open the Explore menu to send expeditions!")
 end)
 
 -- Zone portals: physical entrances to expedition zones.
--- Placed in a row near the expedition board. Walking through discovers the zone.
 local PORTAL_SPACING = 18
 local PORTAL_START_X = 100
-local PORTAL_Z = 155 -- south of plots (plots end at Z~132), clear of colosseum
+local PORTAL_Z = 155
 for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	local portal = VisualEffects.BuildZonePortal(zoneId)
 	local x = PORTAL_START_X + (i - 1) * PORTAL_SPACING
@@ -490,9 +503,6 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	end)
 	portal.Parent = workspace
 
-	-- Discovery trigger: walking through the archway unlocks the zone.
-	-- Uses a generous invisible trigger volume (Touched on the thin neon
-	-- surface alone is unreliable).
 	local zoneDef = BrainrotData.ZONES[zoneId]
 	local zoneColor = (zoneDef and zoneDef.Color) or Color3.fromRGB(150, 150, 150)
 	local zoneName = (zoneDef and zoneDef.Name) or zoneId
@@ -503,7 +513,6 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	trigger.Anchored = true
 	trigger.CanCollide = false
 	trigger.CanQuery = false
-	-- Position at the archway opening (portal model origin is at ground center).
 	trigger.CFrame = portal:GetPivot()
 	trigger.Parent = portal
 
@@ -514,7 +523,6 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 		if not player then
 			return
 		end
-		-- Debounce per player (Touched fires repeatedly while inside).
 		local now = os.clock()
 		if lastTouch[player.UserId] and now - lastTouch[player.UserId] < 3 then
 			return
@@ -531,11 +539,10 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	end)
 end
 
--- Shared gold mine: ONE mine in the world, 100 studs east of plots.
--- Anyone can harvest it (per-player cooldown).
+-- Shared gold mine
 local sharedMine = VisualEffects.BuildGoldMine(1)
 do
-	local mx, mz = 227, 98 -- 100 studs east of plot center (127, 98)
+	local mx, mz = 227, 98
 	local my = 16
 	pcall(function()
 		local params = RaycastParams.new()
@@ -548,7 +555,7 @@ do
 	sharedMine.Parent = workspace
 end
 
-local mineCooldown: { [number]: number } = {} -- [userId] = last harvest time
+local mineCooldown: { [number]: number } = {}
 local MINE_COOLDOWN_SECS = 60
 local MINE_REWARD = 25
 
@@ -579,7 +586,7 @@ minePrompt.Triggered:Connect(function(player: Player)
 		"+ " .. MINE_REWARD .. " coins from the gold mine!")
 end)
 
--- Fishing docks near water.
+-- Fishing docks near water
 local fishingSpots = {}
 for i, spotInfo in ipairs({
 	{ X = 100, Z = 120, Name = "Riverside Dock" },
@@ -613,14 +620,12 @@ local function pushFishingState(player: Player, state: string, reward: any?)
 	})
 end
 
--- Track fishing gear per player for bite/catch animation
 local playerFishingGear: { [number]: any } = {}
 
 remotes:WaitForChild("CastLine").OnServerEvent:Connect(function(player: Player, spotId: any)
 	if type(spotId) ~= "string" then return end
 	local biteDelay = FishingSystem.Cast(player, spotId)
 	if biteDelay then
-		-- Visual: rod + bobber with line
 		local char = player.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		if hrp then
@@ -639,7 +644,6 @@ remotes:WaitForChild("CastLine").OnServerEvent:Connect(function(player: Player, 
 			playerFishingGear[player.UserId] = gear
 		end
 		pushFishingState(player, "Waiting")
-		-- Schedule bite notification
 		task.delay(biteDelay, function()
 			local state = FishingSystem.CheckBite(player)
 			if state == "Bite" then
@@ -650,7 +654,6 @@ remotes:WaitForChild("CastLine").OnServerEvent:Connect(function(player: Player, 
 				pushFishingState(player, "Bite")
 			end
 		end)
-		-- Expire bite after 3s
 		task.delay(biteDelay + 3.5, function()
 			local state = FishingSystem.GetState(player)
 			if state == "Missed" then
@@ -671,18 +674,15 @@ end)
 remotes:WaitForChild("ReelIn").OnServerEvent:Connect(function(player: Player, quality: any)
 	local q = tonumber(quality) or 0.5
 	local reward = FishingSystem.Reel(player, q)
-	-- Cleanup gear, play catch
 	local gear = playerFishingGear[player.UserId]
 	if gear and gear.Bobber and gear.Bobber.Parent then
 		local bobberPos = gear.Bobber.Position
 		if reward and reward.Kind ~= "Miss" then
 			VisualEffects.PlayCatch(bobberPos, reward.Kind)
-			-- Spawn 3D fish model for fish/brainrot catches
 			if reward.Kind == "Fish" or reward.Kind == "Brainrot" then
 				local fish = VisualEffects.BuildFish(reward.Kind == "Brainrot")
 				fish:PivotTo(CFrame.new(bobberPos + Vector3.new(0, 1, 0)))
 				fish.Parent = workspace
-				-- Fish jumps and flops
 				task.spawn(function()
 					for i = 1, 15 do
 						if not fish or not fish.Parent then break end
@@ -711,7 +711,6 @@ remotes:WaitForChild("ReelIn").OnServerEvent:Connect(function(player: Player, qu
 	end
 end)
 
--- Cancel fishing if player leaves
 Players.PlayerRemoving:Connect(function(player: Player)
 	FishingSystem.Cancel(player)
 	local gear = playerFishingGear[player.UserId]
@@ -722,43 +721,13 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	playerFishingGear[player.UserId] = nil
 end)
 
--- // Player wiring ----------------------------------------------------------------
-local function sendInitialState(player: Player)
-	local data = PlayerData.Get(player)
-	if not data then
-		return
-	end
-	local quest, questId = QuestSystem.GetActiveQuest(player)
-	if quest then
-		remotes:WaitForChild("QuestUpdate"):FireClient(player, {
-			Type = "Progress",
-			QuestId = questId,
-			Name = quest.Name,
-			Progress = data.QuestProgress,
-			Goal = quest.Goal,
-		})
-	end
-	remotes:WaitForChild("CollectionUpdate"):FireClient(player, {
-		Brainrots = data.Brainrots,
-		Showcase = data.Showcase,
-		Coins = data.Coins,
-		Working = PlayerData.GetWorkingIds(player),
-	})
-end
-
 -- // Expeditions ------------------------------------------------------------------
-local function pushExpeditionState(player: Player)
-	local status = ExpeditionSystem.GetStatus(player)
-	remotes:WaitForChild("ExpeditionUpdate"):FireClient(player, status)
-end
-
 remotes:WaitForChild("StartExpedition").OnServerEvent:Connect(function(player: Player, zoneId: any, teamIds: any)
 	if type(zoneId) ~= "string" or type(teamIds) ~= "table" then return end
 	local ok, msg = ExpeditionSystem.StartExpedition(player, zoneId, teamIds)
 	if ok then
 		pushExpeditionState(player)
 		pushCollection(player)
-		-- Departure animation: team walks off toward the zone
 		task.spawn(function()
 			local plot = PlotSystem.GetPlot(player)
 			if plot then
@@ -776,7 +745,6 @@ remotes:WaitForChild("StartExpedition").OnServerEvent:Connect(function(player: P
 							table.insert(models, m)
 						end
 					end
-					-- Walk toward expedition board direction (east)
 					VisualEffects.PlayDeparture(models, Vector3.new(1, 0, 0.3))
 				end
 			end
@@ -794,34 +762,24 @@ remotes:WaitForChild("UnlockZone").OnServerEvent:Connect(function(player: Player
 	end
 end)
 
--- // Daily Quests ------------------------------------------------------------------
-local function pushDailyState(player: Player)
-	local status = DailyQuestSystem.GetStatus(player)
-	remotes:WaitForChild("DailyUpdate"):FireClient(player, status)
+-- // Daily Quests & Eggs -----------------------------------------------------------
+pushEggState = function(player: Player)
+	local status = EggSystem.GetStatus(player)
+	remotes:WaitForChild("EggUpdate"):FireClient(player, status)
 end
-
--- Forward-declared (defined in Eggs section below, used by ClaimDailyEgg).
-local pushEggStateFn: ((Player) -> ())?
 
 remotes:WaitForChild("ClaimDailyEgg").OnServerEvent:Connect(function(player: Player, tier: any)
 	if type(tier) ~= "string" then return end
 	local ok, msg = DailyQuestSystem.ClaimEgg(player, tier)
 	if ok then
 		pushDailyState(player)
-		if pushEggStateFn then pushEggStateFn(player) end
+		pushEggState(player)
 		PlotSystem.RefreshEggs(player)
 		remotes:WaitForChild("ShowHint"):FireClient(player, "Mystery egg added to incubator!")
 	else
 		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not claim egg")
 	end
 end)
-
--- // Eggs ------------------------------------------------------------------
-local function pushEggState(player: Player)
-	local status = EggSystem.GetStatus(player)
-	remotes:WaitForChild("EggUpdate"):FireClient(player, status)
-end
-pushEggStateFn = pushEggState
 
 remotes:WaitForChild("BuyEggSlot").OnServerEvent:Connect(function(player: Player)
 	local ok, msg = EggSystem.BuySlot(player)
@@ -863,7 +821,7 @@ remotes:WaitForChild("UnlockTheme").OnServerEvent:Connect(function(player: Playe
 	if ok then
 		pushCustomizeState(player)
 		pushCollection(player)
-		PlotSystem.RefreshPlot(player) -- apply theme visual
+		PlotSystem.RefreshPlot(player)
 		remotes:WaitForChild("ShowHint"):FireClient(player, "Plot theme unlocked!")
 	else
 		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not unlock theme")
@@ -876,31 +834,51 @@ remotes:WaitForChild("BuyDecoration").OnServerEvent:Connect(function(player: Pla
 	if ok then
 		pushCustomizeState(player)
 		pushCollection(player)
-		PlotSystem.RefreshPlot(player) -- show decoration
+		PlotSystem.RefreshPlot(player)
 		remotes:WaitForChild("ShowHint"):FireClient(player, "Decoration placed!")
 	else
 		remotes:WaitForChild("ShowHint"):FireClient(player, msg or "Could not buy decoration")
 	end
 end)
 
+local function sendInitialState(player: Player)
+	local data = PlayerData.Get(player)
+	if not data then
+		return
+	end
+	local quest, questId = QuestSystem.GetActiveQuest(player)
+	if quest then
+		remotes:WaitForChild("QuestUpdate"):FireClient(player, {
+			Type = "Progress",
+			QuestId = questId,
+			Name = quest.Name,
+			Progress = data.QuestProgress,
+			Goal = quest.Goal,
+		})
+	end
+	remotes:WaitForChild("CollectionUpdate"):FireClient(player, {
+		Brainrots = data.Brainrots,
+		Showcase = data.Showcase,
+		Coins = data.Coins,
+		Working = PlayerData.GetWorkingIds(player),
+	})
+end
+
 local function onPlayerAdded(player: Player)
 	PlayerData.Load(player)
-	PlayerData.ResetStationClocks(player) -- workers rest while you're away
+	PlayerData.ResetStationClocks(player)
 	PlotSystem.AssignPlot(player)
 	PlotSystem.RefreshPlot(player)
 	PlotSystem.RefreshWorkers(player)
-	-- Teleport to plot on every spawn (world is big; spawn may be far away).
 	player.CharacterAdded:Connect(function()
 		task.wait(0.3)
 		PlotSystem.TeleportToPlot(player)
 	end)
-	-- Also teleport now if character already exists.
 	if player.Character then
 		task.defer(function()
 			PlotSystem.TeleportToPlot(player)
 		end)
 	end
-	-- Defer so the client's UI exists before we fire at it.
 	task.defer(function()
 		sendInitialState(player)
 		pushWorkState(player)
@@ -930,21 +908,16 @@ game:BindToClose(function()
 	end
 end)
 
--- Production tick: advance every online player's stations every 30s.
--- Also: expeditions (check completions), eggs (incubation), passive income.
-local tickCount = 0
+-- Production tick
 task.spawn(function()
 	while true do
 		task.wait(30)
-		tickCount += 1
 		for _, p in ipairs(Players:GetPlayers()) do
 			local data = PlayerData.Get(p)
 			if not data then continue end
-			-- Workstations
 			if next(data.Jobs) ~= nil then
 				pushWorkState(p)
 			end
-			-- Expeditions: check for completions
 			local results = ExpeditionSystem.TickExpeditions(p)
 			if #results > 0 then
 				pushExpeditionState(p)
@@ -953,14 +926,12 @@ task.spawn(function()
 					remotes:WaitForChild("ShowHint"):FireClient(p,
 						"Expedition complete! Materials scattered on your plot!")
 					DailyQuestSystem.RecordProgress(p, "expedition_complete", 1)
-					-- Spawn 3D material pickups on plot (collect by touching)
 					PlotSystem.SpawnMaterialPickups(p, r.Materials)
 				end
 				pushDailyState(p)
 			elseif next(data.Expeditions) ~= nil then
-				pushExpeditionState(p) -- update countdown timers
+				pushExpeditionState(p)
 			end
-			-- Eggs: 0.5 minutes of incubation per 30s tick
 			local hatched = EggSystem.TickIncubation(p, 0.5)
 			if #hatched > 0 then
 				pushEggState(p)
@@ -969,15 +940,11 @@ task.spawn(function()
 				for _, h in ipairs(hatched) do
 					remotes:WaitForChild("ShowHint"):FireClient(p,
 						"Egg hatched: " .. h.BrainrotName .. " (" .. h.Rarity .. ")!")
-					-- Play 3D hatching animation
-					local def = BrainrotData.GetBrainrot(h.BrainrotId)
-					-- Note: eggId not in hatch result, refresh eggs instead
 				end
 				pushDailyState(p)
 			elseif next(data.Eggs) ~= nil then
-				pushEggState(p) -- update progress bars
+				pushEggState(p)
 			end
-			-- Passive income: bank coins
 			local gained = PlayerData.TickPassiveIncome(p)
 			if gained > 0 then
 				remotes:WaitForChild("PassiveUpdate"):FireClient(p, {
@@ -989,9 +956,8 @@ task.spawn(function()
 end)
 
 -- // Wandering Brainrots ---------------------------------------------------------------
--- Wild spawns with rarity-tuned timers. Each player sees their own.
-local wanderModels: { [number]: { [string]: Model } } = {} -- [userId][wanderId] = model
-local wanderBeams: { [number]: { [string]: Model } } = {} -- legendary beams
+local wanderModels: { [number]: { [string]: Model } } = {}
+local wanderBeams: { [number]: { [string]: Model } } = {}
 
 local function spawnWildVisual(player: Player, wanderId: string)
 	local wander = WanderSystem.GetWanderer(player, wanderId)
@@ -999,11 +965,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	local def = BrainrotData.GetBrainrot(wander.BrainrotId)
 	if not def then return end
 
-	-- Build model
 	local model = PlotSystem.BuildDisplayModel(def, false, nil)
-	-- Normalize size: wilds should fit in a ~3 stud box (smaller than player).
-	-- Uses max dimension. Includes manual fallback because rigged pack
-	-- models can silently ignore Model:ScaleTo.
 	local function measureWild()
 		local ok, cf, sz = pcall(function() return model:GetBoundingBox() end)
 		if ok and sz then
@@ -1050,30 +1012,17 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		end
 		local s = 3.0 / maxDim
 		if math.abs(s - 1) <= 0.15 then
-			break -- close enough
+			break
 		end
-		s = math.min(s, 1.5) -- don't grow more than 1.5x
+		s = math.min(s, 1.5)
 		pcall(function() model:ScaleTo(s) end)
-		-- Verify ScaleTo worked; fall back to manual if silently ignored.
 		local _, afterSize = measureWild()
 		local afterMax = afterSize and math.max(afterSize.X, afterSize.Y, afterSize.Z) or maxDim
 		if math.abs(afterMax - maxDim) < (maxDim * 0.05) then
 			manualWildScale(s)
 		end
 	end
-	-- Diagnostic: if the model is STILL oversized after all scaling attempts,
-	-- log it so we can see exactly which models defeat the scaler and how.
-	do
-		local _, finalSize = measureWild()
-		local finalMax = finalSize and math.max(finalSize.X, finalSize.Y, finalSize.Z) or 0
-		if finalMax > 6 then
-			print(string.format(
-				"[WildScale] OVERSIZED: %s measured %.1f studs after scaling (target 3.0)",
-				wander.BrainrotId, finalMax
-			))
-		end
-	end
-	-- Strip any built-in name tags from the pack model (we use our own WildTag).
+
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
 			d:Destroy()
@@ -1081,7 +1030,6 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	end
 	VisualEffects.AddWildAura(model, wander.Rarity, BrainrotData.GetDisplayName(def, nil, false))
 
-	-- Ground position via raycast (hit Terrain or any BasePart, excluding self)
 	local spawnPos = wander.SpawnPos
 	pcall(function()
 		local params = RaycastParams.new()
@@ -1093,21 +1041,17 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			params
 		)
 		if r then
-			-- Sit the model's BASE on the hit surface (pivot may be centered).
 			local _, bbSize = model:GetBoundingBox()
 			local halfH = (bbSize and bbSize.Y / 2) or 2
 			spawnPos = r.Position + Vector3.new(0, halfH + 0.2, 0)
 		else
-			-- No ground found: spawn high so it can't be buried.
 			spawnPos = Vector3.new(spawnPos.X, 60, spawnPos.Z)
 		end
 	end)
-	-- Preserve authored rotation: shift pivot, don't reset CFrame.
 	local pivot = model:GetPivot()
 	model:PivotTo(pivot + (spawnPos - pivot.Position))
 	model.Parent = workspace
 
-	-- Make catchable via invisible hitbox (size scales with Reach upgrade)
 	local reachTier = PlayerData.GetUpgradeTier(player, "Reach")
 	local hitboxSize = 6
 	if reachTier > 0 then
@@ -1128,12 +1072,10 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		local char = hit and hit.Parent
 		local p = char and Players:GetPlayerFromCharacter(char)
 		if p and p.UserId == player.UserId then
-			-- Catch!
 			local result = WanderSystem.Catch(p, wanderId)
 			if result and result.Success then
 				VisualEffects.PlayWildCatch(spawnPos, wander.Rarity)
 				SoundSystem.PlayForPlayer(p, "Catch" .. wander.Rarity)
-				-- Achievements
 				local newAch = AchievementSystem.RecordProgress(p, "wild_caught", 1)
 				if wander.Rarity == "Rare" then
 					for _, id in ipairs(AchievementSystem.RecordProgress(p, "rare_caught", 1)) do
@@ -1170,14 +1112,12 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				PlotSystem.RefreshPlot(p)
 				QuestSystem.CheckObjective(p, "brainrots")
 			end
-			-- Cleanup
 			if wanderModels[player.UserId] then
 				wanderModels[player.UserId][wanderId] = nil
 			end
 			if model and model.Parent then
 				model:Destroy()
 			end
-			-- Remove beam if legendary
 			if wanderBeams[player.UserId] and wanderBeams[player.UserId][wanderId] then
 				local beam = wanderBeams[player.UserId][wanderId]
 				if beam and beam.Parent then beam:Destroy() end
@@ -1186,14 +1126,12 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		end
 	end)
 
-	-- Track
 	if not wanderModels[player.UserId] then
 		wanderModels[player.UserId] = {}
 	end
 	wanderModels[player.UserId][wanderId] = model
 	wander.Model = model
 
-	-- Legendary beam + announcement
 	if wander.Rarity == "Legendary" then
 		local beam = VisualEffects.BuildLegendaryBeam(spawnPos)
 		beam.Parent = workspace
@@ -1205,21 +1143,18 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			"🌟 LEGENDARY BRAINROT SPOTTED! Follow the golden beam! (3 min)")
 	end
 
-	-- Wandering AI: random walk + flee from player
 	task.spawn(function()
 		local cfg = wander.Config
 		local currentPos = spawnPos
 		local targetPos = currentPos
 		local fleeing = false
 		while model and model.Parent do
-			-- Check if player is near (flee)
 			local char = player.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			local playerPos = hrp and (hrp :: BasePart).Position
 			if playerPos and cfg.FleeRadius > 0 then
 				local dist = (currentPos - playerPos).Magnitude
 				if dist < cfg.FleeRadius then
-					-- Flee away from player
 					local fleeDir = (currentPos - playerPos).Unit
 					targetPos = currentPos + fleeDir * 20
 					fleeing = true
@@ -1227,7 +1162,6 @@ local function spawnWildVisual(player: Player, wanderId: string)
 					fleeing = false
 				end
 			end
-			-- Pick new random target if reached or every 5s
 			if (currentPos - targetPos).Magnitude < 3 or math.random() < 0.2 then
 				if not fleeing then
 					targetPos = currentPos + Vector3.new(
@@ -1237,21 +1171,15 @@ local function spawnWildVisual(player: Player, wanderId: string)
 					)
 				end
 			end
-			-- Move toward target with walk bob
 			local dir = (targetPos - currentPos)
 			dir = Vector3.new(dir.X, 0, dir.Z)
 			if dir.Magnitude > 0.5 then
 				dir = dir.Unit
 				local speed = cfg.WalkSpeed * (if fleeing then 1.5 else 1)
 				currentPos += dir * speed * 0.2
-				-- Bob while walking
 				local bobY = math.abs(math.sin(os.clock() * 8)) * 0.4
-				-- Face movement direction. CFrame.new(pos, target) faces -Z
-				-- toward the target, matching Roblox's -Z forward convention
-				-- used by most pack models.
 				local cf = CFrame.new(currentPos + Vector3.new(0, bobY, 0), currentPos + dir * 5)
 				model:PivotTo(cf)
-				-- Move hitbox with model
 				if hitbox and hitbox.Parent then
 					hitbox.Position = currentPos + Vector3.new(0, 1, 0)
 				end
@@ -1261,38 +1189,27 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	end)
 end
 
--- Spawn timers per rarity (staggered)
--- Tracks last spawn time per player per rarity
 local lastSpawn: { [number]: { [string]: number } } = {}
 task.spawn(function()
 	while true do
-		task.wait(15) -- check every 15s
+		task.wait(15)
 		local now = os.time()
-		print("[WildSpawn] Tick — players online:", #Players:GetPlayers())
 		for _, player in ipairs(Players:GetPlayers()) do
 			local userId = player.UserId
 			if not lastSpawn[userId] then
 				lastSpawn[userId] = {}
 			end
-			-- Check each rarity's timer
 			for _, rarity in ipairs({ "Common", "Rare", "Epic", "Legendary" }) do
 				local cfg = WanderSystem.GetRarityConfig(rarity)
 				if cfg then
 					local last = lastSpawn[userId][rarity] or 0
-					-- Random interval within the rarity's range
 					local interval = math.random(cfg.RespawnSecs[1], cfg.RespawnSecs[2])
 					if now - last >= interval then
-						-- Roll: only spawn if this rarity wins the weight roll
-						-- (prevents every timer firing at once)
 						local roll = math.random() * 100
 						local totalWeight = 60 + 25 + 12 + 3
 						local weight = cfg.Weight / totalWeight * 100
-						-- Scale by how overdue we are (guaranteed eventually)
 						local overdue = (now - last) / interval
 						if roll < weight * overdue then
-							-- Force this rarity by temporarily overriding
-							-- (SpawnWild rolls internally, so we retry until we get it or give up)
-							-- Lucky Charm boost
 							local luckTier = PlayerData.GetUpgradeTier(player, 'Luck')
 							local luckMult = 1
 							if luckTier > 0 then
@@ -1303,18 +1220,14 @@ task.spawn(function()
 								if wanderId then
 									local wander = WanderSystem.GetWanderer(player, wanderId)
 									if wander and wander.Rarity == rarity then
-										print("[WildSpawn] Spawning", rarity, wanderId, "for", player.Name)
 										spawnWildVisual(player, wanderId)
-										print("[WildSpawn] Visual done for", wanderId)
 										lastSpawn[userId][rarity] = now
 										break
 									else
-										-- Wrong rarity, remove and retry
 										WanderSystem.Remove(player, wanderId)
 									end
 								else
-									print("[WildSpawn] SpawnWild nil (cap?) for", player.Name)
-									break -- at cap
+									break
 								end
 							end
 						end
@@ -1322,7 +1235,6 @@ task.spawn(function()
 				end
 			end
 		end
-		-- Cleanup despawns
 		local despawned = WanderSystem.TickDespawn()
 		for _, item in ipairs(despawned) do
 			local userId = item.UserId
@@ -1345,18 +1257,16 @@ task.spawn(function()
 	end
 end)
 
--- Stat upgrade purchase
 remotes:WaitForChild("BuyUpgrade").OnServerEvent:Connect(function(player: Player, stat: any)
 	local statName = tostring(stat)
 	local success, msg = PlayerData.BuyUpgrade(player, statName)
 	if success then
 		PlayerData.ApplyStats(player)
-		pushCollection(player) -- refresh coin display
+		pushCollection(player)
 	end
 	remotes:WaitForChild("ShowHint"):FireClient(player, msg)
 end)
 
--- Leaderboard request
 remotes:WaitForChild("LeaderboardUpdate").OnServerEvent:Connect(function(player: Player)
 	local top = LeaderboardSystem.GetTop(10)
 	local myStats = LeaderboardSystem.GetPlayerRank(player)
@@ -1366,15 +1276,13 @@ remotes:WaitForChild("LeaderboardUpdate").OnServerEvent:Connect(function(player:
 	})
 end)
 
--- Apply stats on spawn
 Players.PlayerAdded:Connect(function(player: Player)
 	player.CharacterAdded:Connect(function()
-		task.wait(0.5) -- let character load
+		task.wait(0.5)
 		PlayerData.ApplyStats(player)
 	end)
 end)
 
--- Cleanup on leave
 Players.PlayerRemoving:Connect(function(player: Player)
 	WanderSystem.ClearPlayer(player)
 	if wanderModels[player.UserId] then
@@ -1397,151 +1305,20 @@ local function applyWeatherVisuals(weather: string)
 	if weather == "Rain" then
 		lighting.ClockTime = 14
 		lighting.Brightness = 1.5
-		-- Rain particles handled client-side via WeatherUpdate
 	elseif weather == "Storm" then
 		lighting.ClockTime = 16
 		lighting.Brightness = 1
 	elseif weather == "Fog" then
 		lighting.FogEnd = 200
 		lighting.FogStart = 50
-	else -- Clear
+	else
 		lighting.FogEnd = 100000
 		lighting.FogStart = 0
 		lighting.Brightness = 2
 	end
-	-- Notify all clients
 	remotes:WaitForChild("WeatherUpdate"):FireAllClients(WeatherSystem.GetInfo())
 end
 
--- Weather tick (check every 30s)
 task.spawn(function()
 	while true do
-		task.wait(30)
-		local newWeather = WeatherSystem.Tick()
-		if newWeather then
-			applyWeatherVisuals(newWeather)
-			remotes:WaitForChild("ShowHint"):FireAllClients(
-				if newWeather == "Rain" then "🌧️ Rain! Water-types more common!"
-				elseif newWeather == "Storm" then "⛈️ Storm! Electric-types more common!"
-				elseif newWeather == "Fog" then "🌫️ Fog rolling in... Ghost-types more common!"
-				else "☀️ Clear skies!"
-			)
-		end
-	end
-end)
-
--- World beauty pass: plaza, paths, landscaping, ambient life, lighting.
-pcall(function()
-	WorldDesign.Setup()
-end)
-
--- Day/night cycle: 10-minute full cycle for atmosphere.
-task.spawn(function()
-	local Lighting = game:GetService("Lighting")
-	local cycleMinutes = 10
-	while true do
-		for minute = 0, cycleMinutes * 60 do
-			-- 0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset
-			local t = (minute / (cycleMinutes * 60)) % 1
-			Lighting.ClockTime = t * 24
-			-- Adjust ambient for night
-			if t < 0.22 or t > 0.78 then
-				-- Night: darker, bluer
-				Lighting.Ambient = Color3.fromRGB(40, 40, 70)
-				Lighting.OutdoorAmbient = Color3.fromRGB(30, 30, 60)
-			elseif t < 0.28 or t > 0.72 then
-				-- Dawn/dusk: warm
-				Lighting.Ambient = Color3.fromRGB(80, 60, 60)
-				Lighting.OutdoorAmbient = Color3.fromRGB(90, 70, 70)
-			else
-				-- Day: bright
-				Lighting.Ambient = Color3.fromRGB(90, 90, 90)
-				Lighting.OutdoorAmbient = Color3.fromRGB(100, 100, 100)
-			end
-			task.wait(1)
-		end
-	end
-end)
-
-print("[Brainrot Arena] Server online — milestone 1 prototype.")
-
--- Admin: chat "/wipebrainrots" to clear your caught brainrots (testing).
-game:GetService("Players").PlayerAdded:Connect(function(player: Player)
-	player.Chatted:Connect(function(msg: string)
-		if msg:lower() == "/wipebrainrots" then
-			local data = PlayerData.Get(player)
-			if data then
-				data.Brainrots = {}
-				data.Showcase = {}
-				PlayerData.Save(player)
-				pushCollection(player)
-				PlotSystem.RefreshPlot(player)
-				remotes:WaitForChild("ShowHint"):FireClient(player, "Brainrot inventory wiped!")
-				print("[Admin] Wiped brainrots for " .. player.Name)
-			end
-		elseif msg:lower() == "/listmodels" then
-			print("[Admin] === Brainrot pack contents ===")
-			local rs = game:GetService("ReplicatedStorage")
-			for _, root in ipairs({ workspace, rs }) do
-				for _, d in ipairs(root:GetDescendants()) do
-					if (d:IsA("Folder") or d:IsA("Model"))
-						and string.find(string.lower(d.Name), "brainrot", 1, true) then
-						print("FOUND: " .. d:GetFullName() .. " (" .. d.ClassName .. ")")
-						local n = 0
-						for _, k in ipairs(d:GetChildren()) do
-							n += 1
-							if n <= 200 then
-								print("  " .. k.ClassName .. ": " .. k.Name)
-							end
-						end
-						print("  ... total children: " .. n)
-					end
-				end
-			end
-			-- Also list raw pack character names (deduplicated across variant folders).
-			print("[Admin] === Raw pack unique character names ===")
-			local seen: { [string]: boolean } = {}
-			local names: { string } = {}
-			for _, root in ipairs({ workspace, rs }) do
-				for _, d in ipairs(root:GetDescendants()) do
-					if (d:IsA("Folder") or d:IsA("Model"))
-						and string.find(string.lower(d.Name), "brainrot", 1, true)
-						and d.Name ~= "BrainrotModels" then
-						-- Collect from this folder and all subfolders.
-						for _, desc in ipairs(d:GetDescendants()) do
-							if desc:IsA("Model") or desc:IsA("Folder") then
-								-- Skip the variant group folders themselves.
-								local ln = desc.Name:lower()
-								if ln ~= "normal" and ln ~= "oro" and ln ~= "lava"
-									and ln ~= "diamante" and ln ~= "galaxia"
-									and ln ~= "arcoiris" and ln ~= "hacker" then
-									if not seen[desc.Name] then
-										seen[desc.Name] = true
-										table.insert(names, desc.Name)
-									end
-								end
-							end
-						end
-					end
-				end
-			end
-			table.sort(names)
-			for _, nm in ipairs(names) do
-				print("  CHAR: " .. nm)
-			end
-			print("  ... total unique: " .. #names)
-			print("[Admin] === End of list ===")
-			remotes:WaitForChild("ShowHint"):FireClient(player, "Model list printed to Output (Window -> Output)")
-		elseif msg:lower() == "/clearmodels" then
-			local rs = game:GetService("ReplicatedStorage")
-			local mf = rs:FindFirstChild("BrainrotModels")
-			if mf then
-				for _, c in ipairs(mf:GetChildren()) do
-					c:Destroy()
-				end
-				print("[Admin] Cleared BrainrotModels.")
-				remotes:WaitForChild("ShowHint"):FireClient(player, "BrainrotModels cleared. Re-Play to re-import.")
-			end
-		end
-	end)
-end)
+		task.wait(
