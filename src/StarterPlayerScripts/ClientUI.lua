@@ -560,14 +560,14 @@ local function refreshFusionPanel()
 			nameLabel.Parent = row
 
 			local costText: string
-			if def.Rarity == "Legendary" then
+			if def and def.Rarity == "Legendary" then
 				costText = "Result: guaranteed SHINY!"
 			else
-				local workId = BrainrotData.GetWorkIdForType(BrainrotData.GetEffectiveType(def, nil))
+				local workId = def and BrainrotData.GetWorkIdForType(BrainrotData.GetEffectiveType(def, nil))
 				local matName = workId and BrainrotData.WORK_TYPES[workId].Material or "materials"
-				local resultRarity = BrainrotData.GetFusionResultRarity(def.Rarity) or "?"
+				local resultRarity = def and BrainrotData.GetFusionResultRarity(def.Rarity) or "?"
 				costText = ("Cost: %d %s → %s"):format(
-					BrainrotData.FUSION_MATERIAL_COST[def.Rarity] or 15, matName, resultRarity)
+					def and BrainrotData.FUSION_MATERIAL_COST[def.Rarity] or 15, matName, resultRarity)
 			end
 			local costLabel = Instance.new("TextLabel")
 			costLabel.Size = UDim2.new(1, -120, 0, 22)
@@ -1317,6 +1317,10 @@ local minePanel, _mineTitle = makePanel("⛏ Gold Mine — coins while you play"
 local customizePanel, _custTitle = makePanel("🎨 Customize Your Plot", Color3.fromRGB(220, 180, 255))
 local statsPanel, _statsTitle = makePanel("📊 Stat Upgrades", Color3.fromRGB(255, 200, 100))
 
+-- Forward declarations for refresh functions used below
+local refreshStatsPanel: () -> ()
+local refreshFishingPanel: () -> ()
+
 -- Button handlers
 exploreBtn.MouseButton1Click:Connect(function()
 	local was = expeditionPanel.Visible
@@ -1378,7 +1382,7 @@ fishBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
-local function refreshFishingPanel()
+refreshFishingPanel = function()
 	for _, c in ipairs(fishingPanel:GetChildren()) do
 		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
 			c:Destroy()
@@ -1991,6 +1995,9 @@ questRemote.OnClientEvent:Connect(function(payload: any)
 	end
 end)
 
+-- Current upgrade tiers (synced from server via collection state)
+local upgradeTiers = { Speed = 0, Jump = 0, Reach = 0, Luck = 0 }
+
 collectionRemote.OnClientEvent:Connect(function(payload: any)
 	ownedInstances = payload.Brainrots or {}
 	showcaseIds = {}
@@ -2374,10 +2381,7 @@ local STAT_DEFS = {
 	Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 2000, 6000, 15000 }, Desc = "Better odds for Rare+ wild spawns" },
 }
 
--- Current upgrade tiers (synced from server via collection state)
-local upgradeTiers = { Speed = 0, Jump = 0, Reach = 0, Luck = 0 }
-
-local function refreshStatsPanel()
+refreshStatsPanel = function()
 	for _, c in ipairs(statsPanel:GetChildren()) do
 		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
 			c:Destroy()
@@ -2396,12 +2400,12 @@ local function refreshStatsPanel()
 		order += 1
 
 		-- Tier pips
-		local pips = ""
+		local pipStr = ""
 		for i = 1, def.MaxTier do
-			pips ..= if i <= tier then "●" else "○"
+			pipStr ..= if i <= tier then "●" else "○"
 		end
 
-		local info = makeLabel(row, def.Name .. "\n" .. def.Desc .. "\n" .. pips .. "  Tier " .. tostring(tier) .. "/" .. tostring(def.MaxTier), 13, Color3.new(1,1,1), 1)
+		local info = makeLabel(row, def.Name .. "\n" .. def.Desc .. "\n" .. pipStr .. "  Tier " .. tostring(tier) .. "/" .. tostring(def.MaxTier), 13, Color3.new(1,1,1), 1)
 		info.Size = UDim2.new(0.65, 0, 1, 0)
 
 		if not isMax then
@@ -2627,13 +2631,10 @@ local soundRemote = remotes:WaitForChild("PlaySound")
 local activeSounds = {}
 
 soundRemote.OnClientEvent:Connect(function(soundName: string, position: Vector3?)
-	-- Simple sound player (IDs should match SoundSystem.SOUNDS)
-	-- For now, play a generic click; full IDs configured in SoundSystem
 	local sound = Instance.new("Sound")
 	sound.SoundId = "rbxassetid://3926305904" -- default click
 	sound.Volume = 0.5
 	if position then
-		-- 3D positioned sound
 		local part = Instance.new("Part")
 		part.Anchored = true
 		part.CanCollide = false
@@ -2702,9 +2703,7 @@ weatherRemote.OnClientEvent:Connect(function(info: any)
 		else "☀️"
 	weatherLabel.Text = icon .. " " .. weather
 
-	-- Client-side rain particles
 	if weather == "Rain" or weather == "Storm" then
-		-- Simple rain effect via particles on camera
 		pcall(function()
 			local rain = Instance.new("ParticleEmitter")
 			rain.Name = "RainEffect"
@@ -2715,7 +2714,6 @@ weatherRemote.OnClientEvent:Connect(function(info: any)
 			rain.Lifetime = NumberRange.new(0.5, 0.8)
 			rain.Rate = if weather == "Storm" then 200 else 100
 			rain.EmissionDirection = Enum.NormalId.Bottom
-			-- Attach to a part above camera
 			local camPart = workspace:FindFirstChild("RainEmitter")
 			if not camPart then
 				camPart = Instance.new("Part")
@@ -2726,12 +2724,10 @@ weatherRemote.OnClientEvent:Connect(function(info: any)
 				camPart.Size = Vector3.new(60, 1, 60)
 				camPart.Parent = workspace
 			end
-			-- Clear old
 			for _, child in ipairs(camPart:GetChildren()) do
 				if child:IsA("ParticleEmitter") then child:Destroy() end
 			end
 			rain.Parent = camPart
-			-- Follow camera
 			task.spawn(function()
 				while rain and rain.Parent do
 					local cam = workspace.CurrentCamera
@@ -2743,7 +2739,6 @@ weatherRemote.OnClientEvent:Connect(function(info: any)
 			end)
 		end)
 	else
-		-- Clear rain
 		pcall(function()
 			local camPart = workspace:FindFirstChild("RainEmitter")
 			if camPart then
@@ -2758,7 +2753,6 @@ end)
 -- // Achievement popup ---------------------------------------------------------------
 local achRemote = remotes:WaitForChild("AchievementUnlocked")
 achRemote.OnClientEvent:Connect(function(data: any)
-	-- Popup banner
 	local popup = Instance.new("Frame")
 	popup.Size = UDim2.new(0, 320, 0, 80)
 	popup.Position = UDim2.new(0.5, -160, 0, -90)
@@ -2789,7 +2783,6 @@ achRemote.OnClientEvent:Connect(function(data: any)
 	desc.TextWrapped = true
 	desc.Parent = popup
 
-	-- Slide down, pause, slide up
 	popup:TweenPosition(UDim2.new(0.5, -160, 0, 20), Enum.EasingDirection.Out, Enum.EasingStyle.Back, 0.5, true)
 	task.wait(3)
 	popup:TweenPosition(UDim2.new(0.5, -160, 0, -90), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.5, true)
@@ -2838,8 +2831,6 @@ lbRemote.OnClientEvent:Connect(function(data: any)
 	end
 end)
 
--- Add leaderboard button to mobile bar (if mobile)
--- (Desktop: add to button row)
 if not isMobile then
 	local lbBtn = Instance.new("TextButton")
 	lbBtn.Size = UDim2.new(0, 104, 0, 40)
