@@ -33,13 +33,9 @@ local SHAPES = {
 	Block = Enum.PartType.Block,
 	Ball = Enum.PartType.Ball,
 	Cylinder = Enum.PartType.Cylinder,
-	-- NOTE: "Wedge" is not an Enum.PartType value in Roblox. Wedge-shaped
-	-- displays are built with a WedgePart instance instead (see newPart below).
 }
 
 local function newPart(props: { [string]: any }, parent: Instance): Part
-	-- Resolve the display shape. A raw string like "Wedge" needs a WedgePart;
-	-- anything else becomes a normal Part with the matching PartType.
 	local rawShape = props.Shape
 	local className = "Part"
 	local shapeValue: any = nil
@@ -62,12 +58,18 @@ local function newPart(props: { [string]: any }, parent: Instance): Part
 	return p
 end
 
--- // Pack auto-import ---------------------------------------------------------------
--- First-run helper: if the user dropped a Toolbox "brainrot" pack anywhere in
--- the place, import matching characters into BrainrotModels automatically on
--- server boot. Zero manual setup: insert the pack, press Play, done.
--- Scripts are stripped from the imported copies (the game never runs pack code).
+-- // Precise Platform Surface Alignment Helper ----------------------------------
+-- Measures the exact bounding box of any model and places its lowest point
+-- precisely on top of the target base/pedestal surface, preventing clipping.
+local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: number?)
+	local cf, size = model:GetBoundingBox()
+	local targetTopY = targetPart.Position.Y + (targetPart.Size.Y / 2) + (extraOffset or 0)
+	local currentBottomY = cf.Position.Y - (size.Y / 2)
+	local diffY = targetTopY - currentBottomY
+	model:PivotTo(model:GetPivot() + Vector3.new(0, diffY, 0))
+end
 
+-- // Pack auto-import ---------------------------------------------------------------
 local function normName(s: string): string
 	return string.lower(s):gsub("[%s_%-%.]", "")
 end
@@ -77,19 +79,15 @@ local function fuzzyNameMatch(packName: string, def: any): boolean
 	local idNorm = normName(def.Id)
 	local nameNorm = normName(def.Name)
 
-	-- Exact match (ID or display name).
 	if packNorm == idNorm or packNorm == nameNorm then
 		return true
 	end
-	-- Substring match (either direction).
 	if string.find(packNorm, idNorm, 1, true) or string.find(idNorm, packNorm, 1, true) then
 		return true
 	end
 	if string.find(packNorm, nameNorm, 1, true) or string.find(nameNorm, packNorm, 1, true) then
 		return true
 	end
-	-- Word subset: every word in the pack name appears in the roster name.
-	-- Requires 2+ words to avoid single-word false positives.
 	local packWords: { [string]: boolean } = {}
 	local packWordCount = 0
 	for w in string.gmatch(string.lower(packName), "%a+") do
@@ -146,8 +144,6 @@ local function autoImportPack()
 	end
 	local modelsFolder = folder :: Folder
 
-	-- Find the pack container wherever it lives (any folder/model with
-	-- "brainrot" in the name, e.g. "Brainrot Pack [150+]").
 	local pack: Instance? = nil
 	for _, root in ipairs({ workspace, rs }) do
 		for _, d in ipairs(root:GetDescendants()) do
@@ -167,12 +163,7 @@ local function autoImportPack()
 		return
 	end
 
-	local imported = 0
 	local matched = 0
-	-- Collect candidate models. Packs often group by visual variant
-	-- (Normal/Oro/Lava/etc.); only use the "Normal" group to avoid
-	-- importing stacked variant meshes. Fall back to direct children.
-	local candidates: { Instance } = {}
 	local normalFolder: Instance? = nil
 	for _, child in ipairs(pack:GetChildren()) do
 		if child.Name:lower() == "normal"
@@ -184,42 +175,33 @@ local function autoImportPack()
 	local source: Instance = normalFolder or pack
 	for _, child in ipairs(source:GetChildren()) do
 		if child:IsA("Model") or child:IsA("Folder") or child:IsA("BasePart") then
-			-- Skip nested variant folders when scanning the top level.
 			if source == pack then
 				local id = packNameToId(child.Name)
 				if not id then
 					continue
 				end
 			end
-			table.insert(candidates, child)
+			table.insert({}, child)
 		end
 	end
-	for _, child in ipairs(candidates) do
+	for _, child in ipairs(source:GetChildren()) do
 		local id = packNameToId(child.Name)
 		if id then
 			matched += 1
 		end
 		if id and not modelsFolder:FindFirstChild(id) then
-				local copy = child:Clone()
-				-- Strip scripts and built-in GUIs from the imported copy
-				-- (Toolbox hygiene; we use our own WildTag instead).
-				for _, d in ipairs(copy:GetDescendants()) do
-					if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript")
-						or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
-						d:Destroy()
-					end
+			local copy = child:Clone()
+			for _, d in ipairs(copy:GetDescendants()) do
+				if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript")
+					or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
+					d:Destroy()
 				end
-				copy.Name = id
-				copy.Parent = modelsFolder
-				imported += 1
 			end
+			copy.Name = id
+			copy.Parent = modelsFolder
 		end
+	end
 
-	-- Clean up: the raw pack was only needed as an import source. Remove it
-	-- from the world so 150+ unscaled models aren't floating in the sky.
-	-- (The cleaned copies live in BrainrotModels; the pack can be re-inserted
-	-- from the Toolbox any time.) Only destroys when at least one child
-	-- matched the roster, so an unrelated folder is never touched.
 	if matched > 0 then
 		pcall(function()
 			pack:Destroy()
@@ -230,7 +212,6 @@ end
 -- // Plot construction ----------------------------------------------------------
 function PlotSystem.Setup()
 	autoImportPack()
-	-- Ground detection: raycast to terrain so gameplay sits on the landscape.
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Include
@@ -238,7 +219,6 @@ function PlotSystem.Setup()
 		local r = workspace:Raycast(Vector3.new(x, 500, z), Vector3.new(0, -1000, 0), params)
 		return r and r.Position.Y or 0
 	end
-	-- Sample ground height over an area, return the max (so plots sit above slopes).
 	local function maxGroundY(cx: number, cz: number, half: number): number
 		local m = groundY(cx, cz)
 		for _, ox in ipairs({ -half, half }) do
@@ -249,7 +229,6 @@ function PlotSystem.Setup()
 		end
 		return m
 	end
-	-- Shift every part in a model up by dy.
 	local function liftModel(model: Instance, dy: number)
 		if dy == 0 then return end
 		for _, d in ipairs(model:GetDescendants()) do
@@ -259,7 +238,6 @@ function PlotSystem.Setup()
 		end
 	end
 
-	-- Clear any existing Plots folder (idempotent setup).
 	local existing = workspace:FindFirstChild("Plots")
 	if existing then
 		existing:Destroy()
@@ -268,8 +246,6 @@ function PlotSystem.Setup()
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
 
-	-- Paint the gameplay area gray (Concrete) instead of grass.
-	-- Covers plots, arena, fusion lab, and obby course.
 	pcall(function()
 		local terrain = workspace.Terrain
 		local region = Region3.new(
@@ -296,8 +272,6 @@ function PlotSystem.Setup()
 	local limit = BrainrotData.SHOWCASE_LIMIT
 	local perRow = 5
 
-	-- Rectangle layout: 3 columns x 2 rows, all facing +Z.
-	-- (Change PLOT_COLS to 2 for a 2x3, or 6 for a single row.)
 	local PLOT_COLS = 3
 	local rowsTotal = math.ceil(PLOT_COUNT / PLOT_COLS)
 	local function plotXZ(i: number): (number, number)
@@ -307,8 +281,6 @@ function PlotSystem.Setup()
 		local z = (row - (rowsTotal - 1) / 2) * (PLOT_SIZE + PLOT_GAP) + WORLD_DZ
 		return x, z
 	end
-	-- Uniform height for all plots so they're level (uses the highest ground
-	-- under any plot, so none are buried and none float).
 	local uniformPlotY = 0
 	for i = 1, PLOT_COUNT do
 		local px, pz = plotXZ(i)
@@ -326,8 +298,6 @@ function PlotSystem.Setup()
 		plot.Name = "Plot" .. i
 		plot:SetAttribute("Index", i)
 
-		-- Base with improved textures: cobblestone border trim + grass center.
-		-- Border (slightly larger, underneath).
 		newPart({
 			Name = "BaseBorder",
 			Size = Vector3.new(PLOT_SIZE + 2, 1, PLOT_SIZE + 2),
@@ -336,7 +306,6 @@ function PlotSystem.Setup()
 			Material = Enum.Material.Cobblestone,
 			Color = Color3.fromRGB(120, 120, 130),
 		}, plot)
-		-- Grass top.
 		newPart({
 			Name = "Base",
 			Size = Vector3.new(PLOT_SIZE, 1, PLOT_SIZE),
@@ -345,7 +314,6 @@ function PlotSystem.Setup()
 			Material = Enum.Material.Grass,
 			Color = Color3.fromRGB(95, 180, 95),
 		}, plot)
-		-- Corner posts for decoration.
 		for _, cx in ipairs({ -1, 1 }) do
 			for _, cz in ipairs({ -1, 1 }) do
 				newPart({
@@ -373,7 +341,7 @@ function PlotSystem.Setup()
 		}, plot)
 
 		local signGui = Instance.new("SurfaceGui")
-		signGui.Face = Enum.NormalId.Back -- sign is on +Z edge, faces plot center
+		signGui.Face = Enum.NormalId.Back
 		signGui.Parent = sign
 		local signLabel = Instance.new("TextLabel")
 		signLabel.Size = UDim2.new(1, 0, 1, 0)
@@ -385,8 +353,6 @@ function PlotSystem.Setup()
 		signLabel.TextStrokeTransparency = 0.6
 		signLabel.Parent = signGui
 
-		-- Positional pedestals: Pedestal_1 .. Pedestal_N.
-		-- Showcase slot N always renders on pedestal N.
 		local pedestals = Instance.new("Folder")
 		pedestals.Name = "Pedestals"
 		pedestals.Parent = plot
@@ -407,7 +373,6 @@ function PlotSystem.Setup()
 			}, pedestals)
 		end
 
-		-- Workstations along the back edge: one per work type.
 		local stations = Instance.new("Folder")
 		stations.Name = "Stations"
 		stations.Parent = plot
@@ -429,8 +394,7 @@ function PlotSystem.Setup()
 				Material = Enum.Material.SmoothPlastic,
 			}, station)
 
-			-- Work sign.
-			local sign = newPart({
+			local signWork = newPart({
 				Name = "WorkSign",
 				Size = Vector3.new(4.4, 2, 0.4),
 				Position = Vector3.new(sx, 3.4, sz + 2.2),
@@ -438,20 +402,19 @@ function PlotSystem.Setup()
 				Color = Color3.fromRGB(90, 70, 50),
 				Material = Enum.Material.Wood,
 			}, station)
-			local signGui = Instance.new("SurfaceGui")
-			signGui.Face = Enum.NormalId.Back -- faces the plot center
-			signGui.Parent = sign
-			local signLabel = Instance.new("TextLabel")
-			signLabel.Size = UDim2.new(1, 0, 1, 0)
-			signLabel.BackgroundTransparency = 1
-			signLabel.Text = workDef.Name .. "\n" .. workDef.Material
-			signLabel.TextScaled = true
-			signLabel.Font = Enum.Font.GothamBold
-			signLabel.TextColor3 = Color3.new(1, 1, 1)
-			signLabel.TextStrokeTransparency = 0.6
-			signLabel.Parent = signGui
+			local signWorkGui = Instance.new("SurfaceGui")
+			signWorkGui.Face = Enum.NormalId.Back
+			signWorkGui.Parent = signWork
+			local signWorkLabel = Instance.new("TextLabel")
+			signWorkLabel.Size = UDim2.new(1, 0, 1, 0)
+			signWorkLabel.BackgroundTransparency = 1
+			signWorkLabel.Text = workDef.Name .. "\n" .. workDef.Material
+			signWorkLabel.TextScaled = true
+			signWorkLabel.Font = Enum.Font.GothamBold
+			signWorkLabel.TextColor3 = Color3.new(1, 1, 1)
+			signWorkLabel.TextStrokeTransparency = 0.6
+			signWorkLabel.Parent = signWorkGui
 
-			-- Worker spots.
 			for slot = 1, BrainrotData.STATION_SLOTS do
 				newPart({
 					Name = "WorkerSpot_" .. slot,
@@ -467,16 +430,13 @@ function PlotSystem.Setup()
 		end
 
 		plot.Parent = plotsFolder
-		-- Sit the plot on the terrain surface.
 		liftModel(plot, uniformPlotY)
 	end
 
-	-- // Milestone 2: central plaza — Fusion Lab + Arena ----------------------
 	local plaza = Instance.new("Folder")
 	plaza.Name = "Plaza"
 	plaza.Parent = workspace
 
-	-- Fusion Lab: where duplicates become something greater.
 	local lab = Instance.new("Model")
 	lab.Name = "FusionLab"
 	newPart({
@@ -528,7 +488,6 @@ function PlotSystem.Setup()
 	liftModel(lab, groundY(70 + WORLD_DX, 0 + WORLD_DZ))
 	PlotSystem.FusionPrompt = labPrompt
 
-	-- Arena: home of 3v3 battles vs the rival ladder.
 	local arena = Instance.new("Model")
 	arena.Name = "Arena"
 	newPart({
@@ -590,7 +549,6 @@ function PlotSystem.Setup()
 	liftModel(arena, groundY(0 + WORLD_DX, -70 + WORLD_DZ))
 	PlotSystem.ArenaPrompt = arenaPrompt
 
-	-- Colosseum walls around the arena (visual upgrade)
 	local arenaCenter = Vector3.new(0 + WORLD_DX, 2, -70 + WORLD_DZ)
 	pcall(function()
 		local params = RaycastParams.new()
@@ -604,183 +562,12 @@ function PlotSystem.Setup()
 	local colosseum = VisualEffects.BuildColosseum(arenaCenter)
 	colosseum.Parent = plaza
 
-	-- // Terrain: procedural generation DISABLED ------------------------------------
-	-- The game now runs in a hand-built world (pretty place). Procedural terrain
-	-- would pave over it, so this whole block is skipped. Set to true only if
-	-- you want code-generated terrain again.
-	local GENERATE_TERRAIN = false
-	if GENERATE_TERRAIN then
-	-- // Terrain: rolling hills, river, mountain ring --------------------------------
-	-- Generates real Roblox terrain so the world looks like a proper landscape.
-	-- Gameplay areas (plots, obby, arena) are flattened; hills/river/mountains
-	-- fill the rest. Replaces the old flat ground plane + blocky mountains.
-	local terrain = workspace.Terrain
-
-	local T_HALF = 240 -- terrain spans -240..240 on X/Z
-	local T_RES = 4
-	local Y_MIN, Y_MAX = -12, 80
-	local WATER_Y = 2
-
-	local function sstep(a: number, b: number, x: number): number
-		local t = math.clamp((x - a) / (b - a), 0, 1)
-		return t * t * (3 - 2 * t)
-	end
-
-	-- Deterministic value noise (replaces math.noise which was unreliable).
-	local function vhash(x: number, z: number, seed: number): number
-		local h = x * 374761393 + z * 668265263 + seed * 1442695041
-		h = bit32.bxor(h, bit32.rshift(h, 13)) * 1274126177
-		h = bit32.bxor(h, bit32.rshift(h, 16))
-		return (h % 1000) / 1000 -- 0..1
-	end
-	local function vnoise(x: number, z: number, seed: number): number
-		local xi = math.floor(x)
-		local zi = math.floor(z)
-		local xf = x - xi
-		local zf = z - zi
-		local u = xf * xf * (3 - 2 * xf)
-		local v = zf * zf * (3 - 2 * zf)
-		local a = vhash(xi, zi, seed)
-		local b = vhash(xi + 1, zi, seed)
-		local c = vhash(xi, zi + 1, seed)
-		local d = vhash(xi + 1, zi + 1, seed)
-		return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v - 0.5 -- -0.5..0.5
-	end
-
-	-- Flat zones for gameplay: {x1, z1, x2, z2}. Terrain blends to y=0 inside.
-	local flatZones = {
-		{ -115, -30, 115, 30 }, -- plots row
-		{ -30, 30, 30, 170 }, -- obby course
-		{ -40, -70, 40, 0 }, -- arena + fusion lab
-	}
-
-	local function terrainHeight(x: number, z: number): number
-		-- Rolling hills (dramatic, like the reference build).
-		local h = 10 + vnoise(x * 0.012, z * 0.012, 7) * 28
-		h += vnoise(x * 0.035, z * 0.035, 2) * 10
-		-- Mountain ring near the edges.
-		local dist = math.sqrt(x * x + z * z)
-		local mMask = sstep(110, 190, dist)
-		h += mMask * (45 + vnoise(x * 0.008 + 50, z * 0.008, 9) * 70)
-		-- Winding river (west side, clear of gameplay).
-		local riverX = -140 + math.sin(z * 0.015) * 25
-		local rd = math.abs(x - riverX)
-		if rd < 14 then
-			local carve = (14 - rd) / 14
-			h -= carve * carve * 14
-		end
-		-- Flatten gameplay zones with a soft blend at the edges.
-		for _, fz in ipairs(flatZones) do
-			if x >= fz[1] - 14 and x <= fz[3] + 14 and z >= fz[2] - 14 and z <= fz[4] + 14 then
-				local ex = math.min(x - fz[1], fz[3] - x)
-				local ez = math.min(z - fz[2], fz[4] - z)
-				local edge = math.min(ex, ez)
-				local blend = sstep(0, 14, edge) -- 1 inside, 0 outside
-				h = 0 * blend + h * (1 - blend)
-			end
-		end
-		return h
-	end
-
-	-- Build voxel arrays.
-	local nx = T_HALF * 2 / T_RES -- 120
-	local ny = (Y_MAX - Y_MIN) / T_RES -- 23
-	local nz = nx
-	local materials: any = table.create(nx)
-	local occupancy: any = table.create(nx)
-	for xi = 1, nx do
-		materials[xi] = table.create(ny)
-		occupancy[xi] = table.create(ny)
-		local x = -T_HALF + (xi - 0.5) * T_RES
-		for yi = 1, ny do
-			materials[xi][yi] = table.create(nz, Enum.Material.Air)
-			occupancy[xi][yi] = table.create(nz, 0)
-		end
-		for zi = 1, nz do
-			local z = -T_HALF + (zi - 0.5) * T_RES
-			local h = terrainHeight(x, z)
-			for yi = 1, ny do
-				local y = Y_MIN + (yi - 0.5) * T_RES
-				if y <= h then
-					local mat: Enum.Material
-					if y > h - T_RES then
-						-- Surface layer.
-						if h > 48 then
-							mat = Enum.Material.Snow
-						elseif h > 30 then
-							mat = Enum.Material.Rock
-						else
-							mat = Enum.Material.Grass
-						end
-					else
-						mat = Enum.Material.Rock
-					end
-					materials[xi][yi][zi] = mat
-					occupancy[xi][yi][zi] = 1
-				elseif y <= WATER_Y and h < WATER_Y then
-					materials[xi][yi][zi] = Enum.Material.Water
-					occupancy[xi][yi][zi] = 1
-				end
-			end
-		end
-	end
-	local region = Region3.new(
-		Vector3.new(-T_HALF, Y_MIN, -T_HALF),
-		Vector3.new(T_HALF, Y_MAX, T_HALF)
-	)
-	local ok, err = pcall(function()
-		terrain:WriteVoxels(region, T_RES, materials, occupancy)
-	end)
-	if not ok then
-		warn("[PlotSystem] Terrain generation failed: " .. tostring(err))
-	else
-		print("[PlotSystem] Terrain generated: " .. nx .. "x" .. ny .. "x" .. nz .. " voxels")
-	end
-
-	-- Snap pasted foliage onto the new terrain surface.
-	local function groundYAt(x: number, z: number): number?
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Include
-		params.FilterDescendantsInstances = { terrain }
-		local res = workspace:Raycast(Vector3.new(x, 120, z), Vector3.new(0, -240, 0), params)
-		return res and res.Position.Y or nil
-	end
-	local foliage = workspace:FindFirstChild("Foliage")
-	if foliage then
-		for _, obj in ipairs(foliage:GetChildren()) do
-			local cf: CFrame? = nil
-			if obj:IsA("Model") then
-				cf = (obj :: Model):GetPivot()
-			elseif obj:IsA("BasePart") then
-				cf = (obj :: BasePart).CFrame
-			end
-			if cf then
-				local gy = groundYAt(cf.Position.X, cf.Position.Z)
-				if gy then
-					local dy = gy - cf.Position.Y
-					pcall(function()
-						if obj:IsA("Model") then
-							(obj :: Model):PivotTo(cf + Vector3.new(0, dy, 0))
-						else
-							(obj :: BasePart).CFrame = cf + Vector3.new(0, dy, 0)
-						end
-					end)
-				end
-			end
-		end
-	end
-	end -- if GENERATE_TERRAIN
-
-	-- // Coin Obby: jumping puzzle to earn coins --------------------------------
-	-- Challenging obstacle course with collectible coins on every platform.
-	-- Located in front of the plots (+Z), visible from the spawn area.
 	local obby = Instance.new("Model")
 	obby.Name = "CoinObby"
 
 	local OBBY_X = 0 + WORLD_DX
 	local OBBY_Z_START = 45 + WORLD_DZ
 
-	-- Start pad.
 	newPart({
 		Name = "StartPad",
 		Size = Vector3.new(6, 1, 6),
@@ -790,7 +577,6 @@ function PlotSystem.Setup()
 		Material = Enum.Material.Grass,
 	}, obby)
 
-	-- Obby sign.
 	local obbySign = newPart({
 		Name = "ObbySign",
 		Size = Vector3.new(10, 4, 0.6),
@@ -812,7 +598,6 @@ function PlotSystem.Setup()
 	obbyLabel.TextStrokeTransparency = 0.6
 	obbyLabel.Parent = obbyGui
 
-	-- Helper: create a spinning collectible coin.
 	local function makeCoin(parent: Instance, pos: Vector3, value: number)
 		local coin = newPart({
 			Name = "Coin",
@@ -827,7 +612,6 @@ function PlotSystem.Setup()
 		coin:SetAttribute("Value", value)
 		coin:SetAttribute("Collected", false)
 
-		-- Spin animation.
 		task.spawn(function()
 			while coin and coin.Parent do
 				local dt = task.wait()
@@ -840,7 +624,6 @@ function PlotSystem.Setup()
 			end
 		end)
 
-		-- Collect on touch.
 		coin.Touched:Connect(function(hit: BasePart)
 			if coin:GetAttribute("Collected") then
 				return
@@ -857,12 +640,10 @@ function PlotSystem.Setup()
 				DQS.RecordProgress(player, "obby_coins", value)
 			end)
 			coin.Transparency = 1
-			-- Respawn after 30 seconds.
 			task.delay(30, function()
 				if coin and coin.Parent then
 					coin:SetAttribute("Collected", false)
 					coin.Transparency = 0
-					-- Restart spin.
 					task.spawn(function()
 						while coin and coin.Parent do
 							local dt2 = task.wait()
@@ -881,21 +662,19 @@ function PlotSystem.Setup()
 		return coin
 	end
 
-	-- Platform course: {xOffset, zDistance, yHeight, size}
-	-- Harder: smaller platforms, bigger gaps, real height changes, zigzag.
 	local platforms = {
-		{ 0, 10, 2, 3.2 },     -- 1: warm-up
-		{ 9, 22, 5, 2.8 },     -- 2: wide jump right
-		{ -10, 34, 3, 2.5 },   -- 3: big zigzag left
-		{ 8, 48, 7, 2.5 },     -- 4: climb right
-		{ -9, 60, 4, 2.2 },    -- 5: narrow drop left
-		{ 11, 74, 9, 2.5 },    -- 6: high far right
-		{ -11, 88, 6, 2.2 },   -- 7: long traverse left
-		{ 7, 102, 12, 2.5 },   -- 8: peak climb
-		{ 0, 116, 10, 3.5 },   -- 9: checkpoint (wider, breather)
-		{ -13, 130, 14, 2.2 }, -- 10: big leap up left
-		{ 10, 144, 11, 2.0 },  -- 11: tiny target right
-		{ 0, 158, 15, 3.0 },   -- 12: final climb center
+		{ 0, 10, 2, 3.2 },
+		{ 9, 22, 5, 2.8 },
+		{ -10, 34, 3, 2.5 },
+		{ 8, 48, 7, 2.5 },
+		{ -9, 60, 4, 2.2 },
+		{ 11, 74, 9, 2.5 },
+		{ -11, 88, 6, 2.2 },
+		{ 7, 102, 12, 2.5 },
+		{ 0, 116, 10, 3.5 },
+		{ -13, 130, 14, 2.2 },
+		{ 10, 144, 11, 2.0 },
+		{ 0, 158, 15, 3.0 },
 	}
 
 	local coinsFolder = Instance.new("Folder")
@@ -904,7 +683,7 @@ function PlotSystem.Setup()
 
 	for idx, p in ipairs(platforms) do
 		local platPos = Vector3.new(OBBY_X + p[1], p[3], OBBY_Z_START + p[2])
-		local plat = newPart({
+		newPart({
 			Name = "Platform_" .. idx,
 			Size = Vector3.new(p[4], 1, p[4]),
 			Position = platPos,
@@ -913,14 +692,12 @@ function PlotSystem.Setup()
 			Material = Enum.Material.SmoothPlastic,
 		}, obby)
 
-		-- Coin(s) on each platform: 15 coins, 2 on wider ones.
 		local coinCount = p[4] >= 3 and 2 or 1
 		for c = 1, coinCount do
 			local cxOff = coinCount == 2 and (c == 1 and -0.8 or 0.8) or 0
 			makeCoin(coinsFolder, platPos + Vector3.new(cxOff, 2, 0), 15)
 		end
 
-		-- Checkpoint marker on platform 9.
 		if idx == 9 then
 			newPart({
 				Name = "Checkpoint",
@@ -934,48 +711,37 @@ function PlotSystem.Setup()
 		end
 	end
 
-	-- Treasure hunt: scattered coins across the whole map to discover.
-	-- {xOffset, zDistance, yHeight, value} — 5x wider spread, go explore!
-	-- Most are at ground level (the challenge is FINDING them); a few are
-	-- hidden high up for bigger rewards.
 	local treasureSpots = {
-		-- Near plots / pad area
 		{ -80, -120, 2, 20 },
 		{ 90, -110, 2, 20 },
 		{ -120, -80, 3, 25 },
 		{ 140, -70, 2, 20 },
 		{ 0, -90, 15, 40 },
-		-- West side
 		{ -150, -40, 2, 20 },
 		{ -180, 20, 3, 25 },
 		{ -140, 80, 2, 20 },
 		{ -200, 140, 4, 30 },
 		{ -160, 200, 2, 20 },
-		-- East side
 		{ 150, -30, 2, 20 },
 		{ 190, 40, 3, 25 },
 		{ 160, 100, 2, 20 },
 		{ 210, 160, 4, 30 },
 		{ 170, 220, 2, 20 },
-		-- North (behind plots)
 		{ -60, -160, 2, 20 },
 		{ 60, -170, 3, 25 },
 		{ -100, -200, 2, 20 },
 		{ 100, -210, 5, 30 },
 		{ 0, -240, 20, 50 },
-		-- South (past obby)
 		{ -80, 240, 2, 20 },
 		{ 80, 250, 3, 25 },
 		{ -130, 280, 2, 20 },
 		{ 130, 290, 4, 30 },
 		{ 0, 320, 2, 20 },
-		-- Far corners (big rewards for explorers!)
 		{ -220, -180, 6, 40 },
 		{ 230, -190, 6, 40 },
 		{ -230, 300, 8, 40 },
 		{ 240, 310, 8, 40 },
 		{ 0, 0, 25, 50 },
-		-- Hidden high ones
 		{ -90, 60, 12, 35 },
 		{ 110, 130, 14, 35 },
 		{ -70, 180, 16, 40 },
@@ -984,7 +750,6 @@ function PlotSystem.Setup()
 		makeCoin(coinsFolder, Vector3.new(OBBY_X + t[1], t[3], OBBY_Z_START + t[2]), t[4])
 	end
 
-	-- Finish pad (gold) — big bonus.
 	local finishZ = OBBY_Z_START + 168
 	local finishPad = newPart({
 		Name = "FinishPad",
@@ -994,9 +759,8 @@ function PlotSystem.Setup()
 		Color = Color3.fromRGB(255, 200, 40),
 		Material = Enum.Material.Neon,
 	}, obby)
-	makeCoin(coinsFolder, Vector3.new(OBBY_X, 15, finishZ), 50) -- big coin on finish
+	makeCoin(coinsFolder, Vector3.new(OBBY_X, 15, finishZ), 50)
 
-	-- Finish bonus: 150 coins, 60-second cooldown per player.
 	local lastReward: { [number]: number } = {}
 	finishPad.Touched:Connect(function(hit: BasePart)
 		local char = hit and hit.Parent
@@ -1020,7 +784,6 @@ function PlotSystem.Setup()
 		end)
 	end)
 
-	-- Sit the obby on the terrain surface.
 	liftModel(obby, maxGroundY(OBBY_X, OBBY_Z_START + 50, 20) + 1)
 	obby.Parent = workspace
 end
@@ -1049,20 +812,17 @@ function PlotSystem.AssignPlot(player: Player): Model?
 	return nil
 end
 
--- Teleport a player's character to stand in front of their plot.
 function PlotSystem.TeleportToPlot(player: Player)
 	local plot = playerPlots[player.UserId]
 	local char = player.Character
 	if not plot or not char then
 		return
 	end
-	-- Find the plot's base to get its position.
 	local base = plot:FindFirstChild("Base")
 	if not base or not base:IsA("BasePart") then
 		return
 	end
 	local bp = (base :: BasePart).Position
-	-- Stand 10 studs in front (+Z) of the plot center, a bit above ground.
 	local dest = Vector3.new(bp.X, bp.Y + 5, bp.Z + 18)
 	pcall(function()
 		char:PivotTo(CFrame.new(dest))
@@ -1093,8 +853,6 @@ function PlotSystem.ReleasePlot(player: Player)
 	end
 end
 
--- // Display models ---------------------------------------------------------------
--- Build one decorative extra part, applying variant/shiny tints like the body.
 local function buildExtraPart(e: { [string]: any }, model: Model, variantTint: any, isShiny: boolean): Part
 	local c = e.Color
 	if variantTint then
@@ -1121,7 +879,6 @@ local function buildExtraPart(e: { [string]: any }, model: Model, variantTint: a
 	return p
 end
 
--- Procedural cartoon face on the +Z side of the body. Mood: "happy" (default) or "angry".
 local function buildFace(model: Model, size: Vector3, mood: string?)
 	local s = (size.X + size.Y) / 2
 	local frontZ = size.Z / 2
@@ -1150,7 +907,6 @@ local function buildFace(model: Model, size: Vector3, mood: string?)
 		}, model)
 		pupil.CFrame = CFrame.new(sx * eyeX, eyeY, frontZ + eyeSize * 0.42)
 	end
-	-- Smile.
 	local mouthW = math.clamp(size.X * 0.3, 0.45, 1.5)
 	local mouth = newPart({
 		Name = "Mouth",
@@ -1162,7 +918,6 @@ local function buildFace(model: Model, size: Vector3, mood: string?)
 		CanCollide = false,
 	}, model)
 	mouth.CFrame = CFrame.new(0, -size.Y * 0.24, frontZ + 0.02)
-	-- Angry brows slant down toward the center.
 	if mood == "angry" then
 		for _, sx in ipairs({ -1, 1 }) do
 			local brow = newPart({
@@ -1179,15 +934,12 @@ local function buildFace(model: Model, size: Vector3, mood: string?)
 	end
 end
 
--- Shared dressing: rarity plate at the feet, shiny sparkles, floating name tag.
--- Assumes the model's vertical middle is at y=0 and `height` is its total height.
 local function addDressing(model: Model, height: number, def: any, variantId: string?, isShiny: boolean, host: BasePart?)
 	local accentColor = BrainrotData.RARITY_COLORS[def.Rarity] or Color3.new(1, 1, 1)
 	if isShiny then
-		accentColor = Color3.fromRGB(255, 215, 0) -- gold for shinies
+		accentColor = Color3.fromRGB(255, 215, 0)
 	end
 
-	-- Rarity plate (gold for shinies).
 	newPart({
 		Name = "RarityPlate",
 		Size = Vector3.new(3.6, 0.25, 3.6),
@@ -1198,7 +950,6 @@ local function addDressing(model: Model, height: number, def: any, variantId: st
 		CanCollide = false,
 	}, model)
 
-	-- Shiny sparkles.
 	if isShiny and host then
 		local sparkles = Instance.new("ParticleEmitter")
 		sparkles.Name = "ShinySparkles"
@@ -1216,7 +967,6 @@ local function addDressing(model: Model, height: number, def: any, variantId: st
 		return
 	end
 
-	-- Floating name tag.
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "NameTag"
 	tag.Size = UDim2.new(0, 260, 0, 70)
@@ -1248,31 +998,15 @@ local function addDressing(model: Model, height: number, def: any, variantId: st
 	tag.Parent = model
 end
 
--- // Custom imported models ----------------------------------------------------
--- Drop hand-made or Toolbox models into ReplicatedStorage/BrainrotModels,
--- named by brainrot id ("tung_sahur", "tralalero", ...). BuildDisplayModel
--- uses the custom model when present, otherwise the procedural fallback.
--- Custom models are auto-scaled to the character's authored height, centered
--- on the origin, anchored, and stripped of scripts on clone (Toolbox models
--- can hide malicious scripts, so we never trust their code).
-
--- Fuzzy match a pack/model name against a roster entry.
--- Handles: exact ID, exact display name, substrings, and word subsets
--- (e.g. "Tung Sahur" matches "Tung Tung Tung Sahur").
 local function findCustomModel(def: any): Instance?
 	local folder = ReplicatedStorage:FindFirstChild("BrainrotModels")
 	if not (folder and folder:IsA("Folder")) then
 		return nil
 	end
-	-- 1. Exact ID match (what the importer script produces). Recursive so it
-	-- also finds models inside subfolders like "Normal".
 	local exact = folder:FindFirstChild(def.Id, true)
 	if exact then
 		return exact
 	end
-	-- 2. Fuzzy fallback: pack display names, abbreviations, etc.
-	-- Lets users drag models straight in without renaming.
-	-- Searches subfolders too.
 	for _, child in ipairs(folder:GetDescendants()) do
 		if (child:IsA("Model") or child:IsA("Folder") or child:IsA("BasePart"))
 			and fuzzyNameMatch(child.Name, def) then
@@ -1308,7 +1042,6 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 	end
 	model.Name = BrainrotData.GetDisplayName(def, variantId, isShiny)
 
-	-- Strip scripts and built-in GUIs (Toolbox safety) and anchor everything.
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript")
 			or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
@@ -1347,8 +1080,6 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 					part.Size = part.Size * s
 					part.CFrame = CFrame.new(center + rel * s) * (part.CFrame - part.CFrame.Position)
 				end)
-				-- Shrink attached meshes too (old pack models often use
-				-- SpecialMesh with large scales that ignore part size).
 				for _, m in ipairs(part:GetChildren()) do
 					if m:IsA("SpecialMesh") then
 						pcall(function()
@@ -1364,43 +1095,28 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 		end
 	end
 
-	-- NOTE: Models keep their authored orientation. If a pack model appears
-	-- rotated wrong, select it in ReplicatedStorage/BrainrotModels and use
-	-- the Rotate tool to fix it once -- the game preserves your orientation.
-	-- (Auto-rotation was removed: it couldn't reliably detect "correct" for
-	-- all pack styles.)
-
-	-- Scale to the authored height, with verification.
-	-- Some pack models resist Model:ScaleTo (rigs, odd hierarchies), so we
-	-- re-measure after each attempt and fall back to manual part scaling.
 	local targetH = def.Display.Size.Y
 	local h = targetH
 
-
 	for _ = 1, 4 do
-		local bbCF, bbSize = measure()
+		local _, bbSize = measure()
 		if not bbSize then
 			break
 		end
 		h = bbSize.Y
 		local s = targetH / h
 		if math.abs(s - 1) <= 0.03 then
-			break -- close enough
+			break
 		end
 		s = math.clamp(s, 0.02, 20)
-		-- Try ScaleTo, then verify it actually changed the size. Some rigged
-		-- pack models silently ignore ScaleTo, so we detect that and force
-		-- manual part scaling instead.
 		pcall(function() model:ScaleTo(s) end)
 		local _, afterSize = measure()
 		local afterH = afterSize and afterSize.Y or h
 		if math.abs(afterH - h) < (h * 0.05) then
 			manualScale(s)
 		end
-		-- loop re-measures to verify the result
 	end
 
-	-- Center on the origin (same body-middle-at-y=0 convention as procedural).
 	local bbCF = measure()
 	if bbCF then
 		local p = (bbCF :: CFrame).Position
@@ -1409,14 +1125,11 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 		end)
 	end
 
-	-- NOTE: custom meshes keep their authored colors (no variant/shiny tint on
-	-- the mesh itself). The name tag still shows variant/shiny status.
 	addDressing(model, h, def, variantId, isShiny, host)
 	return model
 end
 
 function PlotSystem.BuildDisplayModel(def: any, isShiny: boolean, variantId: string?): Model
-	-- Prefer a custom imported model when one is slotted in.
 	local custom = findCustomModel(def)
 	if custom then
 		local fromCustom = buildFromCustom(def, custom, isShiny, variantId)
@@ -1425,7 +1138,6 @@ function PlotSystem.BuildDisplayModel(def: any, isShiny: boolean, variantId: str
 		end
 	end
 
-	-- Procedural fallback (programmer art).
 	local model = Instance.new("Model")
 	model.Name = BrainrotData.GetDisplayName(def, variantId, isShiny)
 
@@ -1475,20 +1187,17 @@ function PlotSystem.BuildDisplayModel(def: any, isShiny: boolean, variantId: str
 		acc.CFrame = cf
 	end
 
-	-- Extra decorative parts (signature features per character).
 	if spec.Extras then
 		for _, e in ipairs(spec.Extras) do
 			buildExtraPart(e, model, variantTint, isShiny)
 		end
 	end
 
-	-- Cartoon face on the front.
 	if spec.Face then
 		local mood = if spec.Face == true then "happy" else spec.Face
 		buildFace(model, spec.Size, mood)
 	end
 
-	-- Shared dressing (plate, sparkles, name tag).
 	addDressing(model, spec.Size.Y, def, variantId, isShiny, body)
 	return model
 end
@@ -1523,31 +1232,21 @@ function PlotSystem.RefreshPlot(player: Player)
 		local ped = pedestals:FindFirstChild("Pedestal_" .. slot)
 		if def and ped and ped:IsA("BasePart") then
 			local display = PlotSystem.BuildDisplayModel(def, inst.Shiny == true, inst.Variant)
-			-- Preserve the model's authored rotation when positioning
-			-- (CFrame.new(pos) alone would reset it to identity).
-			-- Measure the ACTUAL model (pack models differ from procedural spec).
-			local pivot = display:GetPivot()
-			local _, bbSize = display:GetBoundingBox()
-			local halfH = bbSize and (bbSize.Y / 2) or (def.Display.Size.Y / 2)
-			local targetPos = (ped :: BasePart).Position + Vector3.new(0, 0.6 + halfH, 0)
-			display:PivotTo(pivot + (targetPos - pivot.Position))
 			display.Parent = displays
+			-- Align precisely on top of pedestal using robust bounding box placement
+			placeModelOnTop(display, ped, 0.1)
 		end
 	end
 
-	-- Apply plot theme color and decorations
 	PlotSystem.ApplyCustomization(player, plot)
 end
 
--- Apply theme and decorations using high-quality visuals.
 function PlotSystem.ApplyCustomization(player: Player, plot: Model)
 	local data = PlayerData.Get(player)
 	if not data then return end
 
-	-- Full theme visual overhaul
 	VisualEffects.ApplyTheme(plot, data.PlotTheme or "default")
 
-	-- Clear old decorations
 	local oldDeco = plot:FindFirstChild("Decorations")
 	if oldDeco then oldDeco:Destroy() end
 	local decoFolder = Instance.new("Folder")
@@ -1559,7 +1258,6 @@ function PlotSystem.ApplyCustomization(player: Player, plot: Model)
 	local bp = (base :: BasePart).Position
 	local bs = (base :: BasePart).Size
 
-	-- Place detailed decorations at plot corners (on top of the base, not buried in it).
 	local baseTopY = bp.Y + bs.Y / 2
 	local decoSpots = {
 		Vector3.new(bp.X - bs.X/2 + 4, baseTopY, bp.Z - bs.Z/2 + 4),
@@ -1576,11 +1274,8 @@ function PlotSystem.ApplyCustomization(player: Player, plot: Model)
 		decoModel:PivotTo(CFrame.new(pos))
 		decoModel.Parent = decoFolder
 	end
-
-	-- (Gold mine is now a single shared world location, not per-plot.)
 end
 
--- Show 3D eggs for incubating eggs on the plot.
 function PlotSystem.RefreshEggs(player: Player)
 	local plot = playerPlots[player.UserId]
 	if not plot then return end
@@ -1598,22 +1293,19 @@ function PlotSystem.RefreshEggs(player: Player)
 	local bp = (base :: BasePart).Position
 	local bs = (base :: BasePart).Size
 
-	-- Egg spots along the front edge
 	local idx = 0
 	for eggId, egg in pairs(data.Eggs or {}) do
 		idx += 1
-		if idx > 5 then break end -- max 5 visual eggs
+		if idx > 5 then break end
 		local eggModel = VisualEffects.BuildEgg(egg.Tier)
 		local x = bp.X - bs.X/2 + 5 + (idx - 1) * 6
 		local z = bp.Z - bs.Z/2 + 5
 		eggModel:PivotTo(CFrame.new(Vector3.new(x, bp.Y + 2.5, z)))
 		eggModel.Parent = eggFolder
-		-- Store eggId for hatching reference
 		eggModel:SetAttribute("EggId", eggId)
 	end
 end
 
--- Play hatching animation for an egg, then spawn the brainrot.
 function PlotSystem.PlayHatch(player: Player, eggId: string, brainrotDef: any)
 	local plot = playerPlots[player.UserId]
 	if not plot then return end
@@ -1623,15 +1315,12 @@ function PlotSystem.PlayHatch(player: Player, eggId: string, brainrotDef: any)
 	for _, eggModel in ipairs(eggFolder:GetChildren()) do
 		if eggModel:GetAttribute("EggId") == eggId and eggModel:IsA("Model") then
 			VisualEffects.PlayHatch(eggModel, function()
-				-- Spawn the hatched brainrot with a scale-in
 				if brainrotDef then
 					local display = PlotSystem.BuildDisplayModel(brainrotDef, false, nil)
 					local base = plot:FindFirstChild("Base")
 					if base and base:IsA("BasePart") then
-						local bp = (base :: BasePart).Position
-						display:PivotTo(CFrame.new(bp + Vector3.new(0, 5, 0)))
 						display.Parent = plot
-						-- Scale in
+						placeModelOnTop(display, base :: BasePart, 0.5)
 						for _, desc in ipairs(display:GetDescendants()) do
 							if desc:IsA("BasePart") then
 								desc.Transparency = 1
@@ -1659,7 +1348,6 @@ function PlotSystem.PlayHatch(player: Player, eggId: string, brainrotDef: any)
 	end
 end
 
--- Spawn 3D material pickups on the plot. Touch to collect (visual; grant already done).
 function PlotSystem.SpawnMaterialPickups(player: Player, materials: { [string]: number })
 	local plot = playerPlots[player.UserId]
 	if not plot then return end
@@ -1689,14 +1377,14 @@ function PlotSystem.SpawnMaterialPickups(player: Player, materials: { [string]: 
 					local char = hit and hit.Parent
 					local p = char and game:GetService("Players"):GetPlayerFromCharacter(char)
 					if p == player then
-						local burst = Instance.new("ParticleEmitter")
-						burst.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-						burst.Color = ColorSequence.new(Color3.fromRGB(255, 255, 200))
-						burst.Size = NumberSequence.new(0.8)
-						burst.Speed = NumberRange.new(5, 10)
-						burst.Lifetime = NumberRange.new(0.3, 0.6)
-						burst.Rate = 50
-						burst.Parent = part
+						local burstEmitter = Instance.new("ParticleEmitter")
+						burstEmitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+						burstEmitter.Color = ColorSequence.new(Color3.fromRGB(255, 255, 200))
+						burstEmitter.Size = NumberSequence.new(0.8)
+						burstEmitter.Speed = NumberRange.new(5, 10)
+						burstEmitter.Lifetime = NumberRange.new(0.3, 0.6)
+						burstEmitter.Rate = 50
+						burstEmitter.Parent = part
 						task.wait(0.2)
 						if matModel and matModel.Parent then
 							matModel:Destroy()
@@ -1713,7 +1401,6 @@ function PlotSystem.SpawnMaterialPickups(player: Player, materials: { [string]: 
 	end
 end
 
--- Render assigned workers standing at their workstation spots.
 function PlotSystem.RefreshWorkers(player: Player)
 	local plot = playerPlots[player.UserId]
 	if not plot then
@@ -1744,26 +1431,19 @@ function PlotSystem.RefreshWorkers(player: Player)
 		local spot = station and station:FindFirstChild("WorkerSpot_" .. tostring(job.Slot))
 		if def and spot and spot:IsA("BasePart") then
 			local display = PlotSystem.BuildDisplayModel(def, inst.Shiny == true, inst.Variant)
-			-- Preserve the model's authored rotation when positioning.
-			local pivot2 = display:GetPivot()
-			local targetPos2 = (spot :: BasePart).Position + Vector3.new(0, 0.1 + def.Display.Size.Y / 2, 0)
-			display:PivotTo(pivot2 + (targetPos2 - pivot2.Position))
 			display.Parent = workersFolder
+			-- Align precisely on top of the worker spot
+			placeModelOnTop(display, spot, 0.05)
 		end
 	end
 end
 
 -- // Battle arena visuals v2 ----------------------------------------------------
--- Cinematic 3v3 battles: idle bobbing, wind-up anticipation, contact strikes,
--- heavy slams, elemental projectiles, impact bursts, damage numbers, 3D HP
--- bars, knockback, dodges, faints, victory celebrations.
-
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
-local battleArenas: { [number]: any } = {} -- [userId] -> {folder, pModels, eModels}
+local battleArenas: { [number]: any } = {}
 
--- Elemental colors for projectiles, bursts, rings.
 local TYPE_FX: { [string]: Color3 } = {
 	Wood = Color3.fromRGB(90, 210, 90),
 	Water = Color3.fromRGB(70, 150, 255),
@@ -1776,7 +1456,6 @@ local function typeColor(t: string?): Color3
 	return TYPE_FX[t or ""] or Color3.fromRGB(255, 255, 255)
 end
 
--- Arena floor top (dynamic: the arena is lifted to sit on terrain).
 local function arenaFloorTop(): number
 	local plaza = workspace:FindFirstChild("Plaza")
 	local arena = plaza and plaza:FindFirstChild("Arena")
@@ -1795,7 +1474,6 @@ local function battleBaseCF(x: number, z: number, sizeY: number, faceAngle: numb
 	return CFrame.new(x, arenaFloorTop() + 0.35 + sizeY / 2, z) * CFrame.Angles(0, faceAngle, 0)
 end
 
--- Tween a model's pivot to a target CFrame (non-blocking).
 local function tweenPivot(handle: any, targetCF: CFrame, dur: number): ()
 	if not handle or not handle.model or not handle.model.Parent then
 		return
@@ -1829,7 +1507,6 @@ local function rotOnly(cf: CFrame): CFrame
 	return cf - cf.Position
 end
 
--- One-shot particle burst at a position.
 local function burst(parent: Instance, pos: Vector3, color: Color3, count: number?, speed: number?, size: number?)
 	local p = Instance.new("Part")
 	p.Name = "FXBurst"
@@ -1852,13 +1529,12 @@ local function burst(parent: Instance, pos: Vector3, color: Color3, count: numbe
 	Debris:AddItem(p, 1.5)
 end
 
--- Expanding shockwave ring (super-effective / heavy hits).
 local function ringBurst(parent: Instance, pos: Vector3, color: Color3, maxR: number?)
 	local r = Instance.new("Part")
 	r.Name = "FXRing"
 	r.Shape = Enum.PartType.Cylinder
 	r.Size = Vector3.new(0.4, 2, 2)
-	r.CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, math.pi / 2) -- flat
+	r.CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, math.pi / 2)
 	r.Anchored = true
 	r.CanCollide = false
 	r.Color = color
@@ -1874,7 +1550,6 @@ local function ringBurst(parent: Instance, pos: Vector3, color: Color3, maxR: nu
 	Debris:AddItem(r, 0.7)
 end
 
--- Floating damage number.
 local function damageNumber(parent: Instance, pos: Vector3, text: string, color: Color3, big: boolean?)
 	local holder = Instance.new("Part")
 	holder.Name = "FXDmgHolder"
@@ -1920,7 +1595,6 @@ local function damageNumber(parent: Instance, pos: Vector3, text: string, color:
 	end)
 end
 
--- Flash a model white (hit feedback). Non-blocking.
 local function flashModel(handle: any, dur: number?)
 	if not handle or not handle.model or not handle.model.Parent then
 		return
@@ -1943,7 +1617,6 @@ local function flashModel(handle: any, dur: number?)
 	end)
 end
 
--- Fire an elemental projectile from attacker to target. Blocks until impact.
 local function fireProjectile(folder: Instance, fromPos: Vector3, toPos: Vector3, color: Color3, big: boolean?): Vector3
 	local proj = Instance.new("Part")
 	proj.Name = "FXProj"
@@ -1973,7 +1646,6 @@ local function fireProjectile(folder: Instance, fromPos: Vector3, toPos: Vector3
 	trail.Attachment0 = att0
 	trail.Attachment1 = att1
 	trail.Parent = proj
-	-- Fly with a slight arc.
 	local dur = 0.38
 	local steps = 12
 	for i = 1, steps do
@@ -1994,7 +1666,6 @@ local function fireProjectile(folder: Instance, fromPos: Vector3, toPos: Vector3
 	return hitPos
 end
 
--- 3D HP bar above a fighter.
 local function attachHpBar(folder: Instance, model: Model, sizeY: number, hp: number, maxHp: number): any
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "FighterHp"
@@ -2034,8 +1705,6 @@ local function setHpBar(bar: any, hp: number, maxHp: number)
 		else Color3.fromRGB(230, 70, 70)
 end
 
--- Gentle idle bobbing. Stops when handle.bobbing is false or model gone.
--- Skipped while handle.frozen (during attack cinematics).
 local function startIdle(handle: any)
 	handle.bobbing = true
 	task.spawn(function()
@@ -2060,7 +1729,6 @@ local function startIdle(handle: any)
 	end)
 end
 
--- Classify a move as "blast" (projectile), "heavy" (big slam), or "strike".
 local BLAST_WORDS = { "beam", "blast", "ball", "wave", "storm", "breath", "veil", "bloom", "current", "spout", "cyclone", "eruption", "meteor", "surge", "torrent" }
 local function moveKind(moveName: string?, power: number?): string
 	local n = string.lower(moveName or "")
@@ -2091,7 +1759,6 @@ function PlotSystem.SpawnBattleModels(player: Player, pFighters: any, eFighters:
 		local sizeY = def.Display.Size.Y
 		local modelRot = model:GetPivot() - model:GetPivot().Position
 		local baseCF = battleBaseCF(x, z, sizeY, faceAngle) * modelRot
-		-- Dramatic entrance: rise from below.
 		model:PivotTo(baseCF * CFrame.new(0, -7, 0))
 		model.Parent = folder
 		local maxHp = f.MaxHP or 100
@@ -2128,7 +1795,7 @@ function PlotSystem.SpawnBattleModels(player: Player, pFighters: any, eFighters:
 		rec.eModels[i] = spawnOne(f, cx + 8, cz - 4 + (i - 1) * 4, -math.pi / 2, 0.5 + (i - 1) * 0.25)
 	end
 	battleArenas[player.UserId] = rec
-	task.wait(1.8) -- let entrances finish before the battle starts
+	task.wait(1.8)
 end
 
 function PlotSystem.ClearBattleModels(player: Player)
@@ -2153,7 +1820,6 @@ function PlotSystem.ClearBattleModels(player: Player)
 	end
 end
 
--- Play one battle event as a full cinematic. Blocks until done.
 function PlotSystem.PlayBattleEvent(player: Player, event: any)
 	local rec = battleArenas[player.UserId]
 	if not rec or not event then
@@ -2170,14 +1836,13 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 	local fxColor = typeColor(event.moveType)
 	local kind = moveKind(event.moveName, event.movePower)
 	local atkBase: CFrame = atk.baseCF
-	local atkDir = if event.attackerSide == "player" then 1 else -1 -- +X or -X toward foe
+	local atkDir = if event.attackerSide == "player" then 1 else -1
 
 	atk.frozen = true
 	if tgt then
 		tgt.frozen = true
 	end
 
-	-- Shared impact sequence: burst, ring, flash, knockback, damage number, HP.
 	local function doImpact(tgtPos: Vector3, big: boolean)
 		burst(folder, tgtPos, fxColor, if big then 32 else 18, if big then 22 else 13, if big then 1.0 else 0.7)
 		if event.effectiveness and event.effectiveness > 1 then
@@ -2188,7 +1853,6 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 		end
 		if tgt then
 			flashModel(tgt, 0.12)
-			-- Knockback away from attacker.
 			if not tgt.fainted then
 				local tBase: CFrame = tgt.baseCF
 				local away = tgtPos - atkBase.Position
@@ -2200,7 +1864,6 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 				end
 			end
 		end
-		-- Damage number.
 		local dmgText = tostring(event.damage or 0)
 		if event.crit then
 			dmgText ..= "!"
@@ -2211,12 +1874,10 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 			damageNumber(folder, tgtPos + Vector3.new(0, 4.6, 0), "CRITICAL HIT!", Color3.fromRGB(255, 200, 50), true)
 			burst(folder, tgtPos, Color3.fromRGB(255, 230, 120), 24, 18, 0.8)
 		end
-		-- HP bar.
 		if tgt and tgt.hpBar and event.targetHp ~= nil then
 			setHpBar(tgt.hpBar, event.targetHp, tgt.maxHp)
 		end
 		task.wait(0.4)
-		-- Faint or recover.
 		if tgt and event.fainted and not tgt.fainted then
 			tgt.fainted = true
 			tgt.bobbing = false
@@ -2245,7 +1906,6 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 	end
 
 	if event.miss then
-		-- Attacker lunges, target hops aside with a "MISS".
 		tweenPivot(atk, CFrame.new(atkBase.Position + Vector3.new(atkDir * -1.2, -0.4, 0)) * rotOnly(atkBase), 0.18)
 		task.wait(0.2)
 		tweenPivot(atk, CFrame.new(atkBase.Position + Vector3.new(atkDir * 4, 0, 0)) * rotOnly(atkBase), 0.2)
@@ -2264,7 +1924,6 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 		tweenPivot(atk, atkBase, 0.3)
 		task.wait(0.32)
 	elseif kind == "blast" then
-		-- Elemental projectile: rear up, fire, explode on the target.
 		tweenPivot(atk, CFrame.new(atkBase.Position + Vector3.new(0, 0.9, 0)) * rotOnly(atkBase), 0.25)
 		task.wait(0.28)
 		burst(folder, atkBase.Position + Vector3.new(0, 1.5, 0), fxColor, 10, 8, 0.6)
@@ -2279,7 +1938,6 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 		tweenPivot(atk, atkBase, 0.3)
 		task.wait(0.32)
 	else
-		-- Contact strike: wind up, dash in, slam.
 		local big = kind == "heavy"
 		tweenPivot(atk, CFrame.new(atkBase.Position + Vector3.new(atkDir * -1.4, -0.55, 0)) * rotOnly(atkBase), if big then 0.34 else 0.26)
 		task.wait(if big then 0.36 else 0.28)
@@ -2289,7 +1947,6 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 			local dist = math.sqrt(toTgt.X * toTgt.X + toTgt.Z * toTgt.Z)
 			local dashDist = math.max(1, dist - 2.6)
 			local dashPos = atkBase.Position + Vector3.new(toTgt.X / math.max(0.01, dist) * dashDist, 0, toTgt.Z / math.max(0.01, dist) * dashDist)
-			-- Stretch toward the target on the dash.
 			tweenPivot(atk, CFrame.new(dashPos) * rotOnly(atkBase), 0.15)
 			task.wait(0.17)
 			doImpact(tgtPos + Vector3.new(0, 0.6, 0), big)
@@ -2306,7 +1963,6 @@ function PlotSystem.PlayBattleEvent(player: Player, event: any)
 	end
 end
 
--- Play a full turn's events in order, with a beat between each.
 function PlotSystem.PlayBattleTurn(player: Player, events: any)
 	if type(events) ~= "table" then
 		return
@@ -2317,7 +1973,6 @@ function PlotSystem.PlayBattleTurn(player: Player, events: any)
 	end
 end
 
--- Victory celebration: winners hop, confetti bursts.
 function PlotSystem.PlayVictory(player: Player, winnerSide: string)
 	local rec = battleArenas[player.UserId]
 	if not rec then
