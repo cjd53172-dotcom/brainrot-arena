@@ -108,13 +108,13 @@ local assignWorkerRemote = CachedRemotes["AssignWorker"]
 if assignWorkerRemote then
 	assignWorkerRemote.OnServerEvent:Connect(function(player: Player, instanceId: any, workId: any)
 		if type(instanceId) ~= "string" then return end
-		
+
 		if type(workId) == "string" and workId ~= "" then
 			PlayerData.AssignJob(player, instanceId, workId)
 		else
 			PlayerData.UnassignJob(player, instanceId)
 		end
-		
+
 		PlotSystem.RefreshPlot(player)
 		PlotSystem.RefreshWorkers(player)
 		pushWorkState(player)
@@ -135,7 +135,7 @@ local collectStationRemote = CachedRemotes["CollectStation"]
 if collectStationRemote then
 	collectStationRemote.OnServerEvent:Connect(function(player: Player, workId: any)
 		if type(workId) ~= "string" then return end
-		
+
 		local granted = PlayerData.CollectStation(player, workId)
 		if granted > 0 then
 			local data = PlayerData.Get(player)
@@ -157,7 +157,7 @@ if fuseBrainrotsRemote then
 	fuseBrainrotsRemote.OnServerEvent:Connect(function(player: Player, instanceIds: any)
 		local data = PlayerData.Get(player)
 		if not data or type(instanceIds) ~= "table" or #instanceIds ~= 3 then return end
-		
+
 		-- Anti-Duplication Security Array Match Validation Check
 		if instanceIds[1] == instanceIds[2] or instanceIds[1] == instanceIds[3] or instanceIds[2] == instanceIds[3] then
 			warn("Exploit Blocked: Duplicated unique instance index array passed from player: " .. player.Name)
@@ -169,18 +169,18 @@ if fuseBrainrotsRemote then
 		for _, id in ipairs(instanceIds) do
 			if type(id) ~= "string" or seen[id] then return end
 			seen[id] = true
-			
+
 			local inst = PlayerData.GetInstance(player, id)
 			if not inst or inst.Shiny then return end
 			if data.Jobs[id] then return end
-			
+
 			if not firstId then
 				firstId = inst.BrainrotId
 			elseif inst.BrainrotId ~= firstId then
 				return
 			end
 		end
-		
+
 		local def = BrainrotData.GetById(firstId :: string) or BrainrotData.GetBrainrot(firstId :: string)
 		if not def then return end
 		local rarity = def.Rarity
@@ -194,23 +194,23 @@ if fuseBrainrotsRemote then
 				end
 				return
 			end
-			
+
 			local resultId = BrainrotData.GetRandomIdOfRarity(BrainrotData.RollRewardRarity())
 			if not resultId then return end
-			
+
 			-- Instantly fetch character position coordinates prior to operational yielding loops
 			local char = player.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			local staticPosition = hrp and (hrp :: BasePart).Position or Vector3.new(0, 0, 0)
-			
+
 			PlayerData.RemoveBrainrotInstances(player, instanceIds)
 			local instance, err = PlayerData.TryAddBrainrot(player, resultId, true, BrainrotData.RollVariant())
-			
+
 			data.Fusions = (data.Fusions or 0) + 1
 			DailyQuestSystem.RecordProgress(player, "fuse", 1)
 			pushDailyState(player)
 			PlotSystem.RefreshPlot(player)
-			
+
 			local fusionResultEvent = CachedRemotes["FusionResult"]
 			if fusionResultEvent then
 				fusionResultEvent:FireClient(player, {
@@ -222,7 +222,7 @@ if fuseBrainrotsRemote then
 					Coins = 0,
 				})
 			end
-			
+
 			task.spawn(function()
 				if instance and staticPosition.Magnitude > 0 then
 					local displayDef = BrainrotData.GetBrainrot(instance.BrainrotId)
@@ -238,12 +238,12 @@ if fuseBrainrotsRemote then
 			local resultRarity = BrainrotData.GetFusionResultRarity(rarity)
 			local resultId = resultRarity and BrainrotData.GetRandomIdOfRarity(resultRarity) or nil
 			if not resultId then return end
-			
+
 			-- Material extraction processing rules calculation loop
 			local workId = BrainrotData.GetWorkIdForType(BrainrotData.GetEffectiveType(def, nil))
 			local cost = BrainrotData.FUSION_MATERIAL_COST[rarity] or 15
 			local coinFee = BrainrotData.FUSION_COIN_COST[rarity] or 100
-			
+
 			if not PlayerData.SpendCoins(player, coinFee) then
 				local hintEvent = CachedRemotes["ShowHint"]
 				if hintEvent then
@@ -251,7 +251,7 @@ if fuseBrainrotsRemote then
 				end
 				return
 			end
-			
+
 			if not workId or not PlayerData.SpendMaterials(player, { [workId] = cost }) then
 				-- Safe Transactional Rollback: Refund currency if material balance check fails
 				PlayerData.AddCoins(player, coinFee)
@@ -261,17 +261,17 @@ if fuseBrainrotsRemote then
 				end
 				return
 			end
-			
+
 			PlayerData.RemoveBrainrotInstances(player, instanceIds)
 			local shiny = math.random() < BrainrotData.SHINY_CHANCE
 			local variant = BrainrotData.RollVariant()
 			local instance, err = PlayerData.TryAddBrainrot(player, resultId, shiny, variant)
-			
+
 			data.Fusions = (data.Fusions or 0) + 1
 			DailyQuestSystem.RecordProgress(player, "fuse", 1)
 			pushDailyState(player)
 			PlotSystem.RefreshPlot(player)
-			
+
 			local fusionResultEvent = CachedRemotes["FusionResult"]
 			if fusionResultEvent then
 				fusionResultEvent:FireClient(player, {
@@ -296,13 +296,13 @@ end
 local function battleReward(player: Player, rival: any)
 	local data = PlayerData.Get(player)
 	if not data then return end
-	
+
 	if rival.RewardCoins then
 		PlayerData.AddCoins(player, rival.RewardCoins)
 		DailyQuestSystem.RecordProgress(player, "battle_win", 1)
 		pushDailyState(player)
 	end
-	
+
 	if rival.RewardRarity then
 		local grantedId = BrainrotData.GetRandomIdOfRarity(rival.RewardRarity)
 		if grantedId then
@@ -310,7 +310,7 @@ local function battleReward(player: Player, rival: any)
 			PlayerData.TryAddBrainrot(player, grantedId, shiny, BrainrotData.RollVariant())
 		end
 	end
-	
+
 	PlayerData.RecordRivalWin(player, rival.Id)
 	PlotSystem.RefreshPlot(player)
 	pushCollection(player)
@@ -322,7 +322,7 @@ local startBattleRemote = CachedRemotes["StartBattle"]
 if startBattleRemote then
 	startBattleRemote.OnServerEvent:Connect(function(player: Player, rivalId: any, teamIds: any)
 		if type(rivalId) ~= "string" or type(teamIds) ~= "table" or #teamIds ~= 3 then return end
-		
+
 		local battle, err = BattleSystem.StartBattle(player, rivalId, teamIds)
 		if not battle then
 			local hintEvent = CachedRemotes["ShowHint"]
@@ -331,7 +331,7 @@ if startBattleRemote then
 			end
 			return
 		end
-		
+
 		PlotSystem.SpawnBattleModels(player, battle.pTeam, battle.eTeam)
 		local battleUpdateEvent = CachedRemotes["BattleUpdate"]
 		if battleUpdateEvent then
@@ -347,27 +347,27 @@ local submitMovesRemote = CachedRemotes["SubmitMoves"]
 if submitMovesRemote then
 	submitMovesRemote.OnServerEvent:Connect(function(player: Player, moveIndices: any)
 		if type(moveIndices) ~= "table" then return end
-		
+
 		local result, err = BattleSystem.SubmitMoves(player, moveIndices)
 		if not result then return end
-		
+
 		task.spawn(function()
 			PlotSystem.PlayBattleTurn(player, result.events)
 			if result.winner then
 				PlotSystem.PlayVictory(player, result.winner)
 			end
 		end)
-		
+
 		local payload: any = {
 			Phase = "Turn",
 			Events = result.events,
 			State = BattleSystem.GetClientState(player),
 		}
-		
+
 		if result.winner == "player" then
 			LeaderboardSystem.RecordWin(player)
 			SoundSystem.PlayForPlayer(player, "BattleWin")
-			
+
 			local newAch = AchievementSystem.RecordProgress(player, "battles_won", 1)
 			for _, achId in ipairs(newAch) do
 				local def = AchievementSystem.DEFS[achId]
@@ -378,18 +378,18 @@ if submitMovesRemote then
 					end
 				end
 			end
-			
+
 			local battle = BattleSystem.GetBattle(player)
 			local rival = battle and BrainrotData.GetRival(battle.rivalId) or nil
 			if rival then
 				battleReward(player, rival)
 			end
-			
+
 			payload.Rewards = {
 				Coins = rival and rival.RewardCoins or 0,
 				RewardRarity = rival and rival.RewardRarity or nil,
 			}
-			
+
 			-- Hardened Context Lock: Hold structural cleanup inside thread timeline loop
 			task.delay(4, function()
 				PlotSystem.ClearBattleModels(player)
@@ -401,7 +401,7 @@ if submitMovesRemote then
 				BattleSystem.ClearBattle(player)
 			end)
 		end
-		
+
 		local battleUpdateEvent = CachedRemotes["BattleUpdate"]
 		if battleUpdateEvent then
 			battleUpdateEvent:FireClient(player, payload)
@@ -468,7 +468,7 @@ do
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
-	
+
 	-- Robust initialization step: Fallback structural looping checks for terrain data sync
 	for attempt = 1, 3 do
 		local castResult = workspace:Raycast(Vector3.new(127, 500, 60), Vector3.new(0, -1000, 0), raycastParams)
@@ -507,7 +507,7 @@ prompt.Triggered:Connect(function(player: Player)
 	local quest, questId = QuestSystem.GetActiveQuest(player)
 	local hintEvent = CachedRemotes["ShowHint"]
 	if not hintEvent then return end
-	
+
 	if quest then
 		hintEvent:FireClient(player, tostring(quest.Name) .. ": " .. tostring(quest.Description))
 	else
@@ -528,7 +528,7 @@ do
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
-	
+
 	for attempt = 1, 3 do
 		local castResult = workspace:Raycast(Vector3.new(135, 500, 60), Vector3.new(0, -1000, 0), raycastParams)
 		if castResult then
@@ -573,7 +573,7 @@ end
 expPrompt.Triggered:Connect(function(player: Player)
 	local updateEvent = CachedRemotes["ExpeditionUpdate"]
 	local hintEvent = CachedRemotes["ShowHint"]
-	
+
 	if updateEvent then updateEvent:FireClient(player, ExpeditionSystem.GetStatus(player)) end
 	if hintEvent then hintEvent:FireClient(player, "Open the Explore menu to send expeditions!") end
 end)
@@ -586,22 +586,22 @@ local PORTAL_Z = 155
 for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	local portal = VisualEffects.BuildZonePortal(zoneId)
 	local x = PORTAL_START_X + (i - 1) * PORTAL_SPACING
-	
+
 	local targetY = 16
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
-	
+
 	local castResult = workspace:Raycast(Vector3.new(x, 500, PORTAL_Z), Vector3.new(0, -1000, 0), raycastParams)
 	if castResult then targetY = castResult.Position.Y end
-	
+
 	portal:PivotTo(CFrame.new(Vector3.new(x, targetY, PORTAL_Z)))
 	portal.Parent = workspace
 
 	local zoneDef = BrainrotData.ZONES[zoneId]
 	local zoneColor = (zoneDef and zoneDef.Color) or Color3.fromRGB(150, 150, 150)
 	local zoneName = (zoneDef and zoneDef.Name) or zoneId
-	
+
 	local trigger = Instance.new("Part")
 	trigger.Name = "PortalTrigger"
 	trigger.Size = Vector3.new(10, 12, 8)
@@ -614,20 +614,20 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 
 	local lastTouch: { [number]: number } = {}
 	local isLockActive = false
-	
+
 	trigger.Touched:Connect(function(hit: BasePart)
 		if isLockActive then return end
-		
+
 		local char = hit and hit.Parent
 		local p = char and Players:GetPlayerFromCharacter(char)
 		if not p then return end
-		
+
 		local now = os.clock()
 		if lastTouch[p.UserId] and now - lastTouch[p.UserId] < 3 then return end
-		
+
 		isLockActive = true
 		lastTouch[p.UserId] = now
-		
+
 		if ExpeditionSystem.UnlockZone(p, zoneId) then
 			pushExpeditionState(p)
 			local hintEvent = CachedRemotes["ShowHint"]
@@ -648,10 +648,10 @@ do
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
-	
+
 	local castResult = workspace:Raycast(Vector3.new(mx, 500, mz), Vector3.new(0, -1000, 0), raycastParams)
 	if castResult then my = castResult.Position.Y end
-	
+
 	sharedMine:PivotTo(CFrame.new(Vector3.new(mx, my + 1, mz)))
 	sharedMine.Parent = workspace
 end
@@ -679,16 +679,16 @@ minePrompt.Triggered:Connect(function(player: Player)
 		end
 		return
 	end
-	
+
 	mineCooldown[player.UserId] = now
 	local data = PlayerData.Get(player)
 	if not data then return end
-	
+
 	PlayerData.AddCoins(player, MINE_REWARD)
 	DailyQuestSystem.RecordProgress(player, "coins_earned", MINE_REWARD)
 	pushCollection(player)
 	PlayerData.Save(player)
-	
+
 	local hintEvent = CachedRemotes["ShowHint"]
 	if hintEvent then
 		hintEvent:FireClient(player, "+ " .. tostring(MINE_REWARD) .. " coins from the gold mine!")
@@ -700,16 +700,16 @@ local fishingSpots = {}
 for i, spotInfo in ipairs({
 	{ X = 100, Z = 120, Name = "Riverside Dock" },
 	{ X = 160, Z = 130, Name = "Lakeside Pier" },
-}) do
+	}) do
 	local dock = VisualEffects.BuildFishingSpot()
 	local targetY = 16
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
-	
+
 	local castResult = workspace:Raycast(Vector3.new(spotInfo.X, 500, spotInfo.Z), Vector3.new(0, -1000, 0), raycastParams)
 	if castResult then targetY = castResult.Position.Y end
-	
+
 	dock:PivotTo(CFrame.new(Vector3.new(spotInfo.X, targetY, spotInfo.Z)))
 	dock.Parent = workspace
 	table.insert(fishingSpots, { Id = "dock" .. i, Model = dock, Name = spotInfo.Name })
@@ -732,7 +732,7 @@ local castLineRemote = CachedRemotes["CastLine"]
 if castLineRemote then
 	castLineRemote.OnServerEvent:Connect(function(player: Player, spotId: any)
 		if type(spotId) ~= "string" then return end
-		
+
 		local biteDelay = FishingSystem.Cast(player, spotId)
 		if biteDelay then
 			local char = player.Character
@@ -740,7 +740,7 @@ if castLineRemote then
 			if hrp then
 				local fromPos = (hrp :: BasePart).Position + Vector3.new(0, 3, 0)
 				local dockPos = fromPos + Vector3.new(0, 0, 10)
-				
+
 				for _, spot in ipairs(fishingSpots) do
 					if spot.Id == spotId then
 						local water = spot.Model:FindFirstChild("Water")
@@ -750,13 +750,13 @@ if castLineRemote then
 						break
 					end
 				end
-				
+
 				local gear = VisualEffects.CastBobber(player, fromPos, dockPos)
 				playerFishingGear[player.UserId] = gear
 			end
-			
+
 			pushFishingState(player, "Waiting")
-			
+
 			task.delay(biteDelay, function()
 				local state = FishingSystem.CheckBite(player)
 				if state == "Bite" then
@@ -767,7 +767,7 @@ if castLineRemote then
 					pushFishingState(player, "Bite")
 				end
 			end)
-			
+
 			task.delay(biteDelay + 3.5, function()
 				local state = FishingSystem.GetState(player)
 				if state == "Missed" then
@@ -792,10 +792,10 @@ if reelInRemote then
 		-- Hardened Anti-Cheat State Check: Extract and clear registration instantly
 		local gear = playerFishingGear[player.UserId]
 		playerFishingGear[player.UserId] = nil
-		
+
 		local q = tonumber(quality) or 0.5
 		local reward = FishingSystem.Reel(player, q)
-		
+
 		if gear and gear.Bobber and gear.Bobber.Parent then
 			local bobberPos = gear.Bobber.Position
 			if reward and reward.Kind ~= "Miss" then
@@ -804,14 +804,14 @@ if reelInRemote then
 					local fish = VisualEffects.BuildFish(reward.Kind == "Brainrot")
 					fish:PivotTo(CFrame.new(bobberPos + Vector3.new(0, 1, 0)))
 					fish.Parent = workspace
-					
+
 					task.spawn(function()
 						for i = 1, 15 do
 							if not fish or not fish.Parent then break end
 							local t = i / 15
 							fish:PivotTo(CFrame.new(
 								bobberPos + Vector3.new(0, 1 + math.sin(t * math.pi) * 4, 0)
-							) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
+								) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
 							task.wait(0.05)
 						end
 						task.wait(1)
@@ -823,7 +823,7 @@ if reelInRemote then
 			if gear.Stripe and gear.Stripe.Parent then gear.Stripe:Destroy() end
 			if gear.Rod and gear.Rod.Parent then gear.Rod:Destroy() end
 		end
-		
+
 		if reward then
 			pushFishingState(player, "None", reward)
 			pushCollection(player)
@@ -849,7 +849,7 @@ local startExpeditionRemote = CachedRemotes["StartExpedition"]
 if startExpeditionRemote then
 	startExpeditionRemote.OnServerEvent:Connect(function(player: Player, zoneId: any, teamIds: any)
 		if type(zoneId) ~= "string" or type(teamIds) ~= "table" then return end
-		
+
 		-- Verification for duplicate expedition data payloads
 		local seenIds: { [string]: boolean } = {}
 		for _, id in ipairs(teamIds) do
@@ -962,10 +962,10 @@ if collectPassiveRemote then
 			pushCollection(player)
 			local passiveUpdateEvent = CachedRemotes["PassiveUpdate"]
 			local hintEvent = CachedRemotes["ShowHint"]
-			
+
 			if passiveUpdateEvent then passiveUpdateEvent:FireClient(player, { Banked = 0, Collected = amount }) end
 			if hintEvent then hintEvent:FireClient(player, "+" .. tostring(amount) .. " coins from gold mine!") end
-			
+
 			DailyQuestSystem.RecordProgress(player, "coins_earned", amount)
 		end
 	end)
@@ -1025,7 +1025,7 @@ end
 local function sendInitialState(player: Player)
 	local data = PlayerData.Get(player)
 	if not data then return end
-	
+
 	local quest, questId = QuestSystem.GetActiveQuest(player)
 	if quest then
 		local questUpdateEvent = CachedRemotes["QuestUpdate"]
@@ -1039,7 +1039,7 @@ local function sendInitialState(player: Player)
 			})
 		end
 	end
-	
+
 	local collectionUpdateEvent = CachedRemotes["CollectionUpdate"]
 	if collectionUpdateEvent then
 		collectionUpdateEvent:FireClient(player, {
@@ -1057,20 +1057,20 @@ local function onPlayerAdded(player: Player)
 	PlotSystem.AssignPlot(player)
 	PlotSystem.RefreshPlot(player)
 	PlotSystem.RefreshWorkers(player)
-	
+
 	player.CharacterAdded:Connect(function()
 		task.wait(0.3)
 		-- Safety Thread-Verification Check: Prevent disconnected memory execution
 		if not player or not player.Parent then return end
 		PlotSystem.TeleportToPlot(player)
 	end)
-	
+
 	if player.Character then
 		task.defer(function()
 			if player and player.Parent then PlotSystem.TeleportToPlot(player) end
 		end)
 	end
-	
+
 	task.defer(function()
 		if not player or not player.Parent then return end
 		sendInitialState(player)
@@ -1110,11 +1110,11 @@ task.spawn(function()
 			task.spawn(function()
 				local data = PlayerData.Get(p)
 				if not data or not p.Parent then return end
-				
+
 				if next(data.Jobs) ~= nil then
 					pushWorkState(p)
 				end
-				
+
 				local results = ExpeditionSystem.TickExpeditions(p)
 				if #results > 0 then
 					pushExpeditionState(p)
@@ -1131,7 +1131,7 @@ task.spawn(function()
 				elseif next(data.Expeditions) ~= nil then
 					pushExpeditionState(p)
 				end
-				
+
 				local hatched = EggSystem.TickIncubation(p, 0.5)
 				if #hatched > 0 then
 					pushEggState(p)
@@ -1147,7 +1147,7 @@ task.spawn(function()
 				elseif next(data.Eggs) ~= nil then
 					pushEggState(p)
 				end
-				
+
 				local gained = PlayerData.TickPassiveIncome(p)
 				if gained > 0 then
 					local passiveUpdateEvent = CachedRemotes["PassiveUpdate"]
@@ -1192,7 +1192,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	if not def then return end
 
 	local model = PlotSystem.BuildDisplayModel(def, false, nil)
-	
+
 	local function measureWild()
 		local ok, cf, sz = pcall(function() return model:GetBoundingBox() end)
 		if ok and sz then
@@ -1200,12 +1200,12 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		end
 		return nil, nil
 	end
-	
+
 	local function manualWildScale(s: number)
 		local bbCF = measureWild()
 		if not bbCF then return end
 		local center = (bbCF :: CFrame).Position
-		
+
 		for _, d in ipairs(model:GetDescendants()) do
 			if d:IsA("BasePart") then
 				local part = d :: BasePart
@@ -1214,7 +1214,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 					part.Size = part.Size * s
 					part.CFrame = CFrame.new(center + rel * s) * (part.CFrame - part.CFrame.Position)
 				end)
-				
+
 				for _, m in ipairs(part:GetChildren()) do
 					if m:IsA("SpecialMesh") then
 						pcall(function() (m :: SpecialMesh).Scale = (m :: SpecialMesh).Scale * s end)
@@ -1225,23 +1225,23 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			end
 		end
 	end
-	
+
 	-- Native scaling loop optimization matrix
 	for _ = 1, 3 do
 		local _, bbSize = measureWild()
 		if not bbSize then break end
-		
+
 		local maxDim = math.max(bbSize.X, bbSize.Y, bbSize.Z)
 		if maxDim <= 0 then break end
-		
+
 		local s = 3.0 / maxDim
 		if math.abs(s - 1) <= 0.15 then break end
 		s = math.min(s, 1.5)
-		
+
 		pcall(function() model:ScaleTo(s) end)
 		local _, afterSize = measureWild()
 		local afterMax = afterSize and math.max(afterSize.X, afterSize.Y, afterSize.Z) or maxDim
-		
+
 		if math.abs(afterMax - maxDim) < (maxDim * 0.05) then
 			manualWildScale(s)
 		end
@@ -1279,7 +1279,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			hitboxSize = reachUpgradeDef.Values[reachTier] or 6
 		end
 	end
-	
+
 	local hitbox = Instance.new("Part")
 	hitbox.Name = "WildHitbox"
 	hitbox.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
@@ -1294,25 +1294,25 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	-- Hardened Thread Verification & Debounce Protection Lock
 	local touchConnection: RBXScriptConnection?
 	local isCatchRunning = false
-	
+
 	touchConnection = hitbox.Touched:Connect(function(hit: BasePart)
 		if isCatchRunning then return end
-		
+
 		local char = hit and hit.Parent
 		local p = char and Players:GetPlayerFromCharacter(char)
 		if p and p.UserId == player.UserId then
 			isCatchRunning = true
-			
+
 			if touchConnection then
 				touchConnection:Disconnect()
 				touchConnection = nil
 			end
-			
+
 			local result = WanderSystem.Catch(p, wanderId)
 			if result and result.Success then
 				VisualEffects.PlayWildCatch(spawnPos, wander.Rarity)
 				SoundSystem.PlayForPlayer(p, "Catch" .. wander.Rarity)
-				
+
 				local newAch = AchievementSystem.RecordProgress(p, "wild_caught", 1)
 				if wander.Rarity == "Rare" then
 					for _, id in ipairs(AchievementSystem.RecordProgress(p, "rare_caught", 1)) do table.insert(newAch, id) end
@@ -1321,11 +1321,11 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				elseif wander.Rarity == "Legendary" then
 					for _, id in ipairs(AchievementSystem.RecordProgress(p, "legendary_caught", 1)) do table.insert(newAch, id) end
 				end
-				
+
 				if result.Shiny then
 					for _, id in ipairs(AchievementSystem.RecordProgress(p, "shinies", 1)) do table.insert(newAch, id) end
 				end
-				
+
 				for _, achId in ipairs(newAch) do
 					local achievementDef = AchievementSystem.DEFS[achId]
 					if achievementDef then
@@ -1336,21 +1336,21 @@ local function spawnWildVisual(player: Player, wanderId: string)
 						SoundSystem.PlayForPlayer(p, "Achievement")
 					end
 				end
-				
+
 				local wildCaughtEvent = CachedRemotes["WildCaught"]
 				if wildCaughtEvent then wildCaughtEvent:FireClient(p, result) end
-				
+
 				local hintEvent = CachedRemotes["ShowHint"]
 				if hintEvent then
 					local shinyText = if result.Shiny then " ✨ SHINY!" else ""
 					hintEvent:FireClient(p, "Caught: " .. result.BrainrotName .. " (" .. result.Rarity .. ")!" .. shinyText)
 				end
-				
+
 				pushCollection(p)
 				PlotSystem.RefreshPlot(p)
 				QuestSystem.CheckObjective(p, "brainrots")
 			end
-			
+
 			if wanderModels[player.UserId] then
 				wanderModels[player.UserId][wanderId] = nil
 			end
@@ -1374,7 +1374,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		beam.Parent = workspace
 		if not wanderBeams[player.UserId] then wanderBeams[player.UserId] = {} end
 		wanderBeams[player.UserId][wanderId] = beam
-		
+
 		local hintEvent = CachedRemotes["ShowHint"]
 		if hintEvent then
 			hintEvent:FireClient(player, "🌟 LEGENDARY BRAINROT SPOTTED! Follow the golden beam! (3 min)")
@@ -1410,10 +1410,10 @@ local function spawnWildVisual(player: Player, wanderId: string)
 					)
 				end
 			end
-			
+
 			local dir = (targetPos - currentPos)
 			dir = Vector3.new(dir.X, 0, dir.Z)
-			
+
 			if dir.Magnitude > 0.5 then
 				dir = dir.Unit
 				local speed = cfg.WalkSpeed * (if fleeing then 1.5 else 1)
@@ -1423,14 +1423,14 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				if gy then
 					currentPos = Vector3.new(currentPos.X, gy + bottomOffset + 0.2, currentPos.Z)
 				end
-				
+
 				local bobY = math.abs(math.sin(os.clock() * 8)) * 0.4
 				local cf = CFrame.new(currentPos + Vector3.new(0, bobY, 0), currentPos + dir * 5)
-				
+
 				-- Robust Lifecycle Guard: Instantly exit thread memory space if asset was removed
 				if not model or not model.Parent then break end
 				model:PivotTo(cf)
-				
+
 				-- Safe verification layout context lookup
 				local dynamicHitbox = model:FindFirstChild("WildHitbox")
 				if dynamicHitbox and dynamicHitbox:IsA("BasePart") then
@@ -1448,29 +1448,29 @@ task.spawn(function()
 	while true do
 		task.wait(15)
 		local now = os.time()
-		
+
 		for _, player in ipairs(Players:GetPlayers()) do
 			-- Isolate player execution logic pipelines to prevent serial server thread stalling
 			task.spawn(function()
 				local userId = player.UserId
 				if not player.Parent then return end
-				
+
 				if not lastSpawn[userId] then
 					lastSpawn[userId] = {}
 				end
-				
+
 				for _, rarity in ipairs({ "Common", "Rare", "Epic", "Legendary" }) do
 					local cfg = WanderSystem.GetRarityConfig(rarity)
 					if cfg then
 						local last = lastSpawn[userId][rarity] or 0
 						local interval = math.random(cfg.RespawnSecs[1], cfg.RespawnSecs[2])
-						
+
 						if now - last >= interval then
 							local roll = math.random() * 100
 							local totalWeight = 60 + 25 + 12 + 3
 							local weight = cfg.Weight / totalWeight * 100
 							local overdue = (now - last) / interval
-							
+
 							if roll < weight * overdue then
 								local luckTier = PlayerData.GetUpgradeTier(player, 'Luck')
 								local luckMult = 1
@@ -1480,7 +1480,7 @@ task.spawn(function()
 										luckMult = luckUpgradeDef.Values[luckTier] or 1
 									end
 								end
-								
+
 								for attempt = 1, 5 do
 									if not player.Parent then break end
 									local wanderId = WanderSystem.SpawnWild(player, PlotSystem, luckMult)
@@ -1503,12 +1503,12 @@ task.spawn(function()
 				end
 			end)
 		end
-		
+
 		local despawned = WanderSystem.TickDespawn()
 		for _, item in ipairs(despawned) do
 			local userId = item.UserId
 			local wanderId = item.WanderId
-			
+
 			if wanderModels[userId] and wanderModels[userId][wanderId] then
 				local model = wanderModels[userId][wanderId]
 				if model and model.Parent then
@@ -1516,7 +1516,7 @@ task.spawn(function()
 				end
 				wanderModels[userId][wanderId] = nil
 			end
-			
+
 			if wanderBeams[userId] and wanderBeams[userId][wanderId] then
 				local beam = wanderBeams[userId][wanderId]
 				if beam and beam.Parent then
@@ -1578,21 +1578,21 @@ end
 JanitorConnections.PlayerLeaveWanderCleanup = Players.PlayerRemoving:Connect(function(player: Player)
 	WanderSystem.ClearPlayer(player)
 	local userId = player.UserId
-	
+
 	if wanderModels[userId] then
 		for _, model in pairs(wanderModels[userId]) do
 			if model and model.Parent then model:Destroy() end
 		end
 		wanderModels[userId] = nil
 	end
-	
+
 	if wanderBeams[userId] then
 		for _, beam in pairs(wanderBeams[userId]) do
 			if beam and beam.Parent then beam:Destroy() end
 		end
 		wanderBeams[userId] = nil
 	end
-	
+
 	if lastSpawn[userId] then
 		table.clear(lastSpawn[userId])
 		lastSpawn[userId] = nil
@@ -1621,7 +1621,7 @@ local function applyWeatherVisuals(weather: string)
 		lighting.FogStart = 0
 		lighting.Brightness = 2
 	end
-	
+
 	local weatherUpdateEvent = CachedRemotes["WeatherUpdate"]
 	if weatherUpdateEvent then
 		weatherUpdateEvent:FireAllClients(WeatherSystem.GetInfo())
