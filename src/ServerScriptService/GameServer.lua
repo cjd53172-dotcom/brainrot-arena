@@ -2388,7 +2388,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		leftover:Destroy()
 	end
 	-- Plots stay at display size (~4 studs). Wilds are 6× that.
-	local WILD_SIZE_MULT = 6
+	local WILD_SIZE_MULT = 4.2
 
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
