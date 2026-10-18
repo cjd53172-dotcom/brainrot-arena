@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 
 local Systems = script.Parent:WaitForChild("Systems")
 local PlayerData = require(Systems:WaitForChild("PlayerData"))
@@ -1219,6 +1220,77 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 			usePortal(p)
 		end
 	end)
+end
+
+-- Minigame gates: teleport to another Place in this Experience (Laser Tag, etc.).
+do
+	local lastHop: { [number]: number } = {}
+	for _, gate in ipairs(BrainrotData.PLACE_GATES or {}) do
+		local portal = VisualEffects.BuildPlacePortal(gate.Name, gate.Color)
+		PlotSystem.SitOnTerrain(portal, gate.X, gate.Z)
+		portal.Parent = workspace
+		print("[GameServer] Place gate " .. tostring(gate.Id) .. " at " .. tostring(gate.X) .. ", " .. tostring(gate.Z))
+
+		local function resolvedPlaceId(): number
+			local attrName = gate.Attribute
+			if type(attrName) == "string" then
+				local attr = workspace:GetAttribute(attrName)
+				if type(attr) == "number" and attr > 0 then
+					return attr
+				end
+			end
+			return gate.PlaceId or 0
+		end
+
+		local function hop(player: Player)
+			local now = os.clock()
+			if lastHop[player.UserId] and now - lastHop[player.UserId] < 4 then
+				return
+			end
+			lastHop[player.UserId] = now
+			local dest = resolvedPlaceId()
+			local hintEvent = CachedRemotes["ShowHint"]
+			if dest <= 0 then
+				if hintEvent then
+					hintEvent:FireClient(player, "Laser Tag isn't linked yet. Publish the Laser Tag template as a Place in this experience, then set PlaceId (or Workspace.LaserTagPlaceId).")
+				end
+				return
+			end
+			if dest == game.PlaceId then
+				if hintEvent then
+					hintEvent:FireClient(player, "That minigame is this same place — publish Laser Tag as a second Place.")
+				end
+				return
+			end
+			if hintEvent then
+				hintEvent:FireClient(player, "Entering " .. gate.Name .. "...")
+			end
+			local options = Instance.new("TeleportOptions")
+			options:SetTeleportData({
+				ReturnPlaceId = game.PlaceId,
+				From = "BrainrotArena",
+				Minigame = gate.Id,
+			})
+			local ok, err = pcall(function()
+				TeleportService:TeleportAsync(dest, { player }, options)
+			end)
+			if not ok and hintEvent then
+				hintEvent:FireClient(player, "Teleport needs a published place. Studio Play cannot jump templates. " .. tostring(err))
+			end
+		end
+
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "PlacePrompt"
+		prompt.ActionText = "Enter"
+		prompt.ObjectText = gate.Name
+		prompt.HoldDuration = 0.2
+		prompt.MaxActivationDistance = 14
+		prompt.RequiresLineOfSight = false
+		prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
+		prompt.Parent = portal:FindFirstChild("PortalSurface") or portal:FindFirstChildWhichIsA("BasePart")
+		prompt.Triggered:Connect(hop)
+	end
 end
 
 -- // Shared gold mine placement system setup -------------------------------------

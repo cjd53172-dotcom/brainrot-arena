@@ -2288,6 +2288,21 @@ BrainrotData.ZONES = {
 }
 BrainrotData.ZONE_ORDER = { "whispering_woods", "sunken_ruins", "ember_peaks", "crystal_caves", "storm_summit" }
 
+-- Other Places in this Experience (Creator Hub → Places). 0 = not linked yet.
+-- After you publish the Laser Tag template as a place under Brainrot Arena,
+-- paste its Place ID here (or set Workspace attribute LaserTagPlaceId).
+BrainrotData.PLACE_GATES = {
+	{
+		Id = "laser_tag",
+		Name = "Laser Tag",
+		PlaceId = 0,
+		Color = Color3.fromRGB(40, 220, 70),
+		X = 44,
+		Z = 28,
+		Attribute = "LaserTagPlaceId",
+	},
+}
+
 -- Expedition tuning.
 BrainrotData.EXPEDITION_DURATION = 15 * 60 -- 15 minutes, as requested
 BrainrotData.EXPEDITION_TEAM_MIN = 1

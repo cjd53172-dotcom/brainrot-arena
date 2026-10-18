@@ -285,6 +285,72 @@ function VisualEffects.BuildZonePortal(zoneId: string): Model
 	return model
 end
 
+function VisualEffects.BuildPlacePortal(gateName: string, color: Color3): Model
+	local model = Instance.new("Model")
+	model.Name = "PlacePortal_" .. gateName
+	local baseColor = color
+	for _, xOffset in ipairs({ -4, 4 }) do
+		local pillar = Instance.new("Part")
+		pillar.Size = Vector3.new(2, 12, 2)
+		pillar.Anchored = true
+		pillar.Color = Color3.fromRGB(30, 40, 35)
+		pillar.Material = Enum.Material.Metal
+		pillar.Position = Vector3.new(xOffset, 6, 0)
+		pillar.Parent = model
+		local glow = Instance.new("PointLight")
+		glow.Color = baseColor
+		glow.Range = 12
+		glow.Brightness = 2
+		glow.Parent = pillar
+	end
+	local beam = Instance.new("Part")
+	beam.Size = Vector3.new(10, 2, 2)
+	beam.Anchored = true
+	beam.Color = Color3.fromRGB(30, 40, 35)
+	beam.Material = Enum.Material.Metal
+	beam.Position = Vector3.new(0, 12.5, 0)
+	beam.Parent = model
+	local portal = Instance.new("Part")
+	portal.Name = "PortalSurface"
+	portal.Size = Vector3.new(6, 10, 0.5)
+	portal.Anchored = true
+	portal.CanCollide = false
+	portal.Color = baseColor
+	portal.Material = Enum.Material.Neon
+	portal.Transparency = 0.25
+	portal.Position = Vector3.new(0, 6, 0)
+	portal.Parent = model
+	local particles = Instance.new("ParticleEmitter")
+	particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Color = ColorSequence.new(baseColor)
+	particles.Size = NumberSequence.new(0.9)
+	particles.Speed = NumberRange.new(2, 6)
+	particles.Lifetime = NumberRange.new(1, 2)
+	particles.Rate = 28
+	particles.Parent = portal
+	local sign = Instance.new("Part")
+	sign.Size = Vector3.new(12, 3, 0.5)
+	sign.Anchored = true
+	sign.Color = Color3.fromRGB(20, 30, 22)
+	sign.Material = Enum.Material.Metal
+	sign.Position = Vector3.new(0, 15.5, 0)
+	sign.Parent = model
+	local signGui = Instance.new("SurfaceGui")
+	signGui.Face = Enum.NormalId.Front
+	signGui.Parent = sign
+	local signLabel = Instance.new("TextLabel")
+	signLabel.Size = UDim2.new(1, 0, 1, 0)
+	signLabel.BackgroundTransparency = 1
+	signLabel.Text = "MINIGAME\n" .. gateName
+	signLabel.Font = Enum.Font.GothamBold
+	signLabel.TextScaled = true
+	signLabel.TextColor3 = baseColor
+	signLabel.TextStrokeTransparency = 0.3
+	signLabel.Parent = signGui
+	model.PrimaryPart = portal
+	return model
+end
+
 -- // Gold Mine (detailed) ----------------------------------------------------------------
 function VisualEffects.BuildGoldMine(level: number): Model
 	local model = Instance.new("Model")
