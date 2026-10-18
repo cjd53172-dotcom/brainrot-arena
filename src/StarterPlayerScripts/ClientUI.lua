@@ -3159,7 +3159,8 @@ if isMobile then
 	buildMobileBar()
 end
 
-do
+-- Nested function: ClientUI's main chunk is already at Luau's 200-local cap.
+task.defer(function()
 	local soundRemote = remotes:WaitForChild("PlaySound")
 	soundRemote.OnClientEvent:Connect(function(soundName: string, position: Vector3?)
 		local sound = Instance.new("Sound")
@@ -3185,22 +3186,22 @@ do
 			end)
 		end
 	end)
-end
 
-do
-	local normalTracks = {
-		"rbxassetid://1848354536",
-		"rbxassetid://1837879082",
-		"rbxassetid://1837464237",
-		"rbxassetid://1837425213",
-		"rbxassetid://1837849285",
+	local tracks = {
+		Normal = {
+			"rbxassetid://1848354536",
+			"rbxassetid://1837879082",
+			"rbxassetid://1837464237",
+			"rbxassetid://1837425213",
+			"rbxassetid://1837849285",
+		},
+		Event = {
+			"rbxassetid://1837768517",
+			"rbxassetid://1841647093",
+			"rbxassetid://1838457437",
+		},
 	}
-	local eventTracks = {
-		"rbxassetid://1837768517",
-		"rbxassetid://1841647093",
-		"rbxassetid://1838457437",
-	}
-	local playlist = normalTracks
+	local playlist = tracks.Normal
 	local currentTrack = 1
 	local musicSound = Instance.new("Sound")
 	musicSound.Name = "BackgroundMusic"
@@ -3215,14 +3216,14 @@ do
 		end
 		currentTrack = currentTrack % #playlist + 1
 		musicSound.SoundId = playlist[currentTrack]
-		musicSound.Volume = if playlist == eventTracks then 0.42 else 0.28
+		musicSound.Volume = if playlist == tracks.Event then 0.42 else 0.28
 		pcall(function()
 			musicSound:Play()
 		end)
 	end
 
-	local function setPlaylist(tracks: { string }, startNow: boolean)
-		playlist = tracks
+	local function setPlaylist(nextTracks: { string }, startNow: boolean)
+		playlist = nextTracks
 		currentTrack = 0
 		if startNow then
 			playNextTrack()
@@ -3246,9 +3247,9 @@ do
 		if musicRemote then
 			musicRemote.OnClientEvent:Connect(function(mode: any)
 				if tostring(mode) == "Event" then
-					setPlaylist(eventTracks, true)
+					setPlaylist(tracks.Event, true)
 				else
-					setPlaylist(normalTracks, true)
+					setPlaylist(tracks.Normal, true)
 				end
 			end)
 		end
@@ -3279,16 +3280,14 @@ do
 			if info.Active then
 				banner.Visible = true
 				banner.Text = "⚡ LEGENDARY RUSH — legendaries and epics nearby"
-				setPlaylist(eventTracks, true)
+				setPlaylist(tracks.Event, true)
 			else
 				banner.Visible = false
-				setPlaylist(normalTracks, true)
+				setPlaylist(tracks.Normal, true)
 			end
 		end)
 	end)
-end
 
-do
 	local weatherRemote = remotes:WaitForChild("WeatherUpdate")
 	local weatherLabel = Instance.new("TextLabel")
 	weatherLabel.Name = "WeatherDisplay"
@@ -3312,9 +3311,7 @@ do
 			else "☀️"
 		weatherLabel.Text = icon .. " " .. weather
 	end)
-end
 
-do
 	local achRemote = remotes:WaitForChild("AchievementUnlocked")
 	achRemote.OnClientEvent:Connect(function(data: any)
 		local popup = Instance.new("Frame")
@@ -3353,9 +3350,7 @@ do
 		task.wait(0.6)
 		if popup and popup.Parent then popup:Destroy() end
 	end)
-end
 
-do
 	local lbRemote = remotes:WaitForChild("LeaderboardUpdate")
 
 	local function refreshLeaderboard(data: any)
@@ -3392,5 +3387,5 @@ do
 	end)
 
 	-- Ranks UI removed: the champion board lives at the arena.
-end
+end)
 
