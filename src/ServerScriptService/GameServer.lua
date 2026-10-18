@@ -1696,9 +1696,9 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		local maxDim = math.max(bbSize.X, bbSize.Y, bbSize.Z)
 		if maxDim <= 0 then break end
 
-		local s = 3.0 / maxDim
+		local s = 4.0 / maxDim
 		if math.abs(s - 1) <= 0.15 then break end
-		s = math.min(s, 1.5)
+		s = math.clamp(s, 0.04, 1)
 
 		pcall(function() model:ScaleTo(s) end)
 		local _, afterSize = measureWild()
@@ -1715,6 +1715,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		end
 	end
 	VisualEffects.AddWildAura(model, wander.Rarity, BrainrotData.GetDisplayName(def, nil, false))
+	PlotSystem.UprightModel(model)
 
 	-- How far the model's pivot sits above its lowest point, so feet land on the ground
 	local bottomOffset = 2

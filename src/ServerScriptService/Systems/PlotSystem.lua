@@ -18,8 +18,8 @@ local VisualEffects = require(script.Parent:WaitForChild("VisualEffects"))
 local PlotSystem = {}
 
 local PLOT_COUNT = 6
-local PLOT_SIZE = 30
-local PLOT_GAP = 8 -- space between adjacent plots in the row
+local PLOT_SIZE = 52
+local PLOT_GAP = 80 -- lots of lawn between plots so bases do not crowd
 -- WORLD OFFSET: shifts ALL gameplay (plots, obby, arena, fusion lab) to sit on
 -- flat ground. Tune these if content is buried or floating on your terrain.
 local WORLD_DX = 127
@@ -60,7 +60,26 @@ end
 
 -- // Precise Platform Surface Alignment Helper ----------------------------------
 -- Snap a model's bounding-box bottom-center onto the target's top-center.
+local function uprightModel(model: Model)
+	local ok, _, size = pcall(function()
+		return model:GetBoundingBox()
+	end)
+	if not ok or not size then
+		return
+	end
+	-- Pack models sometimes import on their side. If height is the short axis, roll upright.
+	if size.Y >= math.max(size.X, size.Z) * 0.6 then
+		return
+	end
+	if size.X >= size.Z then
+		model:PivotTo(model:GetPivot() * CFrame.Angles(0, 0, math.pi / 2))
+	else
+		model:PivotTo(model:GetPivot() * CFrame.Angles(math.pi / 2, 0, 0))
+	end
+end
+
 local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: number)
+	uprightModel(model)
 	local cf, size = model:GetBoundingBox()
 	local lift = extraOffset
 	local target = Vector3.new(
@@ -70,6 +89,10 @@ local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: 
 	)
 	local currentBottom = Vector3.new(cf.Position.X, cf.Position.Y - size.Y / 2, cf.Position.Z)
 	model:PivotTo(model:GetPivot() + (target - currentBottom))
+end
+
+function PlotSystem.UprightModel(model: Model)
+	uprightModel(model)
 end
 
 -- // Pack auto-import ---------------------------------------------------------------
@@ -288,7 +311,7 @@ function PlotSystem.Setup()
 	local uniformPlotY = 0
 	for i = 1, PLOT_COUNT do
 		local px, pz = plotXZ(i)
-		local h = maxGroundY(px, pz, 15)
+		local h = maxGroundY(px, pz, PLOT_SIZE / 2)
 		if h > uniformPlotY then
 			uniformPlotY = h
 		end
@@ -319,6 +342,10 @@ function PlotSystem.Setup()
 			Color = Color3.fromRGB(95, 180, 95),
 		}, plot)
 		local deckY = 8
+		local deckDepth = PLOT_SIZE * 0.55
+		local deckCenterZ = z - PLOT_SIZE * 0.22
+		local deckBackZ = deckCenterZ + deckDepth / 2
+		local deckFrontZ = deckCenterZ - deckDepth / 2
 		for _, cx in ipairs({ -1, 1 }) do
 			for _, cz in ipairs({ -1, 1 }) do
 				newPart({
@@ -339,25 +366,30 @@ function PlotSystem.Setup()
 		-- Showcase lives on the upper deck; work stays on the grass below.
 		newPart({
 			Name = "UpperDeck",
-			Size = Vector3.new(PLOT_SIZE, 1, 18),
-			Position = Vector3.new(x, deckY, z - 6),
+			Size = Vector3.new(PLOT_SIZE - 2, 1, deckDepth),
+			Position = Vector3.new(x, deckY, deckCenterZ),
 			Anchored = true,
 			Material = Enum.Material.WoodPlanks,
 			Color = Color3.fromRGB(150, 115, 80),
 		}, plot)
 		newPart({
 			Name = "DeckRailFront",
-			Size = Vector3.new(PLOT_SIZE, 1.2, 0.4),
-			Position = Vector3.new(x, deckY + 1.1, z - 15),
+			Size = Vector3.new(PLOT_SIZE - 2, 1.2, 0.4),
+			Position = Vector3.new(x, deckY + 1.1, deckFrontZ),
 			Anchored = true,
 			Material = Enum.Material.Wood,
 			Color = Color3.fromRGB(120, 85, 55),
 		}, plot)
-		for i = 1, 8 do
+		local stairCount = 8
+		local stepDepth = 2.5
+		local stairX = x + PLOT_SIZE / 2 - 3
+		for step = 1, stairCount do
+			-- Last step shares the deck's back edge (same height, no gap).
+			local stairZ = deckBackZ + (stairCount - step) * stepDepth + stepDepth / 2
 			newPart({
-				Name = "Stair_" .. i,
-				Size = Vector3.new(5, 1, 2),
-				Position = Vector3.new(x + PLOT_SIZE / 2 - 2.5, i, z + 10 - i * 2),
+				Name = "Stair_" .. step,
+				Size = Vector3.new(6, 1, stepDepth),
+				Position = Vector3.new(stairX, (deckY / stairCount) * step, stairZ),
 				Anchored = true,
 				Material = Enum.Material.Wood,
 				Color = Color3.fromRGB(160, 130, 90),
@@ -367,7 +399,7 @@ function PlotSystem.Setup()
 		local sign = newPart({
 			Name = "OwnerSign",
 			Size = Vector3.new(8, 4, 0.6),
-			Position = Vector3.new(x, deckY + 3, z - 14.2),
+			Position = Vector3.new(x, deckY + 3, deckFrontZ + 0.8),
 			Anchored = true,
 			Color = Color3.fromRGB(150, 110, 70),
 			Material = Enum.Material.Wood,
@@ -393,8 +425,8 @@ function PlotSystem.Setup()
 		for slot = 1, limit do
 			local row = math.floor((slot - 1) / perRow)
 			local col = (slot - 1) % perRow
-			local px = x - 10 + col * 5
-			local pz = z - 4 + row * 8
+			local px = x - 16 + col * 8
+			local pz = deckCenterZ - 6 + row * 8
 			newPart({
 				Name = "Pedestal_" .. slot,
 				Size = Vector3.new(3, 1.2, 3),
@@ -411,8 +443,8 @@ function PlotSystem.Setup()
 
 		for sIdx, workId in ipairs(BrainrotData.WORK_ORDER) do
 			local workDef = BrainrotData.WORK_TYPES[workId]
-			local sx = x - 12 + (sIdx - 1) * 6
-			local sz = z + 11
+			local sx = x - 16 + (sIdx - 1) * 8
+			local sz = z + PLOT_SIZE / 2 - 6
 
 			local station = Instance.new("Model")
 			station.Name = "Station_" .. workId
@@ -855,7 +887,7 @@ function PlotSystem.TeleportToPlot(player: Player)
 		return
 	end
 	local bp = (base :: BasePart).Position
-	local dest = Vector3.new(bp.X, bp.Y + 5, bp.Z + 18)
+	local dest = Vector3.new(bp.X, bp.Y + 5, bp.Z + PLOT_SIZE / 2 - 8)
 	pcall(function()
 		char:PivotTo(CFrame.new(dest))
 	end)
