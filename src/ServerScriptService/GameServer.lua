@@ -2327,60 +2327,11 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	if not def then return end
 
 	local model = PlotSystem.BuildDisplayModel(def, false, nil)
-
-	local function measureWild()
-		local ok, cf, sz = pcall(function() return model:GetBoundingBox() end)
-		if ok and sz then
-			return cf, sz
-		end
-		return nil, nil
-	end
-
-	local function manualWildScale(s: number)
-		local bbCF = measureWild()
-		if not bbCF then return end
-		local center = (bbCF :: CFrame).Position
-
-		for _, d in ipairs(model:GetDescendants()) do
-			if d:IsA("BasePart") then
-				local part = d :: BasePart
-				local rel: Vector3 = part.Position - center
-				pcall(function()
-					part.Size = part.Size * s
-					part.CFrame = CFrame.new(center + rel * s) * (part.CFrame - part.CFrame.Position)
-				end)
-
-				for _, m in ipairs(part:GetChildren()) do
-					if m:IsA("SpecialMesh") then
-						pcall(function() (m :: SpecialMesh).Scale = (m :: SpecialMesh).Scale * s end)
-					elseif m:IsA("DataModelMesh") then
-						pcall(function() (m :: DataModelMesh).Scale = (m :: DataModelMesh).Scale * s end)
-					end
-				end
-			end
-		end
-	end
-
-	-- Native scaling loop optimization matrix
-	for _ = 1, 3 do
-		local _, bbSize = measureWild()
-		if not bbSize then break end
-
-		local maxDim = math.max(bbSize.X, bbSize.Y, bbSize.Z)
-		if maxDim <= 0 then break end
-
-		local s = 4.0 / maxDim
-		if math.abs(s - 1) <= 0.15 then break end
-		s = math.clamp(s, 0.04, 1)
-
-		pcall(function() model:ScaleTo(s) end)
-		local _, afterSize = measureWild()
-		local afterMax = afterSize and math.max(afterSize.X, afterSize.Y, afterSize.Z) or maxDim
-
-		if math.abs(afterMax - maxDim) < (maxDim * 0.05) then
-			manualWildScale(s)
-		end
-	end
+	-- Plots stay at display size (~4 studs). Wilds are 6× that.
+	local WILD_SIZE_MULT = 6
+	pcall(function()
+		model:ScaleTo(model:GetScale() * WILD_SIZE_MULT)
+	end)
 
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
@@ -2407,7 +2358,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	model:PivotTo(currentPivot + (spawnPos - currentPivot.Position))
 	model:SetAttribute("WildOwner", player.UserId) -- other players' screens hide it (see ClientUI)
 	model.Parent = workspace
-	PlotSystem.FitInWorld(model, 4)
+	PlotSystem.FitInWorld(model, 4.2 * WILD_SIZE_MULT)
 	do
 		local okBB, bbCF, bbSize = pcall(function()
 			return model:GetBoundingBox()
@@ -2421,11 +2372,11 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	end
 
 	local reachTier = PlayerData.GetUpgradeTier(player, "Reach")
-	local hitboxSize = 6
+	local hitboxSize = 6 * WILD_SIZE_MULT
 	if reachTier > 0 then
 		local reachUpgradeDef = PlayerData.UPGRADE_DEFS.Reach
 		if reachUpgradeDef then
-			hitboxSize = reachUpgradeDef.Values[reachTier] or 6
+			hitboxSize = (reachUpgradeDef.Values[reachTier] or 6) * WILD_SIZE_MULT
 		end
 	end
 
@@ -2539,7 +2490,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	catchPrompt.ActionText = "Catch"
 	catchPrompt.ObjectText = BrainrotData.GetDisplayName(def, wander.Variant, wander.Shiny == true)
 	catchPrompt.HoldDuration = 0
-	catchPrompt.MaxActivationDistance = 12
+	catchPrompt.MaxActivationDistance = 28
 	catchPrompt.RequiresLineOfSight = false
 	catchPrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 	catchPrompt.KeyboardKeyCode = Enum.KeyCode.E
