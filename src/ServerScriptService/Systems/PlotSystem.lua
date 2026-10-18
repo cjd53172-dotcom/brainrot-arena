@@ -78,8 +78,59 @@ local function uprightModel(model: Model)
 	end
 end
 
-local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: number)
+local MAX_DISPLAY_SIZE = 4.2
+
+local function modelMaxDim(model: Model): number
+	local maxDim = 0
+	local ok, _, size = pcall(function()
+		return model:GetBoundingBox()
+	end)
+	if ok and size then
+		maxDim = math.max(size.X, size.Y, size.Z)
+	end
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			local part = d :: BasePart
+			maxDim = math.max(maxDim, part.Size.X, part.Size.Y, part.Size.Z)
+		end
+	end
+	return maxDim
+end
+
+local function shrinkToPedestalSize(model: Model)
 	uprightModel(model)
+	for _ = 1, 5 do
+		local maxDim = modelMaxDim(model)
+		if maxDim <= MAX_DISPLAY_SIZE or maxDim < 0.05 then
+			return
+		end
+		local s = math.clamp(MAX_DISPLAY_SIZE / maxDim, 0.02, 1)
+		local before = maxDim
+		pcall(function()
+			model:ScaleTo(s)
+		end)
+		local after = modelMaxDim(model)
+		if math.abs(after - before) < (before * 0.05) then
+			for _, d in ipairs(model:GetDescendants()) do
+				if d:IsA("BasePart") then
+					local part = d :: BasePart
+					part.Size = part.Size * s
+					part.Position = part.Position * s
+					for _, m in ipairs(part:GetChildren()) do
+						if m:IsA("SpecialMesh") then
+							(m :: SpecialMesh).Scale = (m :: SpecialMesh).Scale * s
+						elseif m:IsA("DataModelMesh") then
+							(m :: DataModelMesh).Scale = (m :: DataModelMesh).Scale * s
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: number)
+	shrinkToPedestalSize(model)
 	local cf, size = model:GetBoundingBox()
 	local lift = extraOffset
 	local target = Vector3.new(
@@ -1160,6 +1211,7 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 		end)
 	end
 
+	shrinkToPedestalSize(model)
 	addDressing(model, h, def, variantId, isShiny, host)
 	return model
 end
