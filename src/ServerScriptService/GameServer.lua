@@ -3049,6 +3049,55 @@ task.spawn(function()
 	end
 end)
 
+-- Cycle every Sky the place has in Lighting (Studio-placed Obby Sky, _WORLDFX, etc.).
+do
+	local lighting = game:GetService("Lighting")
+	local bank = lighting:FindFirstChild("SkyBank")
+	if not (bank and bank:IsA("Folder")) then
+		bank = Instance.new("Folder")
+		bank.Name = "SkyBank"
+		bank.Parent = lighting
+	end
+	local skies: { Sky } = {}
+	local shown = 1
+	local function gatherSkies()
+		table.clear(skies)
+		for _, child in ipairs(lighting:GetChildren()) do
+			if child:IsA("Sky") then
+				table.insert(skies, child)
+			end
+		end
+		for _, child in ipairs(bank:GetChildren()) do
+			if child:IsA("Sky") then
+				table.insert(skies, child)
+			end
+		end
+	end
+	local function showSky(i: number)
+		if #skies == 0 then
+			return
+		end
+		shown = ((i - 1) % #skies) + 1
+		for n, sky in ipairs(skies) do
+			sky.Parent = if n == shown then lighting else bank
+		end
+		print("[GameServer] Sky " .. tostring(shown) .. "/" .. tostring(#skies) .. " " .. skies[shown].Name)
+	end
+	gatherSkies()
+	if #skies > 0 then
+		showSky(math.random(1, #skies))
+	end
+	task.spawn(function()
+		while true do
+			task.wait(180)
+			gatherSkies()
+			if #skies > 1 then
+				showSky(shown + 1)
+			end
+		end
+	end)
+end
+
 local function applyEventScenery(active: boolean)
 	local lighting = game:GetService("Lighting")
 	local existing = workspace:FindFirstChild("LegendaryRushFX")
