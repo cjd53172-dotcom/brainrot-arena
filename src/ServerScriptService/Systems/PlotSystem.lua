@@ -39,6 +39,7 @@ local PLAZA_Z = 28
 local PLAZA_GAP = 24
 local PLAZA_X0 = 68
 PlotSystem.PlazaSpots = {
+	Shop = Vector2.new(PLAZA_X0, PLAZA_Z),
 	Fusion = Vector2.new(PLAZA_X0 + PLAZA_GAP, PLAZA_Z),
 	Trainer = Vector2.new(PLAZA_X0 + PLAZA_GAP * 2, PLAZA_Z),
 	Quest = Vector2.new(PLAZA_X0 + PLAZA_GAP * 3, PLAZA_Z),

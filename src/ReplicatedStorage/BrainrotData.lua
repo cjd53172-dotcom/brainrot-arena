@@ -2348,6 +2348,71 @@ BrainrotData.ZONE_ORDER = { "whispering_woods", "sunken_ruins", "ember_peaks", "
 -- Other Places in this Experience (Creator Hub → Places). 0 = not linked yet.
 -- After you publish the Laser Tag template as a place under Brainrot Arena,
 -- paste its Place ID here (or set Workspace attribute LaserTagPlaceId).
+-- Robux shop (Creator Hub → Passes). Leave GamePassId at 0 until you paste the real IDs.
+-- Studio Play still grants items so you can test the models.
+BrainrotData.MONETIZED_SHOP = {
+	{
+		Id = "skateboard",
+		Name = "Skateboard",
+		Kind = "vehicle",
+		SpeedMult = 1.5,
+		Fly = false,
+		GamePassId = 0,
+		Robux = 99,
+		Desc = "1.5x speed",
+	},
+	{
+		Id = "magic_carpet",
+		Name = "Magic Carpet",
+		Kind = "vehicle",
+		SpeedMult = 2,
+		Fly = false,
+		GamePassId = 0,
+		Robux = 249,
+		Desc = "2x speed",
+	},
+	{
+		Id = "airplane",
+		Name = "Mini Plane",
+		Kind = "vehicle",
+		SpeedMult = 3,
+		Fly = true,
+		GamePassId = 0,
+		Robux = 499,
+		Desc = "3x speed, fly",
+	},
+	{
+		Id = "sword",
+		Name = "Sword",
+		Kind = "weapon",
+		SpeedMult = 1,
+		Fly = false,
+		GamePassId = 0,
+		Robux = 49,
+		Desc = "Looks only",
+	},
+	{
+		Id = "mace",
+		Name = "Mace",
+		Kind = "weapon",
+		SpeedMult = 1,
+		Fly = false,
+		GamePassId = 0,
+		Robux = 49,
+		Desc = "Looks only",
+	},
+	{
+		Id = "axe",
+		Name = "Axe",
+		Kind = "weapon",
+		SpeedMult = 1,
+		Fly = false,
+		GamePassId = 0,
+		Robux = 49,
+		Desc = "Looks only",
+	},
+}
+
 BrainrotData.PLACE_GATES = {
 	{
 		Id = "laser_tag",

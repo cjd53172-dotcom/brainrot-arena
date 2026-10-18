@@ -73,6 +73,7 @@ local function defaultData()
 		EggsHatched = 0,
 		-- Stat Upgrades (purchased with coins):
 		Upgrades = { Speed = 0, Jump = 0, Reach = 0, Luck = 0 },
+		OwnedShop = {}, -- [itemId] = true (Robux / Studio shop)
 		-- Daily Quests:
 		DailyDate = "", -- YYYY-MM-DD of current dailies
 		DailyQuests = {}, -- [tier] = { Text, Target, Progress, Done, Coins }
@@ -233,87 +234,7 @@ function PlayerData.CountBrainrots(player: Player): number
 end
 
 function PlayerData.IsInventoryFull(player: Player): boolean
-	-- Stat upgrade definitions: { Stat, Tier, Cost, Effect description }
-PlayerData.UPGRADE_DEFS = {
-	Speed = {
-		Name = "🏃 Speed",
-		MaxTier = 5,
-		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 20, 24, 28, 32, 36 }, -- WalkSpeed (default 16; +4 per tier)
-		Desc = "+4 movement speed per tier",
-	},
-	Jump = {
-		Name = "🦘 Jump",
-		MaxTier = 5,
-		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 60, 70, 80, 90, 100 }, -- JumpPower (default 50; +10 per tier)
-		Desc = "+10 jump power per tier",
-	},
-	Reach = {
-		Name = "🧲 Catcher\'s Reach",
-		MaxTier = 3,
-		Costs = { 4000, 12000, 32000 },
-		Values = { 10, 14, 18 }, -- wild catch hitbox size (default is 6)
-		Desc = "Bigger catch radius for wild brainrots",
-	},
-	Luck = {
-		Name = "🍀 Lucky Charm",
-		MaxTier = 3,
-		Costs = { 8000, 24000, 60000 },
-		Values = { 1.2, 1.4, 1.6 }, -- rare weight multiplier
-		Desc = "Better odds for Rare+ wild spawns",
-	},
-}
-
--- Get current tier of an upgrade.
-function PlayerData.GetUpgradeTier(player: Player, stat: string): number
-	local data = session[player.UserId]
-	if not data or not data.Upgrades then return 0 end
-	return data.Upgrades[stat] or 0
-end
-
--- Purchase an upgrade tier. Returns success, message.
-function PlayerData.BuyUpgrade(player: Player, stat: string): (boolean, string)
-	local data = session[player.UserId]
-	if not data then return false, "No data" end
-	local def = PlayerData.UPGRADE_DEFS[stat]
-	if not def then return false, "Unknown upgrade" end
-	if not data.Upgrades then
-		data.Upgrades = { Speed = 0, Jump = 0, Reach = 0, Luck = 0 }
-	end
-	local current = data.Upgrades[stat] or 0
-	if current >= def.MaxTier then
-		return false, "Max tier reached"
-	end
-	local cost = def.Costs[current + 1]
-	if data.Coins < cost then
-		return false, "Need " .. tostring(cost) .. " coins"
-	end
-	data.Coins -= cost
-	data.Upgrades[stat] = current + 1
-	PlayerData.Save(player)
-	return true, "Upgraded to tier " .. tostring(current + 1)
-end
-
--- Apply speed/jump to character.
-function PlayerData.ApplyStats(player: Player)
-	local char = player.Character
-	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
-	local data = session[player.UserId]
-	local upgrades = data and data.Upgrades or { Speed = 0, Jump = 0 }
-	local speedTier = upgrades.Speed or 0
-	local jumpTier = upgrades.Jump or 0
-	if speedTier > 0 then
-		humanoid.WalkSpeed = PlayerData.UPGRADE_DEFS.Speed.Values[speedTier]
-	end
-	if jumpTier > 0 then
-		humanoid.UseJumpPower = true
-		humanoid.JumpPower = PlayerData.UPGRADE_DEFS.Jump.Values[jumpTier]
-	end
-end
-
-return PlayerData.CountBrainrots(player) >= BrainrotData.INVENTORY_LIMIT
+	return PlayerData.CountBrainrots(player) >= BrainrotData.INVENTORY_LIMIT
 end
 
 	-- // Milestone 2: fusion, battles, rivals ----------------------------------------
@@ -674,87 +595,7 @@ function PlayerData.IsAvailableForExpedition(player: Player, instanceId: string)
 			if teamId == instanceId then return false end
 		end
 	end
-	-- Stat upgrade definitions: { Stat, Tier, Cost, Effect description }
-PlayerData.UPGRADE_DEFS = {
-	Speed = {
-		Name = "🏃 Speed",
-		MaxTier = 5,
-		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 20, 24, 28, 32, 36 }, -- WalkSpeed (default 16; +4 per tier)
-		Desc = "+4 movement speed per tier",
-	},
-	Jump = {
-		Name = "🦘 Jump",
-		MaxTier = 5,
-		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 60, 70, 80, 90, 100 }, -- JumpPower (default 50; +10 per tier)
-		Desc = "+10 jump power per tier",
-	},
-	Reach = {
-		Name = "🧲 Catcher\'s Reach",
-		MaxTier = 3,
-		Costs = { 4000, 12000, 32000 },
-		Values = { 10, 14, 18 }, -- wild catch hitbox size (default is 6)
-		Desc = "Bigger catch radius for wild brainrots",
-	},
-	Luck = {
-		Name = "🍀 Lucky Charm",
-		MaxTier = 3,
-		Costs = { 8000, 24000, 60000 },
-		Values = { 1.2, 1.4, 1.6 }, -- rare weight multiplier
-		Desc = "Better odds for Rare+ wild spawns",
-	},
-}
-
--- Get current tier of an upgrade.
-function PlayerData.GetUpgradeTier(player: Player, stat: string): number
-	local data = session[player.UserId]
-	if not data or not data.Upgrades then return 0 end
-	return data.Upgrades[stat] or 0
-end
-
--- Purchase an upgrade tier. Returns success, message.
-function PlayerData.BuyUpgrade(player: Player, stat: string): (boolean, string)
-	local data = session[player.UserId]
-	if not data then return false, "No data" end
-	local def = PlayerData.UPGRADE_DEFS[stat]
-	if not def then return false, "Unknown upgrade" end
-	if not data.Upgrades then
-		data.Upgrades = { Speed = 0, Jump = 0, Reach = 0, Luck = 0 }
-	end
-	local current = data.Upgrades[stat] or 0
-	if current >= def.MaxTier then
-		return false, "Max tier reached"
-	end
-	local cost = def.Costs[current + 1]
-	if data.Coins < cost then
-		return false, "Need " .. tostring(cost) .. " coins"
-	end
-	data.Coins -= cost
-	data.Upgrades[stat] = current + 1
-	PlayerData.Save(player)
-	return true, "Upgraded to tier " .. tostring(current + 1)
-end
-
--- Apply speed/jump to character.
-function PlayerData.ApplyStats(player: Player)
-	local char = player.Character
-	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
-	local data = session[player.UserId]
-	local upgrades = data and data.Upgrades or { Speed = 0, Jump = 0 }
-	local speedTier = upgrades.Speed or 0
-	local jumpTier = upgrades.Jump or 0
-	if speedTier > 0 then
-		humanoid.WalkSpeed = PlayerData.UPGRADE_DEFS.Speed.Values[speedTier]
-	end
-	if jumpTier > 0 then
-		humanoid.UseJumpPower = true
-		humanoid.JumpPower = PlayerData.UPGRADE_DEFS.Jump.Values[jumpTier]
-	end
-end
-
-return PlayerData.GetInstance(player, instanceId) ~= nil
+	return PlayerData.GetInstance(player, instanceId) ~= nil
 end
 
 function PlayerData.AddRareMaterial(player: Player, matName: string, amount: number)
@@ -929,22 +770,57 @@ function PlayerData.BuyUpgrade(player: Player, stat: string): (boolean, string)
 	return true, "Upgraded to tier " .. tostring(current + 1)
 end
 
--- Apply speed/jump to character.
+function PlayerData.OwnsShopItem(player: Player, itemId: string): boolean
+	local data = session[player.UserId]
+	if not data or type(data.OwnedShop) ~= "table" then
+		return false
+	end
+	return data.OwnedShop[itemId] == true
+end
+
+function PlayerData.GrantShopItem(player: Player, itemId: string)
+	local data = session[player.UserId]
+	if not data then
+		return
+	end
+	if type(data.OwnedShop) ~= "table" then
+		data.OwnedShop = {}
+	end
+	data.OwnedShop[itemId] = true
+	PlayerData.Save(player)
+end
+
+-- Apply speed/jump to character (trainer upgrades * shop vehicle).
 function PlayerData.ApplyStats(player: Player)
 	local char = player.Character
 	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
-	local data = session[player.UserId]
-	local upgrades = data and data.Upgrades or { Speed = 0, Jump = 0 }
-	local speedTier = upgrades.Speed or 0
-	local jumpTier = upgrades.Jump or 0
-	if speedTier > 0 then
-		humanoid.WalkSpeed = PlayerData.UPGRADE_DEFS.Speed.Values[speedTier]
+	if not humanoid then
+		return
 	end
-	if jumpTier > 0 then
-		humanoid.UseJumpPower = true
-		humanoid.JumpPower = PlayerData.UPGRADE_DEFS.Jump.Values[jumpTier]
+	local speedTier = PlayerData.GetUpgradeTier(player, "Speed")
+	local jumpTier = PlayerData.GetUpgradeTier(player, "Jump")
+	local defs = PlayerData.UPGRADE_DEFS
+	local base = 16
+	if speedTier > 0 and defs.Speed and defs.Speed.Values[speedTier] then
+		base = defs.Speed.Values[speedTier]
 	end
+	local mult = 1
+	if char then
+		local attr = char:GetAttribute("ShopSpeedMult")
+		if type(attr) == "number" and attr > 1 then
+			mult = attr
+		end
+	end
+	humanoid.WalkSpeed = base * mult
+	local jp = 50
+	if jumpTier > 0 and defs.Jump and defs.Jump.Values[jumpTier] then
+		jp = defs.Jump.Values[jumpTier]
+	end
+	humanoid.UseJumpPower = true
+	humanoid.JumpPower = jp
+	pcall(function()
+		humanoid.JumpHeight = 7.2 * (jp / 50)
+	end)
 end
 
 

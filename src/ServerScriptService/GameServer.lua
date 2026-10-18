@@ -909,6 +909,10 @@ end
 
 -- // World setup ----------------------------------------------------------------
 PlotSystem.Setup()
+do
+	local ShopSystem = require(Systems:WaitForChild("ShopSystem"))
+	ShopSystem.Setup()
+end
 
 do
 	local attach: Instance? = if PlotSystem.ArenaPrompt then PlotSystem.ArenaPrompt.Parent else nil
