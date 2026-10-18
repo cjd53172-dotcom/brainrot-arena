@@ -345,15 +345,35 @@ end
 
 -- Server does not load MeshId geometry, so GetExtentsSize stays tiny while
 -- the client renders a giant. Scale those down by a fixed factor.
+local PACK_MESH_UNITS = 150
+
+local function maxFileMeshScale(model: Model): number
+	local mag = 0
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("SpecialMesh") or d:IsA("FileMesh") or d:IsA("DataModelMesh") then
+			local s = (d :: DataModelMesh).Scale
+			mag = math.max(mag, math.abs(s.X), math.abs(s.Y), math.abs(s.Z))
+		end
+	end
+	return mag
+end
+
+-- Pack MeshId assets are ~150 studs. Part bbox often looks "already small"
+-- (Orcalero) so we compare FileMesh.Scale, not GetBoundingBox.
 local function fitLyingFileMesh(model: Model, maxSize: number)
 	if not hasFileMeshAsset(model) then
 		return
 	end
-	local maxDim = modelMaxDim(model)
-	if maxDim > maxSize * 0.85 then
+	local mag = maxFileMeshScale(model)
+	if mag < 0.001 then
+		mag = 1
+	end
+	local targetMag = maxSize / PACK_MESH_UNITS
+	if mag <= targetMag * 1.35 then
+		model:SetAttribute("FileMeshFit", true)
 		return
 	end
-	local factor = maxSize / 150
+	local factor = targetMag / mag
 	pcall(function()
 		model:ScaleTo(model:GetScale() * factor)
 	end)
@@ -363,7 +383,7 @@ local function fitLyingFileMesh(model: Model, maxSize: number)
 		end
 	end
 	model:SetAttribute("FileMeshFit", true)
-	print("[PlotSystem] force-fit " .. model.Name .. " x" .. string.format("%.3f", factor))
+	print("[PlotSystem] force-fit " .. model.Name .. " mesh x" .. string.format("%.3f", factor))
 end
 
 extraUprightFlip = function(model: Model)
@@ -411,6 +431,7 @@ end
 -- Live pack meshes ignore Model:ScaleTo; their size is FileMesh.Scale.
 -- Studio already has a real bbox, so ScaleTo is enough there.
 function PlotSystem.ApplyWildSize(model: Model, mult: number)
+	local target = MAX_DISPLAY_SIZE * mult
 	if model:GetAttribute("FileMeshFit") == true then
 		for _, d in ipairs(model:GetDescendants()) do
 			if d:IsA("SpecialMesh") or d:IsA("FileMesh") or d:IsA("DataModelMesh") then
@@ -418,12 +439,13 @@ function PlotSystem.ApplyWildSize(model: Model, mult: number)
 			end
 		end
 		print("[PlotSystem] wild FileMesh x" .. tostring(mult) .. " " .. model.Name)
-		return
+	else
+		pcall(function()
+			model:ScaleTo(model:GetScale() * mult)
+		end)
+		print("[PlotSystem] wild ScaleTo x" .. tostring(mult) .. " " .. model.Name)
 	end
-	pcall(function()
-		model:ScaleTo(model:GetScale() * mult)
-	end)
-	print("[PlotSystem] wild ScaleTo x" .. tostring(mult) .. " " .. model.Name)
+	fitLyingFileMesh(model, target)
 end
 
 -- Call after the model is in Workspace. Pack meshes often report a tiny
@@ -590,7 +612,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 30-upright")
+print("[PlotSystem] source 31-orca")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -608,7 +630,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v30-upright")
+	print("[PlotSystem] Loaded placement v31-orca")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()

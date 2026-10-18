@@ -2362,6 +2362,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			bottomOffset = model:GetPivot().Position.Y - ((bbCF :: CFrame).Position.Y - (bbSize :: Vector3).Y / 2)
 		end
 	end
+	bottomOffset = math.clamp(bottomOffset, 0.5, 14)
 
 	local spawnPos = findWildSpawn(player, wander.Rarity, wander.SpawnPos)
 	local spawnGround = wildGroundY(spawnPos.X, spawnPos.Z, model)
@@ -2379,6 +2380,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		if okBB and bbCF and bbSize then
 			bottomOffset = model:GetPivot().Position.Y - ((bbCF :: CFrame).Position.Y - (bbSize :: Vector3).Y / 2)
 		end
+		bottomOffset = math.clamp(bottomOffset, 0.5, 14)
 		local spawnGround2 = wildGroundY(spawnPos.X, spawnPos.Z, model)
 		local grounded = Vector3.new(spawnPos.X, (spawnGround2 or 60) + bottomOffset + 0.2, spawnPos.Z)
 		model:PivotTo(model:GetPivot() + (grounded - model:GetPivot().Position))
