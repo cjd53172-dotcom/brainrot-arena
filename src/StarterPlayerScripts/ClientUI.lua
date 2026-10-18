@@ -2647,6 +2647,7 @@ battleUpdateRemote.OnClientEvent:Connect(function(payload: any)
 	end
 end)
 
+local function wireProgressAndMobile()
 local expeditionData: any = { Expeditions = {}, UnlockedZones = {} }
 local dailyData: any = { Quests = {} }
 local eggData: any = { Eggs = {}, Slots = 3 }
@@ -3226,6 +3227,8 @@ end
 if isMobile then
 	buildMobileBar()
 end
+end
+wireProgressAndMobile()
 
 -- Nested function: ClientUI's main chunk is already at Luau's 200-local cap.
 task.defer(function()

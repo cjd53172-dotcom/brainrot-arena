@@ -182,14 +182,49 @@ end
 
 local extraUprightFlip: (Model) -> () = function(_model: Model) end
 
--- Only stand up stick-like meshes (Tung Tung). Wide pots/potatoes stay as authored.
--- 180° flip is separate: longest-axis-up cannot tell feet from head.
+-- Long animals (Ganganzelli) stay long on the ground: roll around the long axis
+-- until height is max. Sticks (Tung Tung) then stand longest-axis-up.
+-- 180° feet-vs-head is extraUprightFlip, not this.
 local function uprightModel(model: Model)
+	local start = model:GetPivot()
 	local size = bboxSizeOf(model)
+	local yIsLongest = size.Y + 0.05 >= size.X and size.Y + 0.05 >= size.Z
+	if not yIsLongest then
+		local options: { CFrame }
+		if size.X >= size.Z then
+			options = {
+				start,
+				start * CFrame.Angles(math.pi / 2, 0, 0),
+				start * CFrame.Angles(math.pi, 0, 0),
+				start * CFrame.Angles(-math.pi / 2, 0, 0),
+			}
+		else
+			options = {
+				start,
+				start * CFrame.Angles(0, 0, math.pi / 2),
+				start * CFrame.Angles(0, 0, math.pi),
+				start * CFrame.Angles(0, 0, -math.pi / 2),
+			}
+		end
+		local bestCF = start
+		local bestY = size.Y
+		for _, cf in ipairs(options) do
+			model:PivotTo(cf)
+			local s = bboxSizeOf(model)
+			if s.Y > bestY + 0.05 then
+				bestY = s.Y
+				bestCF = cf
+			end
+		end
+		model:PivotTo(bestCF)
+	end
+
+	size = bboxSizeOf(model)
 	local maxD = math.max(size.X, size.Y, size.Z)
 	local minD = math.min(size.X, size.Y, size.Z)
 	local midD = size.X + size.Y + size.Z - maxD - minD
-	if maxD > midD * 1.45 and size.Y + 0.08 < maxD then
+	local roundCross = midD <= minD * 1.35
+	if roundCross and maxD > midD * 1.45 and size.Y + 0.08 < maxD then
 		local pivot = model:GetPivot()
 		local options: { CFrame }
 		if size.X >= size.Z then
@@ -555,7 +590,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 29-stand")
+print("[PlotSystem] source 30-upright")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -573,7 +608,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v29-stand")
+	print("[PlotSystem] Loaded placement v30-upright")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
