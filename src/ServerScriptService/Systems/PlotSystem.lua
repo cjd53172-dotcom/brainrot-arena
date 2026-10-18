@@ -31,8 +31,8 @@ local ARENA_Z = WORLD_DZ - 260
 local ARENA_SCALE = 2
 local ARENA_PAD = 140
 -- Fusion lab sits near the plaza boards, not on a player pad.
-local FUSION_X = WORLD_DX + 28
-local FUSION_Z = WORLD_DZ - 52
+local FUSION_X = WORLD_DX
+local FUSION_Z = WORLD_DZ + 12
 -- Plots are lined up side-by-side along X, all facing +Z (front = +Z).
 
 local plotsFolder: Folder? = nil
@@ -361,7 +361,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 13-plaza")
+print("[PlotSystem] source 14-plaza2")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local label = PlotSystem.ArenaBoardLabel
@@ -371,7 +371,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v13-plaza")
+	print("[PlotSystem] Loaded placement v14-plaza2")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()

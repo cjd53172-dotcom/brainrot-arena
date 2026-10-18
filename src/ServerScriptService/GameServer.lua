@@ -831,11 +831,12 @@ do
 	local upParams = RaycastParams.new()
 	upParams.FilterType = Enum.RaycastFilterType.Include
 	upParams.FilterDescendantsInstances = { workspace.Terrain }
-	local hit = workspace:Raycast(Vector3.new(141, 500, 60), Vector3.new(0, -1000, 0), upParams)
+	local hit = workspace:Raycast(Vector3.new(105, 500, 100), Vector3.new(0, -1000, 0), upParams)
 	if hit then
 		groundY = hit.Position.Y
 	end
-	local cx, cz = 141, 68
+	-- Plaza, not on a player pad.
+	local cx, cz = 105, 100
 
 	local function stallPart(name: string, size: Vector3, pos: Vector3, color: Color3, mat: Enum.Material): Part
 		local p = Instance.new("Part")
@@ -1149,36 +1150,70 @@ do
 	local function hitAt(x: number, z: number): RaycastResult?
 		return workspace:Raycast(Vector3.new(x, 500, z), Vector3.new(0, -1000, 0), params)
 	end
+	local function nearPlot(x: number, z: number): boolean
+		local plots = workspace:FindFirstChild("Plots")
+		if not plots then
+			return false
+		end
+		for _, plot in ipairs(plots:GetChildren()) do
+			local base = plot:FindFirstChild("Base")
+			if base and base:IsA("BasePart") then
+				local dx = x - (base :: BasePart).Position.X
+				local dz = z - (base :: BasePart).Position.Z
+				if math.abs(dx) < 48 and math.abs(dz) < 48 then
+					return true
+				end
+			end
+		end
+		return false
+	end
+	local function waterScore(x: number, z: number): number
+		local n = 0
+		for ox = -40, 40, 10 do
+			for oz = -40, 40, 10 do
+				local h = hitAt(x + ox, z + oz)
+				if h and h.Material == Enum.Material.Water then
+					n += 1
+				end
+			end
+		end
+		return n
+	end
 	local shores: { any } = {}
-	-- Search around the plaza / white pad where the river sits in the pretty map.
-	for x = 40, 240, 10 do
-		for z = -20, 160, 10 do
+	for x = -80, 360, 12 do
+		for z = -120, 280, 12 do
 			local h = hitAt(x, z)
 			if h and h.Material == Enum.Material.Water then
-				for _, d in ipairs({ Vector3.new(12, 0, 0), Vector3.new(-12, 0, 0), Vector3.new(0, 0, 12), Vector3.new(0, 0, -12) }) do
-					local land = hitAt(x + d.X, z + d.Z)
-					if land and land.Material ~= Enum.Material.Water and land.Normal.Y > 0.6 then
-						table.insert(shores, {
-							X = land.Position.X,
-							Z = land.Position.Z,
-							Y = land.Position.Y,
-							Yaw = math.atan2(-d.X, -d.Z),
-							Dist = (x - 127) * (x - 127) + (z - 60) * (z - 60),
-						})
+				local score = waterScore(x, z)
+				if score >= 8 then
+					for _, d in ipairs({ Vector3.new(14, 0, 0), Vector3.new(-14, 0, 0), Vector3.new(0, 0, 14), Vector3.new(0, 0, -14) }) do
+						local land = hitAt(x + d.X, z + d.Z)
+						if land and land.Material ~= Enum.Material.Water and land.Normal.Y > 0.55 then
+							local lx, lz = land.Position.X, land.Position.Z
+							if not nearPlot(lx, lz) then
+								table.insert(shores, {
+									X = lx,
+									Z = lz,
+									Y = land.Position.Y,
+									Yaw = math.atan2(-d.X, -d.Z),
+									Score = score,
+								})
+							end
+						end
 					end
 				end
 			end
 		end
 	end
 	table.sort(shores, function(a, b)
-		return a.Dist < b.Dist
+		return a.Score > b.Score
 	end)
 	local chosen: { any } = {}
 	for _, s in ipairs(shores) do
 		local ok = true
 		for _, c in ipairs(chosen) do
 			local dx, dz = s.X - c.X, s.Z - c.Z
-			if dx * dx + dz * dz < 22 * 22 then
+			if dx * dx + dz * dz < 40 * 40 then
 				ok = false
 				break
 			end
@@ -1192,8 +1227,8 @@ do
 	end
 	if #chosen == 0 then
 		chosen = {
-			{ X = 110, Z = 48, Y = 14, Yaw = 0 },
-			{ X = 118, Z = 40, Y = 14, Yaw = math.pi / 2 },
+			{ X = 70, Z = 20, Y = 12, Yaw = 0 },
+			{ X = 55, Z = 40, Y = 12, Yaw = math.pi / 2 },
 		}
 	end
 	local names = { "Riverside Dock", "Lakeside Pier" }
