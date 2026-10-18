@@ -2804,6 +2804,20 @@ do
 			if not isAdmin(player) then
 				return
 			end
+			local skyQuery = string.match(msg, "^/sky%s*(.*)$")
+			if skyQuery ~= nil then
+				local setter = game:GetService("Lighting"):FindFirstChild("SetSky")
+				local result = "Sky control not ready."
+				if setter and setter:IsA("BindableFunction") then
+					result = tostring(setter:Invoke(skyQuery) or "")
+				end
+				print("[Admin] " .. result)
+				local hintEvent = CachedRemotes["ShowHint"]
+				if hintEvent then
+					hintEvent:FireClient(player, string.split(result, "\n")[1])
+				end
+				return
+			end
 			local token = string.match(msg, "^/spawn%s+(.+)$")
 			if not token then
 				return
@@ -2850,7 +2864,7 @@ do
 	for _, p in ipairs(Players:GetPlayers()) do
 		hookAdminChat(p)
 	end
-	print("[Admin] /spawn all  (every pack skin)  |  /spawn orcalero")
+	print("[Admin] /spawn all  |  /spawn orcalero  |  /sky list  |  /sky next  |  /sky 2  |  /sky obby")
 end
 
 -- // Automated Respawn Configuration Processing Loop -----------------------------
@@ -3064,6 +3078,7 @@ do
 	end
 	local skies: { Sky } = {}
 	local shown = 1
+	local autoRotate = true
 	local function gatherSkies()
 		table.clear(skies)
 		for _, child in ipairs(lighting:GetChildren()) do
@@ -3079,14 +3094,70 @@ do
 	end
 	local function showSky(i: number)
 		if #skies == 0 then
-			return
+			return "No Sky objects in Lighting."
 		end
 		shown = ((i - 1) % #skies) + 1
 		for n, sky in ipairs(skies) do
 			sky.Parent = if n == shown then lighting else bank
 		end
-		print("[GameServer] Sky " .. tostring(shown) .. "/" .. tostring(#skies) .. " " .. skies[shown].Name)
+		local msg = "Sky " .. tostring(shown) .. "/" .. tostring(#skies) .. " " .. skies[shown].Name
+		print("[GameServer] " .. msg)
+		return msg
 	end
+	local function listSkies(): string
+		gatherSkies()
+		if #skies == 0 then
+			return "No Sky objects in Lighting."
+		end
+		local lines = { "Skies:" }
+		for i, sky in ipairs(skies) do
+			local mark = if i == shown then "  <--" else ""
+			table.insert(lines, "  " .. tostring(i) .. ". " .. sky.Name .. mark)
+		end
+		return table.concat(lines, "\n")
+	end
+	local function applyQuery(query: string): string
+		query = string.lower((string.gsub(query, "^%s+", "")))
+		query = string.gsub(query, "%s+$", "")
+		if query == "" or query == "list" then
+			return listSkies()
+		end
+		if query == "auto" then
+			autoRotate = true
+			return "Sky auto-rotate on (every 3 min)."
+		end
+		if query == "stop" then
+			autoRotate = false
+			return "Sky auto-rotate off."
+		end
+		if query == "next" then
+			autoRotate = false
+			gatherSkies()
+			return showSky(shown + 1)
+		end
+		local num = tonumber(query)
+		if num then
+			autoRotate = false
+			gatherSkies()
+			return showSky(math.floor(num))
+		end
+		gatherSkies()
+		for i, sky in ipairs(skies) do
+			if string.lower(sky.Name) == query or string.find(string.lower(sky.Name), query, 1, true) then
+				autoRotate = false
+				return showSky(i)
+			end
+		end
+		return "No sky matching '" .. query .. "'. Try /sky list"
+	end
+	local setter = lighting:FindFirstChild("SetSky")
+	if setter then
+		setter:Destroy()
+	end
+	local bind = Instance.new("BindableFunction")
+	bind.Name = "SetSky"
+	bind.OnInvoke = applyQuery
+	bind.Parent = lighting
 	gatherSkies()
 	if #skies > 0 then
 		showSky(math.random(1, #skies))
@@ -3094,9 +3165,11 @@ do
 	task.spawn(function()
 		while true do
 			task.wait(180)
-			gatherSkies()
-			if #skies > 1 then
-				showSky(shown + 1)
+			if autoRotate then
+				gatherSkies()
+				if #skies > 1 then
+					showSky(shown + 1)
+				end
 			end
 		end
 	end)
