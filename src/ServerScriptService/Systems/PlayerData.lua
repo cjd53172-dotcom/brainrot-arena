@@ -215,7 +215,8 @@ function PlayerData.Load(player: Player)
 				end
 			end
 			data = mergeDefaults(saved)
-			print("[PlayerData] Loaded " .. player.Name .. " brainrots=" .. tostring(#(data.Brainrots or {})) .. " coins=" .. tostring(data.Coins))
+			local u = data.Upgrades or {}
+			print("[PlayerData] Loaded " .. player.Name .. " brainrots=" .. tostring(#(data.Brainrots or {})) .. " coins=" .. tostring(data.Coins) .. " speed=" .. tostring(u.Speed or 0) .. " jump=" .. tostring(u.Jump or 0))
 		elseif success then
 			local okB, backup = pcall(function()
 				return (store :: DataStore):GetAsync(backupKeyFor(player))
@@ -859,7 +860,8 @@ function PlayerData.ApplyStats(player: Player)
 			mult = attr
 		end
 	end
-	humanoid.WalkSpeed = base * mult
+	local wantSpeed = base * mult
+	humanoid.WalkSpeed = wantSpeed
 	local jp = 50
 	if jumpTier > 0 and defs.Jump and defs.Jump.Values[jumpTier] then
 		jp = defs.Jump.Values[jumpTier]
@@ -869,6 +871,21 @@ function PlayerData.ApplyStats(player: Player)
 	pcall(function()
 		humanoid.JumpHeight = 7.2 * (jp / 50)
 	end)
+	if char:GetAttribute("StatsHooked") ~= true then
+		char:SetAttribute("StatsHooked", true)
+		humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+			if not player.Parent then
+				return
+			end
+			PlayerData.ApplyStats(player)
+		end)
+		humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+			if not player.Parent then
+				return
+			end
+			PlayerData.ApplyStats(player)
+		end)
+	end
 end
 
 

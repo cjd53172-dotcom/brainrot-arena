@@ -909,24 +909,9 @@ end
 
 -- // World setup ----------------------------------------------------------------
 PlotSystem.Setup()
-do
-	local shopModule = Systems:FindFirstChild("ShopSystem") or Systems:WaitForChild("ShopSystem", 1)
-	if shopModule then
-		local ok, shopOrErr = pcall(require, shopModule)
-		if ok and type(shopOrErr) == "table" and shopOrErr.Setup then
-			local setupOk, setupErr = pcall(function()
-				shopOrErr.Setup()
-			end)
-			if not setupOk then
-				warn("[GameServer] ShopSystem.Setup failed: " .. tostring(setupErr))
-			end
-		else
-			warn("[GameServer] ShopSystem require failed: " .. tostring(shopOrErr))
-		end
-	else
-		warn("[GameServer] ShopSystem missing. Sync from GitHub, then Play. World continues so saves are not skipped.")
-	end
-end
+pcall(function()
+	VisualEffects.SetupRobuxShop()
+end)
 
 do
 	local attach: Instance? = if PlotSystem.ArenaPrompt then PlotSystem.ArenaPrompt.Parent else nil
@@ -2217,6 +2202,7 @@ local function onPlayerAdded(player: Player)
 		-- Safety Thread-Verification Check: Prevent disconnected memory execution
 		if not player or not player.Parent then return end
 		PlotSystem.TeleportToPlot(player)
+		PlayerData.ApplyStats(player)
 	end)
 
 	if player.Character then
@@ -2998,17 +2984,40 @@ if leaderboardUpdateRemote then
 end
 
 local function setupStatsOnSpawn(player: Player)
-	player.CharacterAdded:Connect(function()
-		task.wait(0.5)
-		if player and player.Parent then
-			PlayerData.ApplyStats(player)
+	local function apply(char: Model?)
+		if not player.Parent then
+			return
 		end
+		PlayerData.ApplyStats(player)
+		if char then
+			pcall(function()
+				if player.CharacterAppearanceLoaded then
+					player.CharacterAppearanceLoaded:Once(function()
+						if player.Parent then
+							PlayerData.ApplyStats(player)
+						end
+					end)
+				end
+			end)
+		end
+		task.delay(1, function()
+			if player.Parent then
+				PlayerData.ApplyStats(player)
+			end
+		end)
+		task.delay(3, function()
+			if player.Parent then
+				PlayerData.ApplyStats(player)
+			end
+		end)
+	end
+	player.CharacterAdded:Connect(function(char)
+		task.wait(0.2)
+		apply(char)
 	end)
 	if player.Character then
 		task.defer(function()
-			if player and player.Parent then
-				PlayerData.ApplyStats(player)
-			end
+			apply(player.Character)
 		end)
 	end
 end
