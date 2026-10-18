@@ -33,6 +33,30 @@ local ARENA_PAD = 280
 -- Fusion lab sits near the plaza boards, not on a player pad.
 local FUSION_X = WORLD_DX
 local FUSION_Z = WORLD_DZ + 12
+-- One plaza row in front of the plots (west of plot 1, south lawn).
+-- Order: Stat Trainer, Fusion, Expeditions, Quests.
+local PLAZA_Z = 28
+local PLAZA_GAP = 24
+local PLAZA_X0 = 68
+PlotSystem.PlazaSpots = {
+	Trainer = Vector2.new(PLAZA_X0, PLAZA_Z),
+	Fusion = Vector2.new(PLAZA_X0 + PLAZA_GAP, PLAZA_Z),
+	Expedition = Vector2.new(PLAZA_X0 + PLAZA_GAP * 2, PLAZA_Z),
+	Quest = Vector2.new(PLAZA_X0 + PLAZA_GAP * 3, PLAZA_Z),
+}
+
+function PlotSystem.SitOnTerrain(model: Model, x: number, z: number)
+	model:PivotTo(CFrame.new(x, 0, z))
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { workspace.Terrain }
+	local hit = workspace:Raycast(Vector3.new(x, 500, z), Vector3.new(0, -1000, 0), params)
+	local gy = if hit then hit.Position.Y else 0
+	local boxCF, boxSize = model:GetBoundingBox()
+	local bottomY = boxCF.Position.Y - boxSize.Y * 0.5
+	model:TranslateBy(Vector3.new(0, gy - bottomY, 0))
+end
+
 -- Plots are lined up side-by-side along X, all facing +Z (front = +Z).
 
 local plotsFolder: Folder? = nil
@@ -431,7 +455,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 20-fusionground")
+print("[PlotSystem] source 22-skygold")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local label = PlotSystem.ArenaBoardLabel
@@ -441,7 +465,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v20-fusionground")
+	print("[PlotSystem] Loaded placement v22-skygold")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -809,8 +833,8 @@ function PlotSystem.Setup()
 	plaza.Name = "Plaza"
 	plaza.Parent = workspace
 
-	-- Quest board sits at (127, 60). Keep the reactor on that plaza, not in the rocks.
-	local FUSION_PLACE_X, FUSION_PLACE_Z = PlotSystem.PickClearSpot(127, 38)
+	local FUSION_PLACE_X = PlotSystem.PlazaSpots.Fusion.X
+	local FUSION_PLACE_Z = PlotSystem.PlazaSpots.Fusion.Y
 	PlotSystem.FusionXZ = Vector2.new(FUSION_PLACE_X, FUSION_PLACE_Z)
 
 	local lab: Model
@@ -822,11 +846,7 @@ function PlotSystem.Setup()
 		lab = VisualEffects.BuildFusionMachine()
 	end
 	lab.Parent = plaza
-	lab:PivotTo(CFrame.new(FUSION_PLACE_X, 0, FUSION_PLACE_Z))
-	local fusionGround = groundY(FUSION_PLACE_X, FUSION_PLACE_Z)
-	local boxCF, boxSize = lab:GetBoundingBox()
-	local bottomY = boxCF.Position.Y - boxSize.Y * 0.5
-	lab:TranslateBy(Vector3.new(0, fusionGround - bottomY, 0))
+	PlotSystem.SitOnTerrain(lab, FUSION_PLACE_X, FUSION_PLACE_Z)
 	local labPromptInst = lab:FindFirstChild("FusionPrompt", true)
 	if not (labPromptInst and labPromptInst:IsA("ProximityPrompt")) then
 		local attach = lab.PrimaryPart or lab:FindFirstChildWhichIsA("BasePart")
@@ -953,6 +973,66 @@ function PlotSystem.Setup()
 	boardPrompt.Parent = board
 	PlotSystem.ArenaBoardPrompt = boardPrompt
 
+	local function makeCoin(parent: Instance, pos: Vector3, value: number)
+		local coin = newPart({
+			Name = "Coin",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(1.2, 1.5, 1.5),
+			Position = pos,
+			Anchored = true,
+			CanCollide = false,
+			Color = Color3.fromRGB(255, 200, 40),
+			Material = Enum.Material.Neon,
+		}, parent)
+		coin:SetAttribute("Value", value)
+		coin:SetAttribute("Collected", false)
+
+		coin.Touched:Connect(function(hit: BasePart)
+			if coin:GetAttribute("Collected") then
+				return
+			end
+			local char = hit and hit.Parent
+			local player = char and game:GetService("Players"):GetPlayerFromCharacter(char)
+			if not player then
+				return
+			end
+			coin:SetAttribute("Collected", true)
+			PlayerData.AddCoins(player, value)
+			pcall(function()
+				local DQS = require(script.Parent:WaitForChild("DailyQuestSystem"))
+				DQS.RecordProgress(player, "obby_coins", value)
+			end)
+			coin.Transparency = 1
+			local respawn = math.clamp(20 + math.floor(value / 8), 25, 90)
+			task.delay(respawn, function()
+				if coin and coin.Parent then
+					coin:SetAttribute("Collected", false)
+					coin.Transparency = 0
+				end
+			end)
+		end)
+
+		return coin
+	end
+
+	task.spawn(function()
+		while true do
+			task.wait(0.08)
+			local coinsFolder = workspace:FindFirstChild("CoinObby")
+			local sky = workspace:FindFirstChild("SkyGold")
+			for _, root in ipairs({ coinsFolder, sky }) do
+				if root then
+					local folder = root:FindFirstChild("Coins") or root
+					for _, d in ipairs(folder:GetDescendants()) do
+						if d:IsA("BasePart") and d.Name == "Coin" and not d:GetAttribute("Collected") then
+							d.CFrame = d.CFrame * CFrame.Angles(0, 0.35, 0)
+						end
+					end
+				end
+			end
+		end
+	end)
+
 	local obby = Instance.new("Model")
 	obby.Name = "CoinObby"
 
@@ -988,70 +1068,6 @@ function PlotSystem.Setup()
 	obbyLabel.TextColor3 = Color3.new(1, 1, 1)
 	obbyLabel.TextStrokeTransparency = 0.6
 	obbyLabel.Parent = obbyGui
-
-	local function makeCoin(parent: Instance, pos: Vector3, value: number)
-		local coin = newPart({
-			Name = "Coin",
-			Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(1.2, 1.5, 1.5),
-			Position = pos,
-			Anchored = true,
-			CanCollide = false,
-			Color = Color3.fromRGB(255, 200, 40),
-			Material = Enum.Material.Neon,
-		}, parent)
-		coin:SetAttribute("Value", value)
-		coin:SetAttribute("Collected", false)
-
-		task.spawn(function()
-			while coin and coin.Parent do
-				local dt = task.wait()
-				if coin:GetAttribute("Collected") then
-					break
-				end
-				pcall(function()
-					coin.CFrame = coin.CFrame * CFrame.Angles(0, math.rad(120) * dt, 0)
-				end)
-			end
-		end)
-
-		coin.Touched:Connect(function(hit: BasePart)
-			if coin:GetAttribute("Collected") then
-				return
-			end
-			local char = hit and hit.Parent
-			local player = char and game:GetService("Players"):GetPlayerFromCharacter(char)
-			if not player then
-				return
-			end
-			coin:SetAttribute("Collected", true)
-			PlayerData.AddCoins(player, value)
-			pcall(function()
-				local DQS = require(script.Parent:WaitForChild("DailyQuestSystem"))
-				DQS.RecordProgress(player, "obby_coins", value)
-			end)
-			coin.Transparency = 1
-			task.delay(30, function()
-				if coin and coin.Parent then
-					coin:SetAttribute("Collected", false)
-					coin.Transparency = 0
-					task.spawn(function()
-						while coin and coin.Parent do
-							local dt2 = task.wait()
-							if coin:GetAttribute("Collected") then
-								break
-							end
-							pcall(function()
-								coin.CFrame = coin.CFrame * CFrame.Angles(0, math.rad(120) * dt2, 0)
-							end)
-						end
-					end)
-				end
-			end)
-		end)
-
-		return coin
-	end
 
 	local platforms = {
 		{ 0, 10, 2, 3.2 },
@@ -1102,45 +1118,6 @@ function PlotSystem.Setup()
 		end
 	end
 
-	local treasureSpots = {
-		{ -80, -120, 2, 20 },
-		{ 90, -110, 2, 20 },
-		{ -120, -80, 3, 25 },
-		{ 140, -70, 2, 20 },
-		{ 0, -90, 15, 40 },
-		{ -150, -40, 2, 20 },
-		{ -180, 20, 3, 25 },
-		{ -140, 80, 2, 20 },
-		{ -200, 140, 4, 30 },
-		{ -160, 200, 2, 20 },
-		{ 150, -30, 2, 20 },
-		{ 190, 40, 3, 25 },
-		{ 160, 100, 2, 20 },
-		{ 210, 160, 4, 30 },
-		{ 170, 220, 2, 20 },
-		{ -60, -160, 2, 20 },
-		{ 60, -170, 3, 25 },
-		{ -100, -200, 2, 20 },
-		{ 100, -210, 5, 30 },
-		{ 0, -240, 20, 50 },
-		{ -80, 240, 2, 20 },
-		{ 80, 250, 3, 25 },
-		{ -130, 280, 2, 20 },
-		{ 130, 290, 4, 30 },
-		{ 0, 320, 2, 20 },
-		{ -220, -180, 6, 40 },
-		{ 230, -190, 6, 40 },
-		{ -230, 300, 8, 40 },
-		{ 240, 310, 8, 40 },
-		{ 0, 0, 25, 50 },
-		{ -90, 60, 12, 35 },
-		{ 110, 130, 14, 35 },
-		{ -70, 180, 16, 40 },
-	}
-	for _, t in ipairs(treasureSpots) do
-		makeCoin(coinsFolder, Vector3.new(OBBY_X + t[1], t[3], OBBY_Z_START + t[2]), t[4])
-	end
-
 	local finishZ = OBBY_Z_START + 168
 	local finishPad = newPart({
 		Name = "FinishPad",
@@ -1177,6 +1154,202 @@ function PlotSystem.Setup()
 
 	liftModel(obby, maxGroundY(OBBY_X, OBBY_Z_START + 50, 20) + 1)
 	obby.Parent = workspace
+
+	local sky = Instance.new("Model")
+	sky.Name = "SkyGold"
+	local skyCoins = Instance.new("Folder")
+	skyCoins.Name = "Coins"
+	skyCoins.Parent = sky
+
+	local function nearBusy(x: number, z: number): boolean
+		if math.abs(x - ARENA_X) < 170 and math.abs(z - ARENA_Z) < 170 then
+			return true
+		end
+		if not plotsFolder then
+			return false
+		end
+		for _, plot in ipairs(plotsFolder:GetChildren()) do
+			local base = plot:FindFirstChild("Base")
+			if base and base:IsA("BasePart") then
+				local dx = x - (base :: BasePart).Position.X
+				local dz = z - (base :: BasePart).Position.Z
+				if math.abs(dx) < 40 and math.abs(dz) < 40 then
+					return true
+				end
+			end
+		end
+		return false
+	end
+
+	local function goldValue(height: number): number
+		return math.clamp(math.floor(10 + (math.max(0, height) / 9) ^ 1.22 * 5.2), 10, 280)
+	end
+
+	local function padTint(height: number): Color3
+		if height > 190 then
+			return Color3.fromRGB(255, 90, 210)
+		elseif height > 130 then
+			return Color3.fromRGB(255, 175, 40)
+		elseif height > 70 then
+			return Color3.fromRGB(220, 170, 55)
+		end
+		return Color3.fromRGB(150, 105, 45)
+	end
+
+	local padCount = 0
+	local function addSkyPad(x: number, y: number, z: number, size: number, ground: number)
+		padCount += 1
+		local height = y - ground
+		local plat = newPart({
+			Name = "SkyPad_" .. padCount,
+			Size = Vector3.new(size, 1, size),
+			Position = Vector3.new(x, y, z),
+			Anchored = true,
+			Color = padTint(height),
+			Material = if height > 130 then Enum.Material.Neon else Enum.Material.SmoothPlastic,
+		}, sky)
+		local value = goldValue(height)
+		makeCoin(skyCoins, Vector3.new(x, y + 2.1, z), value)
+		if height > 90 and padCount % 4 == 0 then
+			newPart({
+				Name = "Nugget",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(1.1, 1.1, 1.1),
+				Position = Vector3.new(x + size * 0.28, y + 1.4, z),
+				Anchored = true,
+				CanCollide = false,
+				Color = Color3.fromRGB(255, 210, 50),
+				Material = Enum.Material.Neon,
+			}, sky)
+		end
+		return plat
+	end
+
+	local seed = 91
+	local function rnd(): number
+		seed = (seed * 1664525 + 1013904223) % 4294967296
+		return seed / 4294967296
+	end
+
+	local starts: { any } = {}
+	local function tryStart(x: number, z: number)
+		if nearBusy(x, z) then
+			return
+		end
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		local hit = workspace:Raycast(Vector3.new(x, 500, z), Vector3.new(0, -1000, 0), params)
+		if not hit or hit.Material == Enum.Material.Water then
+			return
+		end
+		table.insert(starts, { X = x, Z = z, Y = hit.Position.Y })
+	end
+
+	for i = 1, 16 do
+		local ang = (i / 16) * math.pi * 2 + 0.35
+		local r = 85 + (i % 4) * 48
+		tryStart(WORLD_DX + math.cos(ang) * r, WORLD_DZ + math.sin(ang) * r)
+	end
+	for i = 1, 8 do
+		local ang = i * 0.85 + 1.1
+		tryStart(WORLD_DX + math.cos(ang) * 230, WORLD_DZ + math.sin(ang) * 230)
+	end
+
+	local tips: { any } = {}
+	for t, start in ipairs(starts) do
+		local x, z = start.X, start.Z
+		local y = start.Y + 3.2
+		local dir = t * 0.73
+		addSkyPad(x, y, z, 6.2, start.Y)
+		if t <= 4 then
+			local sign = newPart({
+				Name = "SkySign",
+				Size = Vector3.new(10, 4, 0.5),
+				Position = Vector3.new(x, y + 4.2, z - 4),
+				Anchored = true,
+				Color = Color3.fromRGB(90, 60, 25),
+				Material = Enum.Material.Wood,
+			}, sky)
+			local gui = Instance.new("SurfaceGui")
+			gui.Face = Enum.NormalId.Front
+			gui.Parent = sign
+			local label = Instance.new("TextLabel")
+			label.Size = UDim2.new(1, 0, 1, 0)
+			label.BackgroundTransparency = 1
+			label.Text = "SKY GOLD\nHigher = richer\nFall = start over"
+			label.Font = Enum.Font.GothamBold
+			label.TextScaled = true
+			label.TextColor3 = Color3.fromRGB(255, 220, 80)
+			label.Parent = gui
+		end
+		local steps = 24
+		for n = 1, steps do
+			dir += 0.42 + rnd() * 0.5
+			local dist = 9.2 + rnd() * 3.6
+			x += math.cos(dir) * dist
+			z += math.sin(dir) * dist
+			y += 6.3 + rnd() * 1.6
+			local height = y - start.Y
+			local size = math.max(2.35, 5.5 - height / 85)
+			addSkyPad(x, y, z, size, start.Y)
+		end
+		table.insert(tips, { X = x, Y = y, Z = z, Ground = start.Y })
+	end
+
+	for i, a in ipairs(tips) do
+		for j = i + 1, #tips do
+			local b = tips[j]
+			local dx, dz = b.X - a.X, b.Z - a.Z
+			local dist = math.sqrt(dx * dx + dz * dz)
+			if dist > 18 and dist < 70 then
+				local steps = math.max(2, math.floor(dist / 12))
+				for s = 1, steps - 1 do
+					local u = s / steps
+					addSkyPad(a.X + dx * u, (a.Y + b.Y) * 0.5 + 2, a.Z + dz * u, 3.2, math.min(a.Ground, b.Ground))
+				end
+			end
+		end
+	end
+
+	if #tips > 0 then
+		table.sort(tips, function(a, b)
+			return a.Y > b.Y
+		end)
+		local peak = tips[1]
+		local peakY = peak.Y + 14
+		addSkyPad(peak.X, peakY, peak.Z, 7.5, peak.Ground)
+		local jackpot = newPart({
+			Name = "Jackpot",
+			Size = Vector3.new(8, 1.2, 8),
+			Position = Vector3.new(peak.X, peakY + 0.8, peak.Z),
+			Anchored = true,
+			Color = Color3.fromRGB(255, 220, 40),
+			Material = Enum.Material.Neon,
+		}, sky)
+		makeCoin(skyCoins, Vector3.new(peak.X, peakY + 3.2, peak.Z), 400)
+		local lastJack: { [number]: number } = {}
+		jackpot.Touched:Connect(function(hit: BasePart)
+			local char = hit and hit.Parent
+			local player = char and game:GetService("Players"):GetPlayerFromCharacter(char)
+			if not player then
+				return
+			end
+			local now = os.clock()
+			if lastJack[player.UserId] and now - lastJack[player.UserId] < 90 then
+				return
+			end
+			lastJack[player.UserId] = now
+			PlayerData.AddCoins(player, 250)
+		end)
+		for k = 0, 11 do
+			local ang = k * math.pi / 6
+			addSkyPad(peak.X + math.cos(ang) * 16, peakY - 6, peak.Z + math.sin(ang) * 16, 3.0, peak.Ground)
+		end
+	end
+
+	sky.Parent = workspace
+	print("[PlotSystem] SkyGold pads " .. tostring(padCount))
 end
 
 function PlotSystem.AssignPlot(player: Player): Model?
