@@ -118,6 +118,24 @@ BrainrotData.PACK_MESH_UNITS = {
 BrainrotData.INVENTORY_LIMIT = 1000
 BrainrotData.SHOWCASE_LIMIT = 10
 BrainrotData.SHINY_CHANCE = 0.003 -- 0.3% (roughly 1 in 333): true trophy rarity
+-- All coin grants go through this (refunds skip it). 0.25 = earn 75% less.
+BrainrotData.COIN_EARN_MULT = 0.25
+-- Showcase gold per second before the earn cut. Commons 1, Secrets 4.
+BrainrotData.SHOWCASE_GOLD_PER_SEC = {
+	Common = 1,
+	Rare = 1.5,
+	Epic = 2,
+	Legendary = 2.5,
+	Mythic = 3,
+	["Brainrot God"] = 3.5,
+	Secret = 4,
+	OG = 5,
+} :: { [string]: number }
+
+function BrainrotData.GetShowcaseGoldPerSec(rarity: string): number
+	local n = BrainrotData.SHOWCASE_GOLD_PER_SEC[rarity] or 1
+	return n * (BrainrotData.COIN_EARN_MULT or 1)
+end
 
 -- Shift a color's hue to produce a shiny variant. Deterministic per color,
 -- so current AND future brainrots get shinies with zero extra authoring.

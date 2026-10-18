@@ -131,6 +131,15 @@ pushCollection = function(player: Player)
 	end
 end
 
+PlotSystem.OnShowcaseCollected = function(player: Player, amount: number)
+	pushCollection(player)
+	local hintEvent = CachedRemotes["ShowHint"]
+	if hintEvent then
+		hintEvent:FireClient(player, "+" .. tostring(amount) .. " coins from showcase!")
+	end
+	DailyQuestSystem.RecordProgress(player, "coins_earned", amount)
+end
+
 -- Showcase processing rule validation array limits
 local updateShowcaseRemote = CachedRemotes["UpdateShowcase"]
 if updateShowcaseRemote then
@@ -584,7 +593,7 @@ if fuseBrainrotsRemote then
 		end
 
 		if not PlayerData.SpendMaterials(player, { [workId] = cost }) then
-			PlayerData.AddCoins(player, coinFee)
+			PlayerData.AddCoins(player, coinFee, true)
 			local have = (data.Materials[workId] or 0)
 			local hintEvent = CachedRemotes["ShowHint"]
 			if hintEvent then
@@ -2069,30 +2078,6 @@ if buyEggSlotRemote then
 end
 
 -- // Passive Income ------------------------------------------------------------------
--- Brainrots on your pedestals earn gold for you. Coins per MINUTE per brainrot, by rarity
--- (shiny doubles it). Edit these numbers to tune the economy.
-local BRAINROT_GOLD_PER_MIN: { [string]: number } = {
-	Common = 2,
-	Rare = 5,
-	Epic = 12,
-	Legendary = 40,
-}
-
-local function brainrotGoldPerMin(player: Player, data: any): number
-	local total = 0
-	for _, id in ipairs(data.Showcase or {}) do
-		local inst = PlayerData.GetInstance(player, id)
-		local def = inst and (BrainrotData.GetById(inst.BrainrotId) or BrainrotData.GetBrainrot(inst.BrainrotId))
-		if def then
-			local rate = BRAINROT_GOLD_PER_MIN[def.Rarity] or 1
-			if inst.Shiny then
-				rate *= 2
-			end
-			total += rate
-		end
-	end
-	return total
-end
 
 local collectPassiveRemote = CachedRemotes["CollectPassive"]
 if collectPassiveRemote then
@@ -2292,23 +2277,14 @@ task.spawn(function()
 				end
 
 				local gained = PlayerData.TickPassiveIncome(p)
-
-				-- Brainrot income. This loop runs every 30 seconds (half a minute).
-				local perMin = brainrotGoldPerMin(p, data)
-				local brainrotGold = perMin * 0.5
-				if brainrotGold > 0 then
-					local banked = data.PassiveBanked or 0
-					-- Bank holds up to 2 hours of brainrot income (never shrinks what's already banked).
-					data.PassiveBanked = math.max(banked, math.min(banked + brainrotGold, perMin * 120))
-					gained += brainrotGold
-				end
+				PlayerData.TickShowcaseIncome(p)
 
 				if gained > 0 then
 					local passiveUpdateEvent = CachedRemotes["PassiveUpdate"]
 					if passiveUpdateEvent then
 						passiveUpdateEvent:FireClient(p, {
 							Banked = math.floor(data.PassiveBanked or 0),
-							BrainrotRate = perMin,
+							BrainrotRate = PlayerData.GetShowcaseRate(p) * 60,
 						})
 					end
 				end

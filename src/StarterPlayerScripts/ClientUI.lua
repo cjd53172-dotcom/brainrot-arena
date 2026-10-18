@@ -115,7 +115,8 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NameTagGui"
-	billboard.Size = UDim2.new(0, 110, 0, 28)
+	local income = model:GetAttribute("ShowcaseIncome")
+	billboard.Size = UDim2.new(0, 110, 0, if type(income) == "number" then 42 else 28)
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = 90
 	billboard.Adornee = part
@@ -187,6 +188,21 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 	nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 	nameLabel.LayoutOrder = 2
 	nameLabel.Parent = billboard
+
+	if type(income) == "number" and income > 0 then
+		local goldLabel = Instance.new("TextLabel")
+		goldLabel.Name = "IncomeLabel"
+		goldLabel.Size = UDim2.new(1, 0, 0, 12)
+		goldLabel.BackgroundTransparency = 1
+		goldLabel.Text = string.format("+%.2g/s", income)
+		goldLabel.Font = Enum.Font.GothamBlack
+		goldLabel.TextSize = 11
+		goldLabel.TextColor3 = Color3.fromRGB(255, 220, 70)
+		goldLabel.TextStrokeTransparency = 0
+		goldLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+		goldLabel.LayoutOrder = 3
+		goldLabel.Parent = billboard
+	end
 end
 
 local function hideIfForeignWild(inst: Instance)

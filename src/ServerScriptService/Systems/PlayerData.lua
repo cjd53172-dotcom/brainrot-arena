@@ -85,6 +85,8 @@ local function defaultData()
 		GoldMineLevel = 1,
 		PassiveBanked = 0, -- coins accumulated
 		LastPassiveTick = os.time(),
+		ShowcaseBanked = 0,
+		LastShowcaseTick = os.time(),
 		-- Base Customization:
 		PlotTheme = "default",
 		UnlockedThemes = { default = true },
@@ -485,11 +487,15 @@ function PlayerData.SetShowcase(player: Player, instanceIds: any): boolean
 	return true
 end
 
-function PlayerData.AddCoins(player: Player, amount: number)
+function PlayerData.AddCoins(player: Player, amount: number, skipEarnCut: boolean?)
 	local data = session[player.UserId]
-	if data then
-		data.Coins = math.max(0, data.Coins + amount)
+	if not data or type(amount) ~= "number" then
+		return
 	end
+	if amount > 0 and skipEarnCut ~= true then
+		amount *= (BrainrotData.COIN_EARN_MULT or 1)
+	end
+	data.Coins = math.max(0, data.Coins + amount)
 end
 
 -- Returns true if the player could afford it (deducts on success).
@@ -716,7 +722,7 @@ function PlayerData.TickPassiveIncome(player: Player): number
 	local ratePerSec = upgrade.RatePerMinute / 60
 	-- Cap: only bank up to PASSIVE_CAP_MINUTES worth.
 	local maxBank = BrainrotData.PASSIVE_CAP_MINUTES * upgrade.RatePerMinute
-	local earned = math.floor(elapsed * ratePerSec)
+	local earned = elapsed * ratePerSec * (BrainrotData.COIN_EARN_MULT or 1)
 	local newBank = math.min(maxBank, (data.PassiveBanked or 0) + earned)
 	local actualGain = newBank - (data.PassiveBanked or 0)
 	data.PassiveBanked = newBank
@@ -729,7 +735,53 @@ function PlayerData.CollectPassive(player: Player): number
 	local amount = math.floor(data.PassiveBanked or 0)
 	data.PassiveBanked = 0
 	if amount > 0 then
-		PlayerData.AddCoins(player, amount)
+		PlayerData.AddCoins(player, amount, true)
+	end
+	return amount
+end
+
+function PlayerData.GetShowcaseRate(player: Player): number
+	local data = session[player.UserId]
+	if not data then
+		return 0
+	end
+	local total = 0
+	for _, id in ipairs(data.Showcase or {}) do
+		local inst = PlayerData.GetInstance(player, id)
+		local def = inst and BrainrotData.GetById(inst.BrainrotId)
+		if def then
+			total += BrainrotData.GetShowcaseGoldPerSec(def.Rarity)
+		end
+	end
+	return total
+end
+
+function PlayerData.TickShowcaseIncome(player: Player)
+	local data = session[player.UserId]
+	if not data then
+		return
+	end
+	local now = os.time()
+	local elapsed = now - (data.LastShowcaseTick or now)
+	data.LastShowcaseTick = now
+	if elapsed <= 0 then
+		return
+	end
+	local rate = PlayerData.GetShowcaseRate(player)
+	local cap = math.max(rate * 600, 1)
+	data.ShowcaseBanked = math.min(cap, (data.ShowcaseBanked or 0) + elapsed * rate)
+end
+
+function PlayerData.CollectShowcase(player: Player): number
+	local data = session[player.UserId]
+	if not data then
+		return 0
+	end
+	PlayerData.TickShowcaseIncome(player)
+	local amount = math.floor(data.ShowcaseBanked or 0)
+	data.ShowcaseBanked = (data.ShowcaseBanked or 0) - amount
+	if amount > 0 then
+		PlayerData.AddCoins(player, amount, true)
 	end
 	return amount
 end
@@ -749,7 +801,7 @@ function PlayerData.UnlockTheme(player: Player, themeId: string): (boolean, stri
 	if not PlayerData.SpendCoins(player, theme.Cost) then return false, "Not enough coins" end
 	if not PlayerData.SpendRareMaterials(player, theme.Materials) then
 		-- Refund coins (shouldn't happen, but safe)
-		PlayerData.AddCoins(player, theme.Cost)
+		PlayerData.AddCoins(player, theme.Cost, true)
 		return false, "Need materials"
 	end
 	data.UnlockedThemes[themeId] = true

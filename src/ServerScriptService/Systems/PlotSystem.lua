@@ -16,6 +16,7 @@ local PlayerData = require(script.Parent:WaitForChild("PlayerData"))
 local VisualEffects = require(script.Parent:WaitForChild("VisualEffects"))
 
 local PlotSystem = {}
+PlotSystem.OnShowcaseCollected = nil :: ((Player, number) -> ())?
 
 local PLOT_COUNT = 6
 local PLOT_SIZE = 52
@@ -2102,10 +2103,46 @@ function PlotSystem.RefreshPlot(player: Player)
 			end
 			display.Parent = displays
 			placeModelOnTop(display, ped, 0.1)
+			display:SetAttribute("ShowcaseOwner", player.UserId)
+			display:SetAttribute("ShowcaseIncome", BrainrotData.GetShowcaseGoldPerSec(def.Rarity))
+			local hitbox = Instance.new("Part")
+			hitbox.Name = "ShowcaseCollect"
+			hitbox.Size = Vector3.new(6, 8, 6)
+			hitbox.Transparency = 1
+			hitbox.CanCollide = false
+			hitbox.CanTouch = true
+			hitbox.Anchored = true
+			hitbox.Massless = true
+			local pivot = display:GetPivot()
+			hitbox.CFrame = pivot + Vector3.new(0, 2, 0)
+			hitbox.Parent = display
+			local lastCollect = 0
+			hitbox.Touched:Connect(function(hit: BasePart)
+				local now = os.clock()
+				if now - lastCollect < 0.8 then
+					return
+				end
+				local char = hit and hit.Parent
+				local who = char and game:GetService("Players"):GetPlayerFromCharacter(char)
+				if not who or who.UserId ~= player.UserId then
+					return
+				end
+				lastCollect = now
+				local got = PlayerData.CollectShowcase(player)
+				if got > 0 then
+					local cb = PlotSystem.OnShowcaseCollected
+					if cb then
+						cb(player, got)
+					end
+				end
+			end)
 			local pedRef = ped
 			task.defer(function()
 				if display.Parent and pedRef.Parent then
 					placeModelOnTop(display, pedRef, 0.1)
+					if hitbox.Parent then
+						hitbox.CFrame = display:GetPivot() + Vector3.new(0, 2, 0)
+					end
 				end
 			end)
 		end
