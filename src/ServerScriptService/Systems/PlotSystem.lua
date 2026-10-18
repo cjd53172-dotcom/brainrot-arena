@@ -306,41 +306,47 @@ local function autoImportPack()
 	end
 
 	local matched = 0
-	local normalFolder: Instance? = nil
-	for _, child in ipairs(pack:GetChildren()) do
-		if child.Name:lower() == "normal"
-			and (child:IsA("Folder") or child:IsA("Model")) then
-			normalFolder = child
-			break
+	local function importChild(child: Instance, variantId: string?)
+		if not (child:IsA("Model") or child:IsA("Folder") or child:IsA("BasePart")) then
+			return
 		end
-	end
-	local source: Instance = normalFolder or pack
-	for _, child in ipairs(source:GetChildren()) do
-		if child:IsA("Model") or child:IsA("Folder") or child:IsA("BasePart") then
-			if source == pack then
-				local id = packNameToId(child.Name)
-				if not id then
-					continue
-				end
-			end
-			table.insert({}, child)
-		end
-	end
-	for _, child in ipairs(source:GetChildren()) do
 		local id = packNameToId(child.Name)
-		if id then
-			matched += 1
+		if not id then
+			return
 		end
-		if id and not modelsFolder:FindFirstChild(id) then
-			local copy = child:Clone()
-			for _, d in ipairs(copy:GetDescendants()) do
-				if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript")
-					or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
-					d:Destroy()
+		matched += 1
+		local storeName = if variantId then (id .. "__" .. variantId) else id
+		if modelsFolder:FindFirstChild(storeName) then
+			return
+		end
+		local copy = child:Clone()
+		for _, d in ipairs(copy:GetDescendants()) do
+			if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript")
+				or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
+				d:Destroy()
+			end
+		end
+		copy.Name = storeName
+		copy.Parent = modelsFolder
+	end
+
+	local packFolders = BrainrotData.PACK_FOLDERS
+	local importedFromFolders = false
+	for _, child in ipairs(pack:GetChildren()) do
+		local key = string.lower(child.Name):gsub("ó", "o")
+		if packFolders[key] ~= nil or key == "normal" then
+			if child:IsA("Folder") or child:IsA("Model") then
+				importedFromFolders = true
+				local variantId = packFolders[key]
+				for _, model in ipairs(child:GetChildren()) do
+					importChild(model, variantId)
 				end
 			end
-			copy.Name = id
-			copy.Parent = modelsFolder
+		end
+	end
+	if not importedFromFolders then
+		for _, child in ipairs(pack:GetChildren()) do
+			importChild(child, nil)
 		end
 	end
 
@@ -352,10 +358,17 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 11-arenaground")
+print("[PlotSystem] source 12-combatpack")
+
+function PlotSystem.SetArenaBoardText(text: string)
+	local label = PlotSystem.ArenaBoardLabel
+	if label and label:IsA("TextLabel") then
+		(label :: TextLabel).Text = text
+	end
+end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v11-arenaground")
+	print("[PlotSystem] Loaded placement v12-combatpack")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -852,6 +865,39 @@ function PlotSystem.Setup()
 	local colosseum = VisualEffects.BuildColosseum(arenaCenter, ARENA_SCALE)
 	colosseum.Parent = plaza
 
+	local board = newPart({
+		Name = "ChampionBoard",
+		Size = Vector3.new(16, 11, 1.2),
+		Position = Vector3.new(ARENA_X + 78, arenaTopY + 7, ARENA_Z + 78),
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(40, 32, 22),
+	}, plaza)
+	local boardGui = Instance.new("SurfaceGui")
+	boardGui.Face = Enum.NormalId.Front
+	boardGui.Parent = board
+	local boardLabel = Instance.new("TextLabel")
+	boardLabel.Name = "RankText"
+	boardLabel.Size = UDim2.new(1, -16, 1, -16)
+	boardLabel.Position = UDim2.new(0, 8, 0, 8)
+	boardLabel.BackgroundTransparency = 1
+	boardLabel.Text = "ARENA CHAMPIONS\nWin battles to claim a name."
+	boardLabel.Font = Enum.Font.GothamBold
+	boardLabel.TextSize = 22
+	boardLabel.TextColor3 = Color3.fromRGB(255, 220, 120)
+	boardLabel.TextStrokeTransparency = 0.4
+	boardLabel.TextWrapped = true
+	boardLabel.TextYAlignment = Enum.TextYAlignment.Top
+	boardLabel.Parent = boardGui
+	PlotSystem.ArenaBoardLabel = boardLabel
+	local boardPrompt = Instance.new("ProximityPrompt")
+	boardPrompt.ActionText = "Read Champions"
+	boardPrompt.ObjectText = "Leaderboard"
+	boardPrompt.HoldDuration = 0
+	boardPrompt.MaxActivationDistance = 18
+	boardPrompt.Parent = board
+	PlotSystem.ArenaBoardPrompt = boardPrompt
+
 	local obby = Instance.new("Model")
 	obby.Name = "CoinObby"
 
@@ -1259,12 +1305,18 @@ local function addDressing(model: Model, height: number, def: any, variantId: st
 	-- Rarity stays on this floor plate so the air above the plot stays readable.
 end
 
-local function findCustomModel(def: any): Instance?
+local function findCustomModel(def: any, variantId: string?): Instance?
 	local folder = ReplicatedStorage:FindFirstChild("BrainrotModels")
 	if not (folder and folder:IsA("Folder")) then
 		return nil
 	end
-	local exact = folder:FindFirstChild(def.Id, true)
+	if variantId and variantId ~= "" then
+		local variantModel = folder:FindFirstChild(def.Id .. "__" .. variantId)
+		if variantModel then
+			return variantModel
+		end
+	end
+	local exact = folder:FindFirstChild(def.Id)
 	if exact then
 		return exact
 	end
@@ -1393,7 +1445,7 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 end
 
 function PlotSystem.BuildDisplayModel(def: any, isShiny: boolean, variantId: string?): Model
-	local custom = findCustomModel(def)
+	local custom = findCustomModel(def, variantId)
 	if custom then
 		local fromCustom = buildFromCustom(def, custom, isShiny, variantId)
 		if fromCustom then
@@ -2092,6 +2144,20 @@ end
 function PlotSystem.PlayBattleEvent(player: Player, event: any)
 	local rec = battleArenas[player.UserId]
 	if not rec or not event then
+		return
+	end
+	if event.kind == "heal" or event.kind == "boost" then
+		local atkTeam = if event.attackerSide == "player" then rec.pModels else rec.eModels
+		local atk = atkTeam[event.attackerIdx]
+		if atk and atk.model and atk.model.Parent then
+			burst(rec.folder, atk.baseCF.Position + Vector3.new(0, 2, 0),
+				if event.kind == "heal" then Color3.fromRGB(80, 220, 120) else Color3.fromRGB(255, 200, 80),
+				18, 12, 0.7)
+			if atk.hpBar and event.targetHp ~= nil then
+				setHpBar(atk.hpBar, event.targetHp, atk.maxHp)
+			end
+			task.wait(0.45)
+		end
 		return
 	end
 	local atkTeam = if event.attackerSide == "player" then rec.pModels else rec.eModels

@@ -93,14 +93,8 @@ function EggSystem.HatchEgg(player: Player, eggId: string): any?
 	if #candidates == 0 then return nil end
 	local picked = candidates[math.random(1, #candidates)]
 
-	-- Roll shiny (standard chance) and variant (20% as usual)
 	local shiny = math.random() < BrainrotData.SHINY_CHANCE
-	local variantId = nil
-	if math.random() < 0.2 then
-		local variantKeys = {}
-		for k in pairs(BrainrotData.VARIANTS) do table.insert(variantKeys, k) end
-		variantId = variantKeys[math.random(1, #variantKeys)]
-	end
+	local variantId = BrainrotData.RollVariant()
 
 	local inst, errMsg = PlayerData.TryAddBrainrot(player, picked.Id, shiny, variantId)
 	if not inst then

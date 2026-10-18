@@ -917,7 +917,7 @@ local arenaTitle = Instance.new("TextLabel")
 arenaTitle.Size = UDim2.new(1, 0, 0, 40)
 arenaTitle.Position = UDim2.new(0, 0, 0, 8)
 arenaTitle.BackgroundTransparency = 1
-arenaTitle.Text = "⚔ Arena — pick 3 fighters, then a rival"
+arenaTitle.Text = "⚔ Arena — pick 3, then a gate (1–100)"
 arenaTitle.Font = Enum.Font.GothamBold
 arenaTitle.TextSize = 17
 arenaTitle.TextColor3 = Color3.fromRGB(255, 170, 170)
@@ -1063,7 +1063,7 @@ local function refreshArenaPanel()
 		local locked = i > 1 and not beatenRivals[BrainrotData.RIVALS[i - 1].Id]
 		local beaten = beatenRivals[rival.Id] == true
 		local card = Instance.new("Frame")
-		card.Size = UDim2.new(1, -12, 0, 64)
+		card.Size = UDim2.new(1, -12, 0, 74)
 		card.BackgroundColor3 = if locked then Color3.fromRGB(30, 30, 34)
 			elseif beaten then Color3.fromRGB(35, 55, 35)
 			else Color3.fromRGB(45, 30, 30)
@@ -1082,7 +1082,11 @@ local function refreshArenaPanel()
 		info.Size = UDim2.new(1, -110, 1, 0)
 		info.Position = UDim2.new(0, 10, 0, 0)
 		info.BackgroundTransparency = 1
-		info.Text = rival.Name .. " — " .. rival.Title .. "\n" .. table.concat(teamNames, ", ")
+		local rewardBits = { "+" .. tostring(rival.RewardCoins or 0) .. " coins" }
+		if rival.RewardRarity then
+			table.insert(rewardBits, rival.RewardRarity .. " brainrot")
+		end
+		info.Text = rival.Name .. " — " .. rival.Title .. "\n" .. table.concat(teamNames, ", ") .. "\n" .. table.concat(rewardBits, " · ")
 		info.Font = Enum.Font.Gotham
 		info.TextSize = 12
 		info.TextColor3 = if locked then Color3.fromRGB(120, 120, 130) else Color3.new(1, 1, 1)
@@ -1318,15 +1322,19 @@ local function fighterAlive(i: number): boolean
 end
 
 local function refreshMoveButtons()
+	local st: any = currentBattleState
+	local waiting = st and st.waitingFor
+	local waitIdx = if waiting and waiting.side == "player" then waiting.idx else 0
 	for i = 1, 3 do
 		local alive = fighterAlive(i)
+		local myTurn = alive and i == waitIdx
 		for _, b in ipairs(playerCards[i].moveBtns) do
 			local mb = b :: TextButton
-			mb.Active = alive
-			mb.AutoButtonColor = alive
-			mb.BackgroundTransparency = if alive then 0 else 0.7
+			mb.Active = myTurn
+			mb.AutoButtonColor = myTurn
+			mb.BackgroundTransparency = if myTurn then 0 else 0.7
 		end
-		playerCards[i].card.BackgroundTransparency = if alive then 0.3 else 0.7
+		playerCards[i].card.BackgroundTransparency = if myTurn then 0.05 elseif alive then 0.3 else 0.7
 	end
 end
 
@@ -1336,20 +1344,18 @@ local function trySubmitMoves()
 	if not battleActive then
 		return
 	end
-	local picks: { number } = {}
-	for i = 1, 3 do
-		if fighterAlive(i) then
-			local m = lockedMoves[i]
-			if not m then
-				return
-			end
-			picks[i] = m
-		else
-			picks[i] = 1
-		end
+	local st: any = currentBattleState
+	local waiting = st and st.waitingFor
+	if not waiting or waiting.side ~= "player" then
+		return
+	end
+	local slot = waiting.idx
+	local m = lockedMoves[slot]
+	if not m then
+		return
 	end
 	battleActive = false
-	submitMovesRemote:FireServer(picks)
+	submitMovesRemote:FireServer({ Slot = slot, Move = m })
 end
 
 local function buildBattleUI(state: any)
@@ -1385,7 +1391,8 @@ local function buildBattleUI(state: any)
 			mb.Size = UDim2.new(0.26, 0, 0, 30)
 			mb.Position = UDim2.new(0.44 + (mi - 1) * 0.28, 0, 0, 4)
 			mb.BackgroundColor3 = MOVE_TYPE_COLORS[move.Type] or Color3.fromRGB(45, 60, 45)
-			mb.Text = move.Name .. "\n" .. tostring(move.Power) .. " PWR"
+			local extra = if move.Effect then string.upper(tostring(move.Effect)) else (tostring(move.Power) .. " PWR")
+			mb.Text = move.Name .. "\n" .. extra
 			mb.Font = Enum.Font.GothamBold
 			mb.TextSize = 10
 			mb.TextColor3 = Color3.new(1, 1, 1)
@@ -1417,7 +1424,8 @@ local function buildBattleUI(state: any)
 	end
 	battleActive = true
 	refreshMoveButtons()
-	battleLogLine("Battle started! Pick a move for each fighter.", Color3.fromRGB(255, 220, 120))
+	local waitName = state.waitingFor and state.waitingFor.name or "your fighter"
+	battleLogLine("Speed order! " .. waitName .. " is up first — pick a move.", Color3.fromRGB(255, 220, 120))
 end
 
 local function applyTurn(payload: any)
@@ -1425,7 +1433,13 @@ local function applyTurn(payload: any)
 	local events = payload.Events or {}
 	task.spawn(function()
 		for _, ev in ipairs(events) do
-			if ev.miss then
+			if ev.kind == "heal" then
+				battleLogLine(("%s used %s and recovered %d HP!"):format(ev.attackerName, ev.moveName, ev.heal or 0),
+					Color3.fromRGB(120, 255, 160))
+			elseif ev.kind == "boost" then
+				battleLogLine(("%s used %s — %s rose!"):format(ev.attackerName, ev.moveName, ev.boost or "power"),
+					Color3.fromRGB(255, 210, 90))
+			elseif ev.miss then
 				battleLogLine(("%s's %s missed %s!"):format(ev.attackerName, ev.moveName, ev.targetName),
 					Color3.fromRGB(170, 170, 170))
 			else
@@ -1496,7 +1510,8 @@ local function applyTurn(payload: any)
 				end
 				battleActive = true
 				refreshMoveButtons()
-				battleLogLine("Pick your moves!", Color3.fromRGB(255, 220, 120))
+				local waitName = state.waitingFor and state.waitingFor.name or "your fighter"
+				battleLogLine(waitName .. "'s turn — pick a move.", Color3.fromRGB(255, 220, 120))
 			end
 		end
 	end)
@@ -2428,6 +2443,9 @@ battleUpdateRemote.OnClientEvent:Connect(function(payload: any)
 		arenaPanel.Visible = false
 		buildBattleUI(payload.State)
 		battlePanel.Visible = true
+		if payload.Events and #payload.Events > 0 then
+			applyTurn(payload)
+		end
 	elseif payload.Phase == "Turn" then
 		applyTurn(payload)
 	elseif payload.Phase == "End" then
@@ -2982,13 +3000,6 @@ local function buildMobileBar()
 		{ Icon = "⛏️", Label = "Mine", Panel = minePanel, Refresh = refreshMinePanel },
 		{ Icon = "🎨", Label = "Style", Panel = customizePanel, Refresh = refreshCustomizePanel },
 		{ Icon = "🎣", Label = "Fish", Panel = fishingPanel, Refresh = refreshFishingPanel },
-		{ Icon = "🏆", Label = "Ranks", Request = function()
-			if leaderboardPanel.Visible then
-				leaderboardPanel.Visible = false
-			else
-				remotes:WaitForChild("LeaderboardUpdate"):FireServer()
-			end
-		end },
 	}
 	for _, item in ipairs(mobileButtons) do
 		local mBtn = Instance.new("TextButton")
@@ -3174,32 +3185,8 @@ do
 
 	lbRemote.OnClientEvent:Connect(function(data: any)
 		refreshLeaderboard(data)
-		if not leaderboardPanel.Visible then
-			hideAllPanels()
-			leaderboardPanel.Visible = true
-		end
 	end)
 
-	if not isMobile then
-		local lbBtn = Instance.new("TextButton")
-		lbBtn.Size = UDim2.new(0, 104, 0, 40)
-		lbBtn.Position = UDim2.new(0.5, 284, 1, -220)
-		lbBtn.BackgroundColor3 = Color3.fromRGB(60, 50, 20)
-		lbBtn.Text = "🏆 Ranks"
-		lbBtn.Font = Enum.Font.GothamBold
-		lbBtn.TextSize = 13
-		lbBtn.TextColor3 = Color3.fromRGB(255, 210, 100)
-		lbBtn.Parent = gui
-		corner(lbBtn, 10)
-		styleFrame(lbBtn, false)
-		lbBtn.MouseButton1Click:Connect(function()
-			-- Second click closes the panel (it had no way to close before).
-			if leaderboardPanel.Visible then
-				leaderboardPanel.Visible = false
-			else
-				lbRemote:FireServer()
-			end
-		end)
-	end
+	-- Ranks UI removed: the champion board lives at the arena.
 end
 

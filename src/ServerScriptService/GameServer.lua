@@ -611,6 +611,7 @@ if startBattleRemote then
 		if battleUpdateEvent then
 			battleUpdateEvent:FireClient(player, {
 				Phase = "Start",
+				Events = battle.openingEvents or {},
 				State = BattleSystem.GetClientState(player),
 			})
 		end
@@ -641,6 +642,18 @@ if submitMovesRemote then
 		if result.winner == "player" then
 			LeaderboardSystem.RecordWin(player)
 			SoundSystem.PlayForPlayer(player, "BattleWin")
+			task.defer(function()
+				local top = LeaderboardSystem.GetTop(10)
+				local lines = { "ARENA CHAMPIONS" }
+				if #top == 0 then
+					table.insert(lines, "Win a battle to take the throne.")
+				else
+					for i, entry in ipairs(top) do
+						table.insert(lines, tostring(i) .. ". " .. tostring(entry.Name) .. "  —  " .. tostring(entry.Wins))
+					end
+				end
+				PlotSystem.SetArenaBoardText(table.concat(lines, "\n"))
+			end)
 
 			local newAch = AchievementSystem.RecordProgress(player, "battles_won", 1)
 			for _, achId in ipairs(newAch) do
@@ -725,6 +738,24 @@ if PlotSystem.ArenaPrompt then
 					return d and d.RivalsBeaten or {}
 				end)(),
 			})
+		end
+	end)
+end
+if PlotSystem.ArenaBoardPrompt then
+	PlotSystem.ArenaBoardPrompt.Triggered:Connect(function(player: Player)
+		local top = LeaderboardSystem.GetTop(10)
+		local lines = { "ARENA CHAMPIONS" }
+		if #top == 0 then
+			table.insert(lines, "Win a battle to take the throne.")
+		else
+			for i, entry in ipairs(top) do
+				table.insert(lines, tostring(i) .. ". " .. tostring(entry.Name) .. "  —  " .. tostring(entry.Wins))
+			end
+		end
+		PlotSystem.SetArenaBoardText(table.concat(lines, "\n"))
+		local hintEvent = CachedRemotes["ShowHint"]
+		if hintEvent then
+			hintEvent:FireClient(player, "Champions are listed on this board.")
 		end
 	end)
 end

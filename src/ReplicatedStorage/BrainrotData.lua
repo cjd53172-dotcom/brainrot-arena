@@ -14,12 +14,55 @@ local BrainrotData = {}
 BrainrotData.TYPES = { "Wood", "Water", "Fire", "Sky", "Shadow" }
 
 -- Attacker type -> defender type -> damage multiplier. Anything unlisted = 1x.
+-- Every type has two strengths and two resists so matchups always matter.
 BrainrotData.EFFECTIVENESS = {
-	Wood   = { Water = 2,   Fire = 0.5 },
-	Water  = { Fire = 2,    Wood = 0.5 },
-	Fire   = { Wood = 2,    Water = 0.5 },
-	Sky    = { Wood = 2,    Shadow = 0.5 },
-	Shadow = { Sky = 2,     Fire = 0.5 },
+	Wood   = { Water = 2, Shadow = 2, Fire = 0.5, Sky = 0.5 },
+	Water  = { Fire = 2,  Sky = 2,    Wood = 0.5, Shadow = 0.5 },
+	Fire   = { Wood = 2,  Shadow = 2, Water = 0.5, Sky = 0.5 },
+	Sky    = { Wood = 2,  Fire = 2,   Shadow = 0.5, Water = 0.5 },
+	Shadow = { Sky = 2,   Water = 2,  Fire = 0.5, Wood = 0.5 },
+}
+
+-- Commons stay glass cannons; legendaries carry the late ladder.
+BrainrotData.RARITY_POWER = {
+	Common = 0.68,
+	Rare = 1.00,
+	Epic = 1.34,
+	Legendary = 1.75,
+}
+
+-- Extra coverage / utility so every brainrot has a 4-move kit.
+BrainrotData.TYPE_MOVES = {
+	Wood = {
+		{ Name = "Vine Snap", Type = "Wood", Power = 40, Accuracy = 100, Description = "A quick lash of vines." },
+		{ Name = "Timber Crash", Type = "Wood", Power = 80, Accuracy = 88, Description = "A falling-tree haymaker." },
+		{ Name = "Root Guard", Type = "Wood", Power = 0, Accuracy = 100, Effect = "shield", Description = "Harden bark. Defense up." },
+		{ Name = "Spore Dart", Type = "Wood", Power = 55, Accuracy = 95, Description = "Needles of living green." },
+	},
+	Water = {
+		{ Name = "Puddle Jab", Type = "Water", Power = 40, Accuracy = 100, Description = "A wet slap that stings." },
+		{ Name = "Tidal Crush", Type = "Water", Power = 80, Accuracy = 88, Description = "A wall of water." },
+		{ Name = "Soak", Type = "Water", Power = 0, Accuracy = 100, Effect = "heal", Description = "Drink deep. Restore HP." },
+		{ Name = "Riptide", Type = "Water", Power = 55, Accuracy = 95, Description = "Drag them under." },
+	},
+	Fire = {
+		{ Name = "Spark Bite", Type = "Fire", Power = 40, Accuracy = 100, Description = "A hot nibble." },
+		{ Name = "Magma Burst", Type = "Fire", Power = 80, Accuracy = 88, Description = "The floor is lava." },
+		{ Name = "Hype Up", Type = "Fire", Power = 0, Accuracy = 100, Effect = "focus", Description = "Attack sharply up." },
+		{ Name = "Cinder Shot", Type = "Fire", Power = 55, Accuracy = 95, Description = "A coal straight to the face." },
+	},
+	Sky = {
+		{ Name = "Gust Peck", Type = "Sky", Power = 40, Accuracy = 100, Description = "Wind and beak." },
+		{ Name = "Cyclone Dive", Type = "Sky", Power = 80, Accuracy = 88, Description = "From the clouds, hard." },
+		{ Name = "Tailwind", Type = "Sky", Power = 0, Accuracy = 100, Effect = "focus", Description = "Speed of the wind. Attack up." },
+		{ Name = "Cloud Cut", Type = "Sky", Power = 55, Accuracy = 95, Description = "A blade of compressed air." },
+	},
+	Shadow = {
+		{ Name = "Hex Nibble", Type = "Shadow", Power = 40, Accuracy = 100, Description = "A curse with teeth." },
+		{ Name = "Void Slam", Type = "Shadow", Power = 80, Accuracy = 88, Description = "Darkness packed into a fist." },
+		{ Name = "Night Sip", Type = "Shadow", Power = 0, Accuracy = 100, Effect = "heal", Description = "Steal a little life back." },
+		{ Name = "Bad Omen", Type = "Shadow", Power = 55, Accuracy = 95, Description = "They already lost." },
+	},
 }
 
 function BrainrotData.GetEffectiveness(attackType: string, defendType: string): number
@@ -132,31 +175,101 @@ local VARIANTS: { [string]: any } = {
 	},
 	gilded = {
 		Name = "Gilded",
-		Type = nil, -- keeps the brainrot's own type and moves
+		Type = nil,
 		Weight = 1,
 		Tint = function(_c: Color3): Color3
 			return Color3.fromHSV(0.12, 0.85, 1)
 		end,
 		Moves = nil,
 	},
+	oro = {
+		Name = "Oro",
+		Type = nil,
+		Tint = function(_c: Color3): Color3
+			return Color3.fromHSV(0.12, 0.9, 1)
+		end,
+	},
+	lava = {
+		Name = "Lava",
+		Type = "Fire",
+		Tint = function(_c: Color3): Color3
+			return Color3.fromHSV(0.04, 1, 1)
+		end,
+	},
+	diamante = {
+		Name = "Diamante",
+		Type = "Sky",
+		Tint = function(_c: Color3): Color3
+			return Color3.fromHSV(0.55, 0.25, 1)
+		end,
+	},
+	galaxia = {
+		Name = "Galaxia",
+		Type = "Shadow",
+		Tint = function(_c: Color3): Color3
+			return Color3.fromHSV(0.75, 0.85, 0.7)
+		end,
+	},
+	hacker = {
+		Name = "Hacker",
+		Type = "Shadow",
+		Tint = function(_c: Color3): Color3
+			return Color3.fromHSV(0.38, 1, 0.9)
+		end,
+	},
+	arcoiris = {
+		Name = "Arcoíris",
+		Type = nil,
+		Tint = function(c: Color3): Color3
+			local h, s, v = Color3.toHSV(c)
+			return Color3.fromHSV((h + 0.2) % 1, math.min(1, s + 0.2), math.min(1, v + 0.1))
+		end,
+	},
+	solido = {
+		Name = "Sólido",
+		Type = "Wood",
+		Tint = function(c: Color3): Color3
+			local h, s, v = Color3.toHSV(c)
+			return Color3.fromHSV(h, s * 0.4, v * 0.75)
+		end,
+	},
 }
 BrainrotData.VARIANTS = VARIANTS
 
--- Weighted roll: 80% base form, otherwise one of the variant templates.
+-- Pack folder name (lowercased) -> variant id. Normal stays the base form.
+BrainrotData.PACK_FOLDERS = {
+	normal = nil,
+	oro = "oro",
+	lava = "lava",
+	diamante = "diamante",
+	galaxia = "galaxia",
+	hacker = "hacker",
+	arcoiris = "arcoiris",
+	solido = "solido",
+}
+
+-- Normal is most of the drops; Galaxia is a trophy.
+BrainrotData.VARIANT_ROLL = {
+	{ Id = nil, Weight = 72 },
+	{ Id = "solido", Weight = 9 },
+	{ Id = "oro", Weight = 7 },
+	{ Id = "lava", Weight = 5 },
+	{ Id = "arcoiris", Weight = 3.5 },
+	{ Id = "diamante", Weight = 2 },
+	{ Id = "hacker", Weight = 1 },
+	{ Id = "galaxia", Weight = 0.5 },
+}
+
 function BrainrotData.RollVariant(): string?
-	if math.random() < 0.8 then
-		return nil
-	end
 	local total = 0
-	for _, v in pairs(VARIANTS) do
-		total += v.Weight
+	for _, row in ipairs(BrainrotData.VARIANT_ROLL) do
+		total += row.Weight
 	end
 	local roll = math.random() * total
-	local acc = 0
-	for id, v in pairs(VARIANTS) do
-		acc += v.Weight
-		if roll <= acc then
-			return id
+	for _, row in ipairs(BrainrotData.VARIANT_ROLL) do
+		roll -= row.Weight
+		if roll <= 0 then
+			return row.Id
 		end
 	end
 	return nil
@@ -168,6 +281,31 @@ function BrainrotData.GetEffectiveType(def: any, variantId: string?): string
 		return v.Type
 	end
 	return def.Type
+end
+
+function BrainrotData.GetBattleMoves(def: any, variantId: string?): { any }
+	local moves: { any } = {}
+	local seen: { [string]: boolean } = {}
+	local variant = if variantId then VARIANTS[variantId] else nil
+	local src = (variant and variant.Moves) or def.Moves or {}
+	for _, m in ipairs(src) do
+		if m.Name and not seen[m.Name] then
+			seen[m.Name] = true
+			table.insert(moves, m)
+		end
+	end
+	local t = BrainrotData.GetEffectiveType(def, variantId)
+	local pool = BrainrotData.TYPE_MOVES[t] or BrainrotData.TYPE_MOVES.Wood
+	for _, extra in ipairs(pool) do
+		if #moves >= 4 then
+			break
+		end
+		if extra.Name and not seen[extra.Name] then
+			seen[extra.Name] = true
+			table.insert(moves, extra)
+		end
+	end
+	return moves
 end
 
 function BrainrotData.GetMoves(def: any, variantId: string?): any
@@ -1985,39 +2123,83 @@ function BrainrotData.GetWorkIdForType(brainrotType: string): string?
 	return nil
 end
 
--- AI rival ladder for the Arena. Unlocks sequentially.
-BrainrotData.RIVALS = {
-	{
-		Id = "rival_rookie",
-		Name = "Rookie Rocco",
-		Title = "Backyard Battler",
-		Team = { "tung_sahur", "tralalero", "ballerina" },
-	},
-	{
-		Id = "rival_scout",
-		Name = "Scout Svinina",
-		Title = "Wild Watcher",
-		Team = { "svinina", "lirili", "cacto" },
-	},
-	{
-		Id = "rival_captain",
-		Name = "Captain Bombardiro",
-		Title = "Sky Commander",
-		Team = { "bombardiro", "frigo_camelo", "orcalero" },
-	},
-	{
-		Id = "rival_champion",
-		Name = "Champion Chicleteira",
-		Title = "Arena Legend",
-		Team = { "chicleteira", "cocofanto", "pot_hotspot" },
-	},
-	{
-		Id = "rival_master",
-		Name = "Master Matteo",
-		Title = "Brainrot Master",
-		Team = { "matteo", "odin_din_din_dun", "ta_ta_ta_ta_sahur" },
-	},
+-- 100 sequential arena gates. Teams and power scale with the gate number.
+local function idsOfRarity(rarity: string): { string }
+	local pool = {}
+	for _, def in ipairs(BrainrotData.ROSTER) do
+		if def.Rarity == rarity then
+			table.insert(pool, def.Id)
+		end
+	end
+	return pool
+end
+
+local commonIds = idsOfRarity("Common")
+local rareIds = idsOfRarity("Rare")
+local epicIds = idsOfRarity("Epic")
+local legendIds = idsOfRarity("Legendary")
+
+local function cycleId(pool: { string }, n: number, offset: number): string
+	if #pool == 0 then
+		return "tung_sahur"
+	end
+	return pool[((n + offset - 1) % #pool) + 1]
+end
+
+local function teamForGate(n: number): { string }
+	if n <= 12 then
+		return { cycleId(commonIds, n, 0), cycleId(commonIds, n, 3), cycleId(commonIds, n, 7) }
+	elseif n <= 28 then
+		return { cycleId(commonIds, n, 1), cycleId(commonIds, n, 5), cycleId(rareIds, n, 0) }
+	elseif n <= 45 then
+		return { cycleId(commonIds, n, 2), cycleId(rareIds, n, 1), cycleId(rareIds, n, 4) }
+	elseif n <= 62 then
+		return { cycleId(rareIds, n, 2), cycleId(rareIds, n, 6), cycleId(epicIds, n, 0) }
+	elseif n <= 78 then
+		return { cycleId(rareIds, n, 3), cycleId(epicIds, n, 1), cycleId(epicIds, n, 5) }
+	elseif n <= 90 then
+		return { cycleId(epicIds, n, 2), cycleId(epicIds, n, 6), cycleId(legendIds, n, 0) }
+	elseif n <= 99 then
+		return { cycleId(epicIds, n, 3), cycleId(legendIds, n, 1), cycleId(legendIds, n, 4) }
+	end
+	return { cycleId(legendIds, n, 0), cycleId(legendIds, n, 2), cycleId(legendIds, n, 5) }
+end
+
+local GATE_TITLES = {
+	"Backyard Brawler", "Street Scrapper", "Harbor Hitter", "Forest Duelist",
+	"River Rascal", "Hill Hunter", "Cave Crusher", "Sky Scrapper",
+	"Ember Acolyte", "Tide Warden", "Shadow Pupil", "Timber Knight",
+	"Arena Regular", "Pit Veteran", "Crowd Favorite", "Gatekeeper",
+	"Storm Caller", "Ash Champion", "Deep Current", "Night Blade",
+	"Colosseum Elite", "Grand Duelist", "War Priest", "Finalist",
+	"Undefeated", "World Threat", "Brainrot King", "Last Legend",
 }
+
+BrainrotData.RIVALS = {}
+for n = 1, 100 do
+	local coins = 180 + n * 45 + math.floor(n * n * 0.65)
+	local rarityReward: string? = nil
+	if n == 100 then
+		rarityReward = "Legendary"
+		coins += 20000
+	elseif n % 25 == 0 then
+		rarityReward = "Legendary"
+	elseif n % 10 == 0 then
+		rarityReward = "Epic"
+	elseif n % 5 == 0 then
+		rarityReward = "Rare"
+	end
+	table.insert(BrainrotData.RIVALS, {
+		Id = "gate_" .. string.format("%03d", n),
+		Name = "Battle " .. tostring(n),
+		Title = GATE_TITLES[((n - 1) % #GATE_TITLES) + 1],
+		Team = teamForGate(n),
+		PowerScale = 0.55 + ((n - 1) / 99) * 1.85,
+		RewardCoins = coins,
+		RewardRarity = rarityReward,
+		Gate = n,
+	})
+end
 
 local rivalById = {}
 for _, rival in ipairs(BrainrotData.RIVALS) do
