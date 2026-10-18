@@ -352,10 +352,10 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 10-arenapad")
+print("[PlotSystem] source 11-arenaground")
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v10-arenapad")
+	print("[PlotSystem] Loaded placement v11-arenaground")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -391,6 +391,30 @@ function PlotSystem.Setup()
 				CFrame.new(cx, topY - thickness / 2, cz),
 				Vector3.new(pad, thickness, pad),
 				Enum.Material.Air
+			)
+		end)
+	end
+
+	local function minGroundY(cx: number, cz: number, half: number): number
+		local m = groundY(cx, cz)
+		for _, ox in ipairs({ -half, half }) do
+			for _, oz in ipairs({ -half, half }) do
+				local h = groundY(cx + ox, cz + oz)
+				if h < m then m = h end
+			end
+		end
+		return m
+	end
+
+	-- Solid flat plateau so the arena does not float over an air pit.
+	local function fillSolidPad(cx: number, cz: number, topY: number, padSize: number, lowY: number)
+		local bottom = math.min(lowY, topY) - 28
+		local height = (topY - bottom) + 2
+		pcall(function()
+			workspace.Terrain:FillBlock(
+				CFrame.new(cx, bottom + height / 2, cz),
+				Vector3.new(padSize, height, padSize),
+				Enum.Material.Concrete
 			)
 		end)
 	end
@@ -753,8 +777,10 @@ function PlotSystem.Setup()
 	local arena = Instance.new("Model")
 	arena.Name = "Arena"
 	local s = ARENA_SCALE
-	local arenaTopY = maxGroundY(ARENA_X, ARENA_Z, ARENA_PAD / 2)
-	flattenPad(ARENA_X, ARENA_Z, arenaTopY, ARENA_PAD)
+	-- Use the hill under the arena, not a neighboring cliff, as the floor height.
+	local arenaTopY = groundY(ARENA_X, ARENA_Z)
+	local arenaLowY = minGroundY(ARENA_X, ARENA_Z, ARENA_PAD / 2)
+	fillSolidPad(ARENA_X, ARENA_Z, arenaTopY, ARENA_PAD, arenaLowY)
 	newPart({
 		Name = "GroundSlab",
 		Size = Vector3.new(ARENA_PAD, 8, ARENA_PAD),
