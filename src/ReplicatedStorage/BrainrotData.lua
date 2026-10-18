@@ -92,6 +92,8 @@ BrainrotData.FLIP_UPSIDE_DOWN = {
 	pipi_potato = true,
 	pipi_kiwi = true,
 	chillin_chili = true,
+	cappuccino_assassino = true,
+	espresso_signora = true,
 } :: { [string]: boolean }
 
 -- // Collection rules -----------------------------------------------------------
