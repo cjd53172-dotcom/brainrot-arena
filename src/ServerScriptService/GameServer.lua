@@ -2374,7 +2374,8 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	model:PivotTo(currentPivot + (spawnPos - currentPivot.Position))
 	model:SetAttribute("WildOwner", player.UserId) -- other players' screens hide it (see ClientUI)
 	model.Parent = workspace
-	PlotSystem.FitInWorld(model, 4.2 * WILD_SIZE_MULT)
+	-- Do not FitInWorld here. Live servers still see a tiny FileMesh bbox and
+	-- force-fit would shrink the 6x wilds back down to plot size.
 	do
 		local okBB, bbCF, bbSize = pcall(function()
 			return model:GetBoundingBox()
