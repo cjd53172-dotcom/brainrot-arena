@@ -25,9 +25,9 @@ local PLOT_GAP = 80 -- lots of lawn between plots so bases do not crowd
 local WORLD_DX = 127
 local WORLD_DZ = 98
 -- Arena used to sit at (WORLD_DX, WORLD_DZ - 70), right against the plots.
--- Shifted south onto the open hill (camera looking -Z: further back, slightly left).
-local ARENA_X = WORLD_DX + 50
-local ARENA_Z = WORLD_DZ - 260
+-- +X is toward the river/mountain; left of the plots is -X, on the open grass.
+local ARENA_X = WORLD_DX - 220
+local ARENA_Z = WORLD_DZ - 200
 -- Plots are lined up side-by-side along X, all facing +Z (front = +Z).
 
 local plotsFolder: Folder? = nil
@@ -350,10 +350,10 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 8-movearena")
+print("[PlotSystem] source 9-arenaleft")
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v8-movearena")
+	print("[PlotSystem] Loaded placement v9-arenaleft")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
