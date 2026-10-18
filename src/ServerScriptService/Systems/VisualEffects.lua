@@ -1556,10 +1556,11 @@ end
 local function kioskBeacon(parent: BasePart, text: string, color: Color3)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "KioskBeacon"
-	billboard.Size = UDim2.new(0, 380, 0, 72)
-	billboard.StudsOffset = Vector3.new(0, 4, 0)
-	billboard.MaxDistance = 280
-	billboard.AlwaysOnTop = true
+	billboard.Size = UDim2.new(7, 0, 1.4, 0)
+	billboard.StudsOffset = Vector3.new(0, 3.2, 0)
+	billboard.MaxDistance = 90
+	billboard.AlwaysOnTop = false
+	billboard.LightInfluence = 0.2
 	billboard.Parent = parent
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, 0, 1, 0)
@@ -1568,7 +1569,7 @@ local function kioskBeacon(parent: BasePart, text: string, color: Color3)
 	label.Font = Enum.Font.GothamBlack
 	label.TextScaled = true
 	label.TextColor3 = color
-	label.TextStrokeTransparency = 0.2
+	label.TextStrokeTransparency = 0.35
 	label.Parent = billboard
 end
 
