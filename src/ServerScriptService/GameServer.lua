@@ -1296,6 +1296,9 @@ do
 	local lastHop: { [number]: number } = {}
 	for _, gate in ipairs(BrainrotData.PLACE_GATES or {}) do
 		local portal = VisualEffects.BuildPlacePortal(gate.Name, gate.Color)
+		if gate.Id == "laser_tag" then
+			portal:ScaleTo(2)
+		end
 		PlotSystem.SitOnTerrain(portal, gate.X, gate.Z)
 		portal.Parent = workspace
 		print("[GameServer] Place gate " .. tostring(gate.Id) .. " at " .. tostring(gate.X) .. ", " .. tostring(gate.Z))
@@ -1353,7 +1356,7 @@ do
 		prompt.ActionText = "Enter"
 		prompt.ObjectText = gate.Name
 		prompt.HoldDuration = 0.2
-		prompt.MaxActivationDistance = 14
+		prompt.MaxActivationDistance = if gate.Id == "laser_tag" then 22 else 14
 		prompt.RequiresLineOfSight = false
 		prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 		prompt.KeyboardKeyCode = Enum.KeyCode.E
@@ -1369,7 +1372,7 @@ do
 			frame.CanCollide = true
 			frame.Color = Color3.fromRGB(12, 40, 18)
 			frame.Material = Enum.Material.Neon
-			frame.CFrame = pivot * CFrame.new(9, 5, 0)
+			frame.CFrame = pivot * CFrame.new(18, 9, 0)
 			frame.Parent = portal
 			local header = Instance.new("Part")
 			header.Name = "LaserTagKillHeader"
@@ -1378,7 +1381,7 @@ do
 			header.CanCollide = false
 			header.Color = Color3.fromRGB(30, 90, 40)
 			header.Material = Enum.Material.Neon
-			header.CFrame = pivot * CFrame.new(9, 10.5, 0)
+			header.CFrame = pivot * CFrame.new(18, 14.5, 0)
 			header.Parent = portal
 			local function face(part: BasePart, title: boolean): TextLabel
 				local gui = Instance.new("SurfaceGui")
