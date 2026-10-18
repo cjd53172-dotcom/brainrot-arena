@@ -1197,11 +1197,12 @@ function PlotSystem.Setup()
 		label.Text = if title then "ARENA CHAMPIONS" else "No wins yet — beat a rival!"
 		label.Font = if title then Enum.Font.GothamBlack else Enum.Font.GothamBold
 		label.TextScaled = false
-		label.TextSize = if title then 56 else 32
+		label.TextSize = if title then 56 else 48
+		label.LineHeight = 1.15
 		label.TextColor3 = Color3.fromRGB(255, 230, 140)
 		label.TextStrokeTransparency = 0.15
 		label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-		label.TextWrapped = true
+		label.TextWrapped = false
 		label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
 		label.Parent = gui
 		if not title then
@@ -1216,7 +1217,7 @@ function PlotSystem.Setup()
 	local boardZ = ARENA_Z + wallR + 18
 	local frame = newPart({
 		Name = "ChampionBoard",
-		Size = Vector3.new(28, 20, 1.2),
+		Size = Vector3.new(32, 28, 1.2),
 		Position = Vector3.new(boardX, arenaTopY + 12, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
@@ -1225,7 +1226,7 @@ function PlotSystem.Setup()
 	sitOnLocalGround(frame, boardX, boardZ, 0.6)
 	local header = newPart({
 		Name = "ChampionHeader",
-		Size = Vector3.new(28, 5.4, 1.2),
+		Size = Vector3.new(32, 5.4, 1.2),
 		Position = Vector3.new(boardX, frame.Position.Y + frame.Size.Y * 0.5 + 2.9, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,

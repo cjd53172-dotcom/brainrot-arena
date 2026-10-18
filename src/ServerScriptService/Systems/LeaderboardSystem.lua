@@ -33,8 +33,12 @@ end
 
 function LeaderboardSystem.GetTop(n: number): { any }
 	n = math.max(1, n)
-	if os.time() - LeaderboardSystem.LastRefresh < 15 and #LeaderboardSystem.CachedBoard > 0 then
-		return LeaderboardSystem.CachedBoard
+	if os.time() - LeaderboardSystem.LastRefresh < 15 and #LeaderboardSystem.CachedBoard >= n then
+		local slice = {}
+		for i = 1, n do
+			slice[i] = LeaderboardSystem.CachedBoard[i]
+		end
+		return slice
 	end
 
 	local byId: { [number]: any } = {}
@@ -135,8 +139,12 @@ local laserCacheAt = 0
 
 function LeaderboardSystem.GetLaserTagTop(n: number): { any }
 	n = math.max(1, n)
-	if os.time() - laserCacheAt < 12 and #laserCache > 0 then
-		return laserCache
+	if os.time() - laserCacheAt < 12 and #laserCache >= n then
+		local slice = {}
+		for i = 1, n do
+			slice[i] = laserCache[i]
+		end
+		return slice
 	end
 	local result = {}
 	if laserStore then

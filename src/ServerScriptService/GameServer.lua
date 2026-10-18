@@ -92,7 +92,7 @@ for _, name in ipairs(REMOTE_LIST) do
 end
 
 local function paintArenaBoard()
-	local top = LeaderboardSystem.GetTop(10)
+	local top = LeaderboardSystem.GetTop(15)
 	local lines = {}
 	if #top == 0 then
 		table.insert(lines, "No wins yet — beat a rival!")
@@ -1370,21 +1370,21 @@ do
 			local pivot = portal:GetPivot()
 			local frame = Instance.new("Part")
 			frame.Name = "LaserTagKillBoard"
-			frame.Size = Vector3.new(24, 18, 0.8)
+			frame.Size = Vector3.new(26, 26, 0.8)
 			frame.Anchored = true
 			frame.CanCollide = true
 			frame.Color = Color3.fromRGB(12, 28, 16)
 			frame.Material = Enum.Material.SmoothPlastic
-			frame.CFrame = pivot * CFrame.new(26, 11, 0)
+			frame.CFrame = pivot * CFrame.new(28, 15, 0)
 			frame.Parent = portal
 			local header = Instance.new("Part")
 			header.Name = "LaserTagKillHeader"
-			header.Size = Vector3.new(24, 4, 0.8)
+			header.Size = Vector3.new(26, 4, 0.8)
 			header.Anchored = true
 			header.CanCollide = false
 			header.Color = Color3.fromRGB(22, 70, 32)
 			header.Material = Enum.Material.SmoothPlastic
-			header.CFrame = pivot * CFrame.new(26, 22.2, 0)
+			header.CFrame = pivot * CFrame.new(28, 30.2, 0)
 			header.Parent = portal
 			local listLabels: { TextLabel } = {}
 			local function face(part: BasePart, title: boolean, normal: Enum.NormalId): TextLabel
@@ -1403,11 +1403,12 @@ do
 				label.Text = if title then "LASER TAG KILLS" else "Play Laser Tag to post kills.\nKills save across visits."
 				label.Font = if title then Enum.Font.GothamBlack else Enum.Font.GothamBold
 				label.TextScaled = false
-				label.TextSize = if title then 48 else 32
+				label.TextSize = if title then 52 else 48
+				label.LineHeight = 1.15
 				label.TextColor3 = Color3.fromRGB(200, 255, 180)
 				label.TextStrokeTransparency = 0.2
 				label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-				label.TextWrapped = true
+				label.TextWrapped = false
 				label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
 				label.Parent = gui
 				return label
@@ -1419,7 +1420,7 @@ do
 			print("[GameServer] Laser kill board next to portal")
 
 			local function paintLaserBoard()
-				local top = LeaderboardSystem.GetLaserTagTop(8)
+				local top = LeaderboardSystem.GetLaserTagTop(15)
 				local text = "Play Laser Tag to post kills.\nKills save across visits."
 				if #top > 0 then
 					local lines = {}
