@@ -1370,61 +1370,67 @@ do
 			local pivot = portal:GetPivot()
 			local frame = Instance.new("Part")
 			frame.Name = "LaserTagKillBoard"
-			frame.Size = Vector3.new(12, 9, 0.7)
+			frame.Size = Vector3.new(24, 18, 0.8)
 			frame.Anchored = true
 			frame.CanCollide = true
-			frame.Color = Color3.fromRGB(12, 40, 18)
-			frame.Material = Enum.Material.Neon
-			frame.CFrame = pivot * CFrame.new(18, 9, 0)
+			frame.Color = Color3.fromRGB(12, 28, 16)
+			frame.Material = Enum.Material.SmoothPlastic
+			frame.CFrame = pivot * CFrame.new(26, 11, 0)
 			frame.Parent = portal
 			local header = Instance.new("Part")
 			header.Name = "LaserTagKillHeader"
-			header.Size = Vector3.new(12, 2, 0.7)
+			header.Size = Vector3.new(24, 4, 0.8)
 			header.Anchored = true
 			header.CanCollide = false
-			header.Color = Color3.fromRGB(30, 90, 40)
-			header.Material = Enum.Material.Neon
-			header.CFrame = pivot * CFrame.new(18, 14.5, 0)
+			header.Color = Color3.fromRGB(22, 70, 32)
+			header.Material = Enum.Material.SmoothPlastic
+			header.CFrame = pivot * CFrame.new(26, 22.2, 0)
 			header.Parent = portal
-			local function face(part: BasePart, title: boolean): TextLabel
+			local listLabels: { TextLabel } = {}
+			local function face(part: BasePart, title: boolean, normal: Enum.NormalId): TextLabel
 				local gui = Instance.new("SurfaceGui")
-				gui.Face = Enum.NormalId.Front
-				gui.PixelsPerStud = 30
+				gui.Face = normal
+				gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+				gui.PixelsPerStud = 50
 				gui.LightInfluence = 0
+				gui.Brightness = 1.2
+				gui.MaxDistance = 180
 				gui.Parent = part
 				local label = Instance.new("TextLabel")
-				label.Size = UDim2.new(1, -12, 1, -12)
-				label.Position = UDim2.new(0, 6, 0, 6)
+				label.Size = UDim2.new(1, -20, 1, -20)
+				label.Position = UDim2.new(0, 10, 0, 10)
 				label.BackgroundTransparency = 1
-				label.Text = if title then "LASER TAG KILLS" else "Play Laser Tag to post kills."
-				label.Font = Enum.Font.GothamBold
-				label.TextScaled = title
-				label.TextSize = 24
-				label.TextColor3 = Color3.fromRGB(180, 255, 160)
-				label.TextStrokeTransparency = 0.3
+				label.Text = if title then "LASER TAG KILLS" else "Play Laser Tag to post kills.\nKills save across visits."
+				label.Font = if title then Enum.Font.GothamBlack else Enum.Font.GothamBold
+				label.TextScaled = false
+				label.TextSize = if title then 48 else 32
+				label.TextColor3 = Color3.fromRGB(200, 255, 180)
+				label.TextStrokeTransparency = 0.2
+				label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 				label.TextWrapped = true
 				label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
 				label.Parent = gui
-				local back = gui:Clone()
-				back.Face = Enum.NormalId.Back
-				back.Parent = part
 				return label
 			end
-			face(header, true)
-			local listLabel = face(frame, false)
+			face(header, true, Enum.NormalId.Front)
+			face(header, true, Enum.NormalId.Back)
+			table.insert(listLabels, face(frame, false, Enum.NormalId.Front))
+			table.insert(listLabels, face(frame, false, Enum.NormalId.Back))
 			print("[GameServer] Laser kill board next to portal")
 
 			local function paintLaserBoard()
 				local top = LeaderboardSystem.GetLaserTagTop(8)
-				if #top == 0 then
-					listLabel.Text = "Play Laser Tag to post kills.\nKills save across visits."
-					return
+				local text = "Play Laser Tag to post kills.\nKills save across visits."
+				if #top > 0 then
+					local lines = {}
+					for i, row in ipairs(top) do
+						table.insert(lines, string.format("%d.  %s   —   %d", i, tostring(row.Name), tonumber(row.Kills) or 0))
+					end
+					text = table.concat(lines, "\n")
 				end
-				local lines = {}
-				for i, row in ipairs(top) do
-					table.insert(lines, string.format("%d.  %s   —   %d", i, tostring(row.Name), tonumber(row.Kills) or 0))
+				for _, label in ipairs(listLabels) do
+					label.Text = text
 				end
-				listLabel.Text = table.concat(lines, "\n")
 			end
 			paintLaserBoard()
 			task.spawn(function()

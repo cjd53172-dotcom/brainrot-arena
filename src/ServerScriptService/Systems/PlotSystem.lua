@@ -1183,20 +1183,24 @@ function PlotSystem.Setup()
 	local function addBoardFace(part: BasePart, face: Enum.NormalId, title: boolean): TextLabel
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = face
-		gui.PixelsPerStud = 25
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
 		gui.LightInfluence = 0
+		gui.Brightness = 1.15
+		gui.MaxDistance = 200
 		gui.Parent = part
 		local label = Instance.new("TextLabel")
 		label.Name = if title then "TitleText" else "RankText"
-		label.Size = UDim2.new(1, -24, 1, -24)
-		label.Position = UDim2.new(0, 12, 0, 12)
+		label.Size = UDim2.new(1, -28, 1, -28)
+		label.Position = UDim2.new(0, 14, 0, 14)
 		label.BackgroundTransparency = 1
 		label.Text = if title then "ARENA CHAMPIONS" else "No wins yet — beat a rival!"
-		label.Font = Enum.Font.GothamBold
-		label.TextScaled = title
-		label.TextSize = 28
-		label.TextColor3 = Color3.fromRGB(255, 220, 120)
-		label.TextStrokeTransparency = 0.3
+		label.Font = if title then Enum.Font.GothamBlack else Enum.Font.GothamBold
+		label.TextScaled = false
+		label.TextSize = if title then 56 else 32
+		label.TextColor3 = Color3.fromRGB(255, 230, 140)
+		label.TextStrokeTransparency = 0.15
+		label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 		label.TextWrapped = true
 		label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
 		label.Parent = gui
@@ -1221,8 +1225,8 @@ function PlotSystem.Setup()
 	sitOnLocalGround(frame, boardX, boardZ, 0.6)
 	local header = newPart({
 		Name = "ChampionHeader",
-		Size = Vector3.new(28, 3.2, 1.2),
-		Position = Vector3.new(boardX, frame.Position.Y + frame.Size.Y * 0.5 + 1.8, boardZ),
+		Size = Vector3.new(28, 5.4, 1.2),
+		Position = Vector3.new(boardX, frame.Position.Y + frame.Size.Y * 0.5 + 2.9, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(40, 28, 12),
