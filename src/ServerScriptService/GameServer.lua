@@ -265,9 +265,9 @@ local function makeBat(): Tool
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
 	tool.ManualActivationOnly = false
-	-- Handle Y is the bat's length (Roblox tools expect that). Offset so the
-	-- taped grip sits in the hand and the barrel points up/forward.
-	local baseGrip = CFrame.new(0, -0.15, 0.1)
+	-- Handle Y is the bat's length (Roblox tools expect that).
+	-- Slight roll so the barrel sits on the right shoulder, not in the face.
+	local baseGrip = CFrame.new(0.12, -0.2, 0.12) * CFrame.Angles(math.rad(12), math.rad(8), math.rad(-25))
 	tool.Grip = baseGrip
 
 	local wood = Color3.fromRGB(196, 142, 78)
@@ -344,13 +344,17 @@ local function makeBat(): Tool
 		end
 		swinging = true
 		task.spawn(function()
-			for i = 1, 7 do
-				tool.Grip = baseGrip * CFrame.Angles(math.rad(-18 * i), math.rad(4 * i), 0)
-				task.wait(0.018)
+			-- Right-handed cut: barrel comes from the back-right, through the
+			-- zone in front, instead of chopping backward/down the old X axis.
+			for i = 1, 8 do
+				local t = i / 8
+				tool.Grip = baseGrip * CFrame.Angles(math.rad(18 * t), math.rad(-55 * t), math.rad(-95 * t))
+				task.wait(0.02)
 			end
-			for i = 6, 0, -1 do
-				tool.Grip = baseGrip * CFrame.Angles(math.rad(-18 * i), math.rad(4 * i), 0)
-				task.wait(0.018)
+			for i = 7, 0, -1 do
+				local t = i / 8
+				tool.Grip = baseGrip * CFrame.Angles(math.rad(18 * t), math.rad(-55 * t), math.rad(-95 * t))
+				task.wait(0.016)
 			end
 			tool.Grip = baseGrip
 			swinging = false
@@ -416,7 +420,16 @@ local function giveBat(player: Player)
 		local backpack = player:FindFirstChildOfClass("Backpack")
 		local char = player.Character
 		if not backpack then return end
-		if backpack:FindFirstChild("Baseball Bat") or (char and char:FindFirstChild("Baseball Bat")) then return end
+		local old = backpack:FindFirstChild("Baseball Bat")
+		if old then
+			old:Destroy()
+		end
+		if char then
+			local held = char:FindFirstChild("Baseball Bat")
+			if held then
+				held:Destroy()
+			end
+		end
 		makeBat().Parent = backpack
 	end
 	player.CharacterAdded:Connect(function()
