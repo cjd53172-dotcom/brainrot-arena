@@ -76,6 +76,7 @@ local REMOTE_LIST = {
 	"EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", 
 	"CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", 
 	"BuyUpgrade", "PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate", "OpenStats", "SellBrainrots",
+	"OpenRobuxShop", "BuyShopItem",
 	"WorldEvent", "MusicUpdate", "ChallengePvp", "RespondPvp", "PvpInvite" 
 }
 

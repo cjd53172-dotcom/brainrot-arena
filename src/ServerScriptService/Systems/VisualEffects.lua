@@ -2501,6 +2501,22 @@ function VisualEffects.SetupRobuxShop()
 		end
 		hint(player, "Create a Game Pass for " .. item.Name .. " and paste GamePassId in BrainrotData.")
 	end
+	local function ownedList(player: Player): { string }
+		local ids = {}
+		for _, item in ipairs(catalog()) do
+			if playerOwns(player, item) then
+				table.insert(ids, item.Id)
+			end
+		end
+		return ids
+	end
+	local function openShopUi(player: Player)
+		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		local ev = remotes and remotes:FindFirstChild("OpenRobuxShop")
+		if ev and ev:IsA("RemoteEvent") then
+			ev:FireClient(player, { Items = catalog(), Owned = ownedList(player) })
+		end
+	end
 
 	local spot = PlotSystem.PlazaSpots.Shop or PlotSystem.PlazaSpots.Fusion
 	local cx, cz = spot.X, spot.Y
@@ -2525,21 +2541,20 @@ function VisualEffects.SetupRobuxShop()
 		p.Parent = stall
 		return p
 	end
-	local floor = anchored("Floor", Vector3.new(22, 0.6, 12), Vector3.new(cx, gy + 0.3, cz), Color3.fromRGB(70, 50, 36), Enum.Material.WoodPlanks)
+	local floor = anchored("Floor", Vector3.new(10, 0.6, 8), Vector3.new(cx, gy + 0.3, cz), Color3.fromRGB(70, 50, 36), Enum.Material.WoodPlanks)
 	stall.PrimaryPart = floor
-	anchored("Awning", Vector3.new(22, 0.4, 12), Vector3.new(cx, gy + 8.2, cz), Color3.fromRGB(180, 40, 50), Enum.Material.Fabric)
-	anchored("PostL", Vector3.new(0.6, 8, 0.6), Vector3.new(cx - 10, gy + 4.3, cz - 5), Color3.fromRGB(90, 65, 40), Enum.Material.Wood)
-	anchored("PostR", Vector3.new(0.6, 8, 0.6), Vector3.new(cx + 10, gy + 4.3, cz - 5), Color3.fromRGB(90, 65, 40), Enum.Material.Wood)
-	anchored("PostLB", Vector3.new(0.6, 8, 0.6), Vector3.new(cx - 10, gy + 4.3, cz + 5), Color3.fromRGB(90, 65, 40), Enum.Material.Wood)
-	anchored("PostRB", Vector3.new(0.6, 8, 0.6), Vector3.new(cx + 10, gy + 4.3, cz + 5), Color3.fromRGB(90, 65, 40), Enum.Material.Wood)
-	local sign = anchored("Sign", Vector3.new(12, 3, 0.5), Vector3.new(cx, gy + 10.4, cz), Color3.fromRGB(28, 22, 18), Enum.Material.Wood)
+	anchored("Awning", Vector3.new(10, 0.4, 8), Vector3.new(cx, gy + 7.6, cz), Color3.fromRGB(180, 40, 50), Enum.Material.Fabric)
+	anchored("PostL", Vector3.new(0.5, 7.2, 0.5), Vector3.new(cx - 4.5, gy + 3.9, cz - 3.5), Color3.fromRGB(90, 65, 40), Enum.Material.Wood)
+	anchored("PostR", Vector3.new(0.5, 7.2, 0.5), Vector3.new(cx + 4.5, gy + 3.9, cz - 3.5), Color3.fromRGB(90, 65, 40), Enum.Material.Wood)
+	anchored("Counter", Vector3.new(8, 1.2, 2), Vector3.new(cx, gy + 1.1, cz + 2.2), Color3.fromRGB(120, 85, 50), Enum.Material.Wood)
+	local sign = anchored("Sign", Vector3.new(8, 2.2, 0.4), Vector3.new(cx, gy + 8.8, cz), Color3.fromRGB(28, 22, 18), Enum.Material.Wood)
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
 	gui.Parent = sign
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.new(1, 0, 1, 0)
 	title.BackgroundTransparency = 1
-	title.Text = "ROBUX SHOP\nRides & Weapons"
+	title.Text = "ROBUX SHOP"
 	title.TextScaled = true
 	title.Font = Enum.Font.GothamBlack
 	title.TextColor3 = Color3.fromRGB(255, 220, 90)
@@ -2548,41 +2563,76 @@ function VisualEffects.SetupRobuxShop()
 	back.Face = Enum.NormalId.Back
 	back.Parent = sign
 	for i, item in ipairs(catalog()) do
-		local col = ((i - 1) % 3) - 1
-		local row = if i <= 3 then -1 else 1
-		local px = cx + col * 6.2
-		local pz = cz + row * 3.2
-		local stand = anchored("Stand_" .. item.Id, Vector3.new(2.4, 1.1, 2.4), Vector3.new(px, gy + 0.95, pz), Color3.fromRGB(50, 40, 32), Enum.Material.Wood)
-		makeDisplay(item.Id, stall, CFrame.new(px, gy + 2.6, pz))
-		local bb = Instance.new("BillboardGui")
-		bb.Size = UDim2.new(0, 180, 0, 64)
-		bb.StudsOffset = Vector3.new(0, 2.6, 0)
-		bb.AlwaysOnTop = true
-		bb.Parent = stand
-		local lbl = Instance.new("TextLabel")
-		lbl.Size = UDim2.new(1, 0, 1, 0)
-		lbl.BackgroundTransparency = 1
-		lbl.Text = item.Name .. "\n" .. tostring(item.Desc) .. "\n" .. tostring(item.Robux) .. " R$"
-		lbl.Font = Enum.Font.GothamBold
-		lbl.TextScaled = true
-		lbl.TextColor3 = Color3.new(1, 1, 1)
-		lbl.TextStrokeTransparency = 0.25
-		lbl.Parent = bb
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.ActionText = "Buy / Take"
-		prompt.ObjectText = item.Name
-		prompt.HoldDuration = 0
-		prompt.MaxActivationDistance = 14
-		prompt.RequiresLineOfSight = false
-		prompt.Parent = stand
-		local captured = item
-		prompt.Triggered:Connect(function(plr: Player)
-			promptBuy(plr, captured)
-		end)
+		local px = cx - 3.6 + (i - 1) * 1.45
+		makeDisplay(item.Id, stall, CFrame.new(px, gy + 2.4, cz - 2.2) * CFrame.Angles(0, 0, math.rad(-20)))
 	end
+
+	local promptParent: BasePart = floor
+	local npc: Model? = nil
+	local okNpc, built = pcall(function()
+		local desc = Instance.new("HumanoidDescription")
+		desc.HeadColor = Color3.fromRGB(255, 204, 153)
+		desc.TorsoColor = Color3.fromRGB(160, 40, 50)
+		desc.LeftArmColor = Color3.fromRGB(255, 204, 153)
+		desc.RightArmColor = Color3.fromRGB(255, 204, 153)
+		desc.LeftLegColor = Color3.fromRGB(35, 35, 45)
+		desc.RightLegColor = Color3.fromRGB(35, 35, 45)
+		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+	end)
+	if okNpc and built and built:IsA("Model") then
+		npc = built
+	end
+	if npc then
+		npc.Name = "Shopkeeper"
+		npc.Parent = stall
+		npc:PivotTo(CFrame.new(cx, gy + 3, cz - 0.6))
+		local hum = npc:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.DisplayName = "Shopkeeper"
+			hum.WalkSpeed = 0
+			hum.JumpPower = 0
+			hum.AutoJumpEnabled = false
+		end
+		for _, d in ipairs(npc:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+		local hrp = npc:FindFirstChild("HumanoidRootPart")
+		if hrp and hrp:IsA("BasePart") then
+			promptParent = hrp
+		end
+	end
+
+	local shopPrompt = Instance.new("ProximityPrompt")
+	shopPrompt.ActionText = "Talk"
+	shopPrompt.ObjectText = "Shopkeeper"
+	shopPrompt.HoldDuration = 0
+	shopPrompt.MaxActivationDistance = 14
+	shopPrompt.RequiresLineOfSight = false
+	shopPrompt.Parent = promptParent
+	shopPrompt.Triggered:Connect(openShopUi)
+
 	local plaza = workspace:FindFirstChild("Plaza")
 	stall.Parent = plaza or workspace
-	print("[GameServer] Robux shop next to Fusion at " .. tostring(Vector3.new(cx, gy, cz)))
+	print("[GameServer] Robux shop NPC at " .. tostring(Vector3.new(cx, gy, cz)))
+
+	local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
+	local buyEv = remotesFolder and remotesFolder:FindFirstChild("BuyShopItem")
+	if buyEv and buyEv:IsA("RemoteEvent") then
+		buyEv.OnServerEvent:Connect(function(player: Player, itemId: any)
+			if type(itemId) ~= "string" then
+				return
+			end
+			for _, item in ipairs(catalog()) do
+				if item.Id == itemId then
+					promptBuy(player, item)
+					openShopUi(player)
+					return
+				end
+			end
+		end)
+	end
 
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
 		if not purchased then
@@ -2595,6 +2645,7 @@ function VisualEffects.SetupRobuxShop()
 		PlayerData.GrantShopItem(player, item.Id)
 		giveOwnedTools(player)
 		hint(player, "You bought " .. item.Name .. "!")
+		openShopUi(player)
 	end)
 	Players.PlayerAdded:Connect(onPlayer)
 	for _, existing in ipairs(Players:GetPlayers()) do

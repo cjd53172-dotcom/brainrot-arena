@@ -1988,6 +1988,10 @@ hideAllPanels = function()
 	customizePanel.Visible = false
 	statsPanel.Visible = false
 	leaderboardPanel.Visible = false
+	local shopGui = gui:FindFirstChild("RobuxShopPanel")
+	if shopGui and shopGui:IsA("GuiObject") then
+		(shopGui :: GuiObject).Visible = false
+	end
 end
 
 exploreBtn.MouseButton1Click:Connect(function()
@@ -3231,6 +3235,67 @@ do
 	end
 end
 
+do
+	local robuxShopPanel, _shopTitle = makePanel("🛒 Robux Shop — rides & weapons", Color3.fromRGB(255, 210, 120))
+	robuxShopPanel.Name = "RobuxShopPanel"
+	local buyShopRemote = remotes:WaitForChild("BuyShopItem", 5)
+	local function refreshRobuxShop(payload: any)
+		for _, c in ipairs(robuxShopPanel:GetChildren()) do
+			if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+				c:Destroy()
+			end
+		end
+		local owned: { [string]: boolean } = {}
+		if payload and type(payload.Owned) == "table" then
+			for _, id in ipairs(payload.Owned) do
+				if type(id) == "string" then
+					owned[id] = true
+				end
+			end
+		end
+		local order = 1
+		makeLabel(robuxShopPanel, "Talk to the shopkeeper. Studio grants for free until Game Pass IDs are set.", 13, THEME.TextDim, order)
+		order += 1
+		local items = (payload and payload.Items) or (BrainrotData.MONETIZED_SHOP or {})
+		for _, item in ipairs(items) do
+			local row = makeRow(robuxShopPanel, order, 72)
+			order += 1
+			local have = owned[item.Id] == true
+			makeLabel(row, tostring(item.Name) .. "  —  " .. tostring(item.Desc), 14, Color3.new(1, 1, 1), 1).Position = UDim2.new(0, 10, 0, 8)
+			makeLabel(row, tostring(item.Robux) .. " R$", 13, Color3.fromRGB(255, 220, 100), 2).Position = UDim2.new(0, 10, 0, 36)
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(0, 110, 0, 40)
+			btn.Position = UDim2.new(1, -122, 0.5, -20)
+			btn.Font = Enum.Font.GothamBold
+			btn.TextSize = 14
+			btn.TextColor3 = Color3.new(1, 1, 1)
+			btn.Parent = row
+			corner(btn, 8)
+			if have then
+				btn.Text = "Owned"
+				btn.BackgroundColor3 = Color3.fromRGB(50, 90, 55)
+			else
+				btn.Text = "Buy"
+				btn.BackgroundColor3 = Color3.fromRGB(180, 70, 50)
+				local itemId = item.Id
+				btn.MouseButton1Click:Connect(function()
+					if buyShopRemote then
+						(buyShopRemote :: RemoteEvent):FireServer(itemId)
+					end
+				end)
+			end
+		end
+	end
+	local openShop = remotes:WaitForChild("OpenRobuxShop", 5)
+	if openShop then
+		(openShop :: RemoteEvent).OnClientEvent:Connect(function(payload: any)
+			hideAllPanels()
+			refreshRobuxShop(payload)
+			robuxShopPanel.Visible = true
+		end)
+	end
+end
+
 expeditionUpdateRemote.OnClientEvent:Connect(function(payload: any)
 	expeditionData = payload
 	if payload and type(payload.SelectZone) == "string" then
@@ -3308,6 +3373,10 @@ do
 		collectionPanel, editorPanel, workPanel, fusionPanel, expeditionPanel, dailyPanel,
 		eggPanel, minePanel, customizePanel, statsPanel, leaderboardPanel, fishingPanel,
 	}
+	local shopPanel = gui:FindFirstChild("RobuxShopPanel")
+	if shopPanel and shopPanel:IsA("GuiObject") then
+		table.insert(closablePanels, shopPanel :: GuiObject)
+	end
 	RunService.RenderStepped:Connect(function()
 		local openPanel: GuiObject? = nil
 		for _, panel in ipairs(closablePanels) do
