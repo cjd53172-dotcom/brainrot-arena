@@ -103,6 +103,11 @@ BrainrotData.FLIP_UPSIDE_DOWN = {
 	garamararam = true,
 } :: { [string]: boolean }
 
+-- Pack meshes whose pivot sits high; do not 180° them to "fix" feet.
+BrainrotData.KEEP_UPRIGHT = {
+	["1x1x1x1"] = true,
+} :: { [string]: boolean }
+
 -- FileMesh assets that are far larger than the usual ~150-stud pack.
 BrainrotData.PACK_MESH_UNITS = {
 	orcalero = 8000,

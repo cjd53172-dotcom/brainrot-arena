@@ -30,8 +30,9 @@ local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 local PlayerData = {}
 
--- V2 = clean-slate season. Old BrainrotArena_SaveV1 keys are left untouched.
-local STORE_NAME = "BrainrotArena_SaveV2"
+local STORE_NAME = "BrainrotArena_SaveV1"
+-- Bump this once to wipe everyone. Saves with this number keep progress on rejoin.
+local SEASON_WIPE = 2
 local store: DataStore? = nil
 
 local ok, err = pcall(function()
@@ -91,7 +92,15 @@ local function defaultData()
 		LuckBoostUntil = 0,
 		SecretsFound = {}, -- [secretId] = true
 		LuckyCooldown = {}, -- [blockId] = unix
+		SeasonWipe = SEASON_WIPE,
 	}
+end
+
+local function seasonOf(data: any): number
+	if type(data) ~= "table" then
+		return 0
+	end
+	return tonumber(data.SeasonWipe) or 1
 end
 
 local function ensureStations(data)
@@ -210,22 +219,33 @@ function PlayerData.Load(player: Player)
 				local okB, backup = pcall(function()
 					return (store :: DataStore):GetAsync(backupKeyFor(player))
 				end)
-				if okB and type(backup) == "table" and not isHollow(backup) then
+				if okB and type(backup) == "table" and not isHollow(backup) and seasonOf(backup) >= SEASON_WIPE then
 					saved = backup
 					warn("[PlayerData] Main save was empty for " .. player.Name .. " — restored backup.")
 				end
 			end
-			data = mergeDefaults(saved)
+			if seasonOf(saved) < SEASON_WIPE then
+				local owned = if type(saved.OwnedShop) == "table" then saved.OwnedShop else {}
+				data = defaultData()
+				data.OwnedShop = owned
+				data.SeasonWipe = SEASON_WIPE
+				print("[PlayerData] One-time wipe for " .. player.Name .. " (season " .. tostring(SEASON_WIPE) .. ")")
+			else
+				data = mergeDefaults(saved)
+				data.SeasonWipe = SEASON_WIPE
+			end
 			local u = data.Upgrades or {}
 			print("[PlayerData] Loaded " .. player.Name .. " brainrots=" .. tostring(#(data.Brainrots or {})) .. " coins=" .. tostring(data.Coins) .. " speed=" .. tostring(u.Speed or 0) .. " jump=" .. tostring(u.Jump or 0))
 		elseif success then
 			local okB, backup = pcall(function()
 				return (store :: DataStore):GetAsync(backupKeyFor(player))
 			end)
-			if okB and type(backup) == "table" and not isHollow(backup) then
+			if okB and type(backup) == "table" and not isHollow(backup) and seasonOf(backup) >= SEASON_WIPE then
 				data = mergeDefaults(backup)
+				data.SeasonWipe = SEASON_WIPE
 				warn("[PlayerData] No main save for " .. player.Name .. " — restored backup.")
 			else
+				data.SeasonWipe = SEASON_WIPE
 				print("[PlayerData] No save yet for " .. player.Name)
 			end
 		else
@@ -234,6 +254,13 @@ function PlayerData.Load(player: Player)
 		end
 	end
 	session[player.UserId] = data
+	if canSave[player.UserId] ~= false then
+		task.defer(function()
+			if session[player.UserId] == data then
+				PlayerData.Save(player)
+			end
+		end)
+	end
 	return data
 end
 
@@ -252,14 +279,15 @@ function PlayerData.Save(player: Player)
 	end
 	local success, errMsg = pcall(function()
 		(store :: DataStore):UpdateAsync(keyFor(player), function(old)
-			if isHollow(data) and type(old) == "table" and not isHollow(old) then
+			local wiping = type(old) == "table" and seasonOf(data) > seasonOf(old)
+			if isHollow(data) and type(old) == "table" and not isHollow(old) and not wiping then
 				warn("[PlayerData] Refused to overwrite " .. player.Name .. "'s save with an empty session.")
 				return old
 			end
 			return data
 		end)
 	end)
-	if success and not isHollow(data) then
+	if success then
 		pcall(function()
 			(store :: DataStore):SetAsync(backupKeyFor(player), data)
 		end)

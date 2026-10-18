@@ -415,6 +415,10 @@ extraUprightFlip = function(model: Model)
 	local id = model:GetAttribute("BrainrotId")
 	local catalogFlip = false
 	if typeof(id) == "string" then
+		local keep = BrainrotData.KEEP_UPRIGHT
+		if keep and keep[id] == true then
+			return
+		end
 		local flips = BrainrotData.FLIP_UPSIDE_DOWN
 		catalogFlip = flips[id] == true
 		local def = BrainrotData.GetById(id)
