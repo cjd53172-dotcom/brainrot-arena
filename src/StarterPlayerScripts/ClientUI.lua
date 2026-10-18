@@ -13,13 +13,6 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-
--- Stops Roblox's "disconnected for being idle (20 min)" kick: a tiny fake click when idle.
-local VirtualUser = game:GetService("VirtualUser")
-player.Idled:Connect(function()
-	VirtualUser:CaptureController()
-	VirtualUser:ClickButton2(Vector2.new(0, 0))
-end)
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -2956,6 +2949,13 @@ local function buildMobileBar()
 		{ Icon = "🎨", Label = "Style", Panel = customizePanel, Refresh = refreshCustomizePanel },
 		{ Icon = "📊", Label = "Stats", Panel = statsPanel, Refresh = refreshStatsPanel },
 		{ Icon = "🎣", Label = "Fish", Panel = fishingPanel, Refresh = refreshFishingPanel },
+		{ Icon = "🏆", Label = "Ranks", Request = function()
+			if leaderboardPanel.Visible then
+				leaderboardPanel.Visible = false
+			else
+				remotes:WaitForChild("LeaderboardUpdate"):FireServer()
+			end
+		end },
 	}
 	for _, item in ipairs(mobileButtons) do
 		local mBtn = Instance.new("TextButton")
@@ -2968,11 +2968,18 @@ local function buildMobileBar()
 		mBtn.Parent = mobileBar
 		corner(mBtn, 12)
 		styleFrame(mBtn, false)
-		local panel = item.Panel
-		local refreshFn = item.Refresh
-		mBtn.MouseButton1Click:Connect(function()
-			toggleMobilePanel(panel, refreshFn)
-		end)
+		if item.Request then
+			local request = item.Request
+			mBtn.MouseButton1Click:Connect(function()
+				request()
+			end)
+		else
+			local panel = item.Panel
+			local refreshFn = item.Refresh
+			mBtn.MouseButton1Click:Connect(function()
+				toggleMobilePanel(panel, refreshFn)
+			end)
+		end
 	end
 end
 
