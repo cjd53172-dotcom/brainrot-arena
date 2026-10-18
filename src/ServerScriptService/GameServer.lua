@@ -188,6 +188,10 @@ local SELL_PRICE: { [string]: number } = {
 	Rare = 100,
 	Epic = 400,
 	Legendary = 2000,
+	Mythic = 8000,
+	["Brainrot God"] = 25000,
+	Secret = 80000,
+	OG = 250000,
 }
 
 local sellRemote = CachedRemotes["SellBrainrots"]
@@ -2541,7 +2545,12 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	wanderModels[player.UserId][wanderId] = model
 	wander.Model = model
 
-	if wander.Rarity == "Legendary" then
+	local bigRarity = wander.Rarity == "Legendary"
+		or wander.Rarity == "Mythic"
+		or wander.Rarity == "Brainrot God"
+		or wander.Rarity == "Secret"
+		or wander.Rarity == "OG"
+	if bigRarity then
 		local beam = VisualEffects.BuildLegendaryBeam(spawnPos)
 		beam:SetAttribute("WildOwner", player.UserId)
 		beam.Parent = workspace
@@ -2550,10 +2559,11 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 		local hintEvent = CachedRemotes["ShowHint"]
 		if hintEvent then
+			local tag = string.upper(wander.Rarity)
 			if wander.EventRush then
-				hintEvent:FireClient(player, "⚡ LEGENDARY RUSH — a Legendary spawned nearby! Follow the beam!")
+				hintEvent:FireClient(player, "⚡ LEGENDARY RUSH — a " .. tag .. " spawned nearby! Follow the beam!")
 			else
-				hintEvent:FireClient(player, "🌟 LEGENDARY BRAINROT SPOTTED! Follow the golden beam! (3 min)")
+				hintEvent:FireClient(player, "🌟 " .. tag .. " BRAINROT SPOTTED! Follow the beam!")
 			end
 		end
 	end
@@ -2812,7 +2822,7 @@ task.spawn(function()
 					lastSpawn[userId] = {}
 				end
 
-				for _, rarity in ipairs({ "Common", "Rare", "Epic", "Legendary" }) do
+				for _, rarity in ipairs(BrainrotData.RARITY_ORDER) do
 					local cfg = WanderSystem.GetRarityConfig(rarity)
 					if cfg then
 						local last = lastSpawn[userId][rarity] or 0
@@ -2820,8 +2830,14 @@ task.spawn(function()
 
 						if now - last >= interval then
 							local roll = math.random() * 100
-							local totalWeight = 60 + 25 + 12 + 3
-							local weight = cfg.Weight / totalWeight * 100
+							local totalWeight = 0
+							for _, rName in ipairs(BrainrotData.RARITY_ORDER) do
+								local row = WanderSystem.GetRarityConfig(rName)
+								if row then
+									totalWeight += row.Weight
+								end
+							end
+							local weight = cfg.Weight / math.max(totalWeight, 1) * 100
 							local overdue = (now - last) / interval
 
 							if roll < weight * overdue then

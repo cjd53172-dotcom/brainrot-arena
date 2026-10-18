@@ -41,11 +41,43 @@ local RARITY_CONFIG = {
 	},
 	Legendary = {
 		Weight = 3,
-		RespawnSecs = { 1200, 1800 }, -- every 20-30 min
-		DespawnSecs = 180,            -- 3 min URGENCY
-		WalkSpeed = 16,               -- very fast
+		RespawnSecs = { 1200, 1800 },
+		DespawnSecs = 180,
+		WalkSpeed = 16,
 		FleeRadius = 15,
-		Announce = true,              -- server-wide beam + message
+		Announce = true,
+	},
+	Mythic = {
+		Weight = 1.2,
+		RespawnSecs = { 1800, 2800 },
+		DespawnSecs = 150,
+		WalkSpeed = 18,
+		FleeRadius = 16,
+		Announce = true,
+	},
+	["Brainrot God"] = {
+		Weight = 0.45,
+		RespawnSecs = { 2400, 3600 },
+		DespawnSecs = 140,
+		WalkSpeed = 20,
+		FleeRadius = 18,
+		Announce = true,
+	},
+	Secret = {
+		Weight = 0.12,
+		RespawnSecs = { 3600, 5400 },
+		DespawnSecs = 120,
+		WalkSpeed = 22,
+		FleeRadius = 20,
+		Announce = true,
+	},
+	OG = {
+		Weight = 0.02,
+		RespawnSecs = { 5400, 9000 },
+		DespawnSecs = 90,
+		WalkSpeed = 24,
+		FleeRadius = 22,
+		Announce = true,
 	},
 }
 

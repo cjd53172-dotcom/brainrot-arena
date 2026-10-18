@@ -167,15 +167,10 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 	rarityLabel.LayoutOrder = 1
 	rarityLabel.Parent = billboard
 
-	local upperRarity = string.lower(rarity or "")
-	if upperRarity == "legendary" then
-		rarityLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-	elseif upperRarity == "epic" then
-		rarityLabel.TextColor3 = Color3.fromRGB(180, 100, 255)
-	elseif upperRarity == "rare" then
-		rarityLabel.TextColor3 = Color3.fromRGB(50, 160, 255)
-	else
-		rarityLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	local rarityColor = BrainrotData.RARITY_COLORS[rarity or "Common"]
+	rarityLabel.TextColor3 = rarityColor or Color3.fromRGB(200, 200, 200)
+	if string.lower(rarity or "") == "secret" then
+		rarityLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
 	end
 
 	local nameLabel = Instance.new("TextLabel")
@@ -563,7 +558,16 @@ local function lookupDef(id: any): any
 end
 
 -- Display only: the server decides the real price (keep in step with SELL_PRICE in GameServer).
-local SELL_PRICE: { [string]: number } = { Common = 25, Rare = 100, Epic = 400, Legendary = 2000 }
+local SELL_PRICE: { [string]: number } = {
+	Common = 25,
+	Rare = 100,
+	Epic = 400,
+	Legendary = 2000,
+	Mythic = 8000,
+	["Brainrot God"] = 25000,
+	Secret = 80000,
+	OG = 250000,
+}
 local sellRemote = remotes:WaitForChild("SellBrainrots", 5)
 
 local function sellPriceFor(inst: any): number

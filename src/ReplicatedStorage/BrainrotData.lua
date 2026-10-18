@@ -29,6 +29,10 @@ BrainrotData.RARITY_POWER = {
 	Rare = 1.00,
 	Epic = 1.34,
 	Legendary = 1.75,
+	Mythic = 2.15,
+	["Brainrot God"] = 2.6,
+	Secret = 3.2,
+	OG = 4.0,
 }
 
 -- Extra coverage / utility so every brainrot has a 4-move kit.
@@ -77,13 +81,17 @@ function BrainrotData.GetEffectiveness(attackType: string, defendType: string): 
 end
 
 -- // Rarities ----------------------------------------------------------------
-BrainrotData.RARITY_ORDER = { "Common", "Rare", "Epic", "Legendary" }
+BrainrotData.RARITY_ORDER = { "Common", "Rare", "Epic", "Legendary", "Mythic", "Brainrot God", "Secret", "OG" }
 
 BrainrotData.RARITY_COLORS = {
-	Common    = Color3.fromRGB(160, 160, 160),
-	Rare      = Color3.fromRGB(0, 140, 255),
-	Epic      = Color3.fromRGB(170, 60, 250),
+	Common = Color3.fromRGB(160, 160, 160),
+	Rare = Color3.fromRGB(0, 140, 255),
+	Epic = Color3.fromRGB(170, 60, 250),
 	Legendary = Color3.fromRGB(255, 150, 0),
+	Mythic = Color3.fromRGB(255, 70, 180),
+	["Brainrot God"] = Color3.fromRGB(255, 80, 80),
+	Secret = Color3.fromRGB(40, 40, 45),
+	OG = Color3.fromRGB(255, 90, 160),
 }
 
 -- Pack meshes exported feet-up. Only FileMesh clones use this (primitives stay as authored).
@@ -432,7 +440,7 @@ BrainrotData.ROSTER = {
 		Id = "tung_sahur",
 		Name = "Tung Tung Tung Sahur",
 		Type = "Wood",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 55, Attack = 55, Defense = 50, Speed = 45,
 		Description = "A living log who never puts down his baseball bat. Loud, loyal, and the perfect first partner.",
 		Display = {
@@ -456,7 +464,7 @@ BrainrotData.ROSTER = {
 		Id = "tralalero",
 		Name = "Tralalero Tralala",
 		Type = "Water",
-		Rarity = "Common",
+		Rarity = "Brainrot God",
 		HP = 60, Attack = 52, Defense = 45, Speed = 60,
 		Description = "A shark in sneakers. Faster than he looks, and he looks fast.",
 		Display = {
@@ -481,7 +489,7 @@ BrainrotData.ROSTER = {
 		Id = "bananini",
 		Name = "Chimpanzini Bananini",
 		Type = "Fire",
-		Rarity = "Common",
+		Rarity = "Legendary",
 		HP = 50, Attack = 60, Defense = 40, Speed = 70,
 		Description = "A monkey who ate a spicy pepper once. Never recovered. Never slowed down.",
 		Display = {
@@ -504,7 +512,7 @@ BrainrotData.ROSTER = {
 		Id = "lirili",
 		Name = "Lirili Larila",
 		Type = "Water",
-		Rarity = "Rare",
+		Rarity = "Common",
 		HP = 75, Attack = 65, Defense = 70, Speed = 50,
 		Description = "A cactus-elephant who wandered out of the desert and into legend.",
 		Display = {
@@ -529,7 +537,7 @@ BrainrotData.ROSTER = {
 		Id = "cappuccino_assassino",
 		Name = "Cappuccino Assassino",
 		Type = "Shadow",
-		Rarity = "Rare",
+		Rarity = "Epic",
 		HP = 65, Attack = 75, Defense = 55, Speed = 80,
 		Description = "A cappuccino cup trained in the silent arts. You never hear the foam coming.",
 		Display = {
@@ -553,7 +561,7 @@ BrainrotData.ROSTER = {
 		Id = "gusini",
 		Name = "Bombombini Gusini",
 		Type = "Sky",
-		Rarity = "Rare",
+		Rarity = "Mythic",
 		HP = 70, Attack = 70, Defense = 60, Speed = 65,
 		Description = "A bomber goose with perfect formation flying and questionable morals.",
 		Display = {
@@ -578,7 +586,7 @@ BrainrotData.ROSTER = {
 		Id = "bombardiro",
 		Name = "Bombardiro Crocodilo",
 		Type = "Fire",
-		Rarity = "Epic",
+		Rarity = "Mythic",
 		HP = 85, Attack = 90, Defense = 70, Speed = 70,
 		Description = "A crocodile fused with a bomber plane. The sky is no longer safe.",
 		Display = {
@@ -603,7 +611,7 @@ BrainrotData.ROSTER = {
 		Id = "ballerina",
 		Name = "Ballerina Cappuccina",
 		Type = "Sky",
-		Rarity = "Epic",
+		Rarity = "Legendary",
 		HP = 75, Attack = 80, Defense = 65, Speed = 95,
 		Description = "A cappuccino ballerina. Graceful, deadly, and always on pointe.",
 		Display = {
@@ -628,7 +636,7 @@ BrainrotData.ROSTER = {
 		Id = "saturnita",
 		Name = "La Vaca Saturno Saturnita",
 		Type = "Sky",
-		Rarity = "Legendary",
+		Rarity = "Secret",
 		HP = 100, Attack = 95, Defense = 90, Speed = 85,
 		Description = "A cosmic cow ringed by Saturn itself. Moo echoes across galaxies.",
 		Display = {
@@ -653,7 +661,7 @@ BrainrotData.ROSTER = {
 		Id = "patapim",
 		Name = "Brr Brr Patapim",
 		Type = "Wood",
-		Rarity = "Legendary",
+		Rarity = "Epic",
 		HP = 105, Attack = 90, Defense = 95, Speed = 60,
 		Description = "An ancient tree spirit. It has seen forests rise and fall, and it hits like all of them.",
 		Display = {
@@ -677,7 +685,7 @@ BrainrotData.ROSTER = {
 		Id = "frigo_camelo",
 		Name = "Frigo Camelo",
 		Type = "Water",
-		Rarity = "Common",
+		Rarity = "Mythic",
 		HP = 62, Attack = 48, Defense = 62, Speed = 40,
 		Description = "A camel crossed with a refrigerator. Keeps your drinks cold and your enemies colder.",
 		Display = {
@@ -702,7 +710,7 @@ BrainrotData.ROSTER = {
 		Id = "orangutini",
 		Name = "Orangutini Ananassini",
 		Type = "Fire",
-		Rarity = "Common",
+		Rarity = "Mythic",
 		HP = 58, Attack = 58, Defense = 45, Speed = 55,
 		Description = "An orangutan-pineapple hybrid. Sweet on the outside, spicy on the inside.",
 		Display = {
@@ -727,7 +735,7 @@ BrainrotData.ROSTER = {
 		Id = "cocofanto",
 		Name = "Cocofanto Elefanto",
 		Type = "Wood",
-		Rarity = "Rare",
+		Rarity = "Brainrot God",
 		HP = 80, Attack = 62, Defense = 75, Speed = 42,
 		Description = "A coconut elephant. Hard shell, soft heart, devastating trunk.",
 		Display = {
@@ -751,7 +759,7 @@ BrainrotData.ROSTER = {
 		Id = "rhino_toasterino",
 		Name = "Rhino Toasterino",
 		Type = "Fire",
-		Rarity = "Rare",
+		Rarity = "Mythic",
 		HP = 78, Attack = 74, Defense = 68, Speed = 48,
 		Description = "A rhinoceros crossed with a toaster. Charges at breakfast speed. Breakfast is hot.",
 		Display = {
@@ -776,7 +784,7 @@ BrainrotData.ROSTER = {
 		Id = "svinina",
 		Name = "Svinina Bombardino",
 		Type = "Shadow",
-		Rarity = "Legendary",
+		Rarity = "Common",
 		HP = 98, Attack = 100, Defense = 80, Speed = 92,
 		Description = "A pig crossed with a bomber plane. When pigs fly, everything explodes.",
 		Display = {
@@ -803,7 +811,7 @@ BrainrotData.ROSTER = {
 		Id = "cacto",
 		Name = "Il Cacto Ippopotamo",
 		Type = "Wood",
-		Rarity = "Common",
+		Rarity = "Rare",
 		HP = 70, Attack = 50, Defense = 65, Speed = 35,
 		Description = "A cactus hippo. Don't hug it. Seriously.",
 		Display = {
@@ -831,7 +839,7 @@ BrainrotData.ROSTER = {
 		Id = "trippi",
 		Name = "Trippi Troppi",
 		Type = "Water",
-		Rarity = "Common",
+		Rarity = "Rare",
 		HP = 60, Attack = 52, Defense = 55, Speed = 50,
 		Description = "A fish-bear hybrid. Swims like a bear, mauls like a fish. Wait.",
 		Display = {
@@ -880,7 +888,7 @@ BrainrotData.ROSTER = {
 		Id = "blueberrinni",
 		Name = "Blueberrinni Octopussini",
 		Type = "Water",
-		Rarity = "Rare",
+		Rarity = "Legendary",
 		HP = 70, Attack = 68, Defense = 62, Speed = 60,
 		Description = "A blueberry octopus. Eight arms, all of them sticky.",
 		Display = {
@@ -905,7 +913,7 @@ BrainrotData.ROSTER = {
 		Id = "chef_crab",
 		Name = "Chef Crabracadabra",
 		Type = "Fire",
-		Rarity = "Rare",
+		Rarity = "Legendary",
 		HP = 68, Attack = 76, Defense = 58, Speed = 62,
 		Description = "A crab chef whose signature dish is his opponent. Served flambéed.",
 		Display = {
@@ -931,7 +939,7 @@ BrainrotData.ROSTER = {
 		Id = "zibra",
 		Name = "Zibra Zubra Zibralini",
 		Type = "Shadow",
-		Rarity = "Rare",
+		Rarity = "Mythic",
 		HP = 66, Attack = 72, Defense = 60, Speed = 78,
 		Description = "A zebra that only appears at midnight. The stripes are a warning.",
 		Display = {
@@ -956,7 +964,7 @@ BrainrotData.ROSTER = {
 		Id = "chicleteira",
 		Name = "Chicleteira Bicicleteira",
 		Type = "Sky",
-		Rarity = "Rare",
+		Rarity = "Secret",
 		HP = 64, Attack = 66, Defense = 58, Speed = 88,
 		Description = "A bubble-gum bicycle. Sticky, speedy, and impossible to park.",
 		Display = {
@@ -980,7 +988,7 @@ BrainrotData.ROSTER = {
 		Id = "pot_hotspot",
 		Name = "Pot Hotspot",
 		Type = "Fire",
-		Rarity = "Epic",
+		Rarity = "Secret",
 		HP = 85, Attack = 88, Defense = 70, Speed = 60,
 		Description = "A pressure cooker with anger issues. Do NOT lift the lid.",
 		Display = {
@@ -1006,7 +1014,7 @@ BrainrotData.ROSTER = {
 		Id = "gorillo",
 		Name = "Gorillo Watermelondrillo",
 		Type = "Wood",
-		Rarity = "Epic",
+		Rarity = "Mythic",
 		HP = 95, Attack = 92, Defense = 78, Speed = 55,
 		Description = "A watermelon gorilla. King of the jungle buffet.",
 		Display = {
@@ -1031,7 +1039,7 @@ BrainrotData.ROSTER = {
 		Id = "tralaleritos",
 		Name = "Los Tralaleritos",
 		Type = "Water",
-		Rarity = "Epic",
+		Rarity = "Secret",
 		HP = 75, Attack = 85, Defense = 65, Speed = 92,
 		Description = "Three mini shark pups in tiny sneakers. Triple the trouble.",
 		Display = {
@@ -1056,7 +1064,7 @@ BrainrotData.ROSTER = {
 		Id = "orcalero",
 		Name = "Orcalero Orcala",
 		Type = "Water",
-		Rarity = "Legendary",
+		Rarity = "Brainrot God",
 		HP = 102, Attack = 96, Defense = 92, Speed = 78,
 		Description = "The orca queen of the deep. The ocean has a ruler, and she is not asking.",
 		Display = {
@@ -1081,7 +1089,7 @@ BrainrotData.ROSTER = {
 		Id = "1x1x1x1",
 		Name = "1x1x1x1",
 		Type = "Tech",
-		Rarity = "Rare",
+		Rarity = "Secret",
 		HP = 80, Attack = 82, Defense = 77, Speed = 67,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1099,7 +1107,7 @@ BrainrotData.ROSTER = {
 		Id = "agarrini_la_pallini",
 		Name = "Agarrini La Pallini",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 61, Attack = 50, Defense = 66, Speed = 64,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1117,7 +1125,7 @@ BrainrotData.ROSTER = {
 		Id = "avocadini_guffo",
 		Name = "Avocadini Guffo",
 		Type = "Grass",
-		Rarity = "Common",
+		Rarity = "Epic",
 		HP = 64, Attack = 41, Defense = 47, Speed = 66,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1135,7 +1143,7 @@ BrainrotData.ROSTER = {
 		Id = "ballerino_lololo",
 		Name = "Ballerino Lololo",
 		Type = "Charm",
-		Rarity = "Common",
+		Rarity = "Brainrot God",
 		HP = 41, Attack = 65, Defense = 50, Speed = 52,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1153,7 +1161,7 @@ BrainrotData.ROSTER = {
 		Id = "bambini_crostini",
 		Name = "Bambini Crostini",
 		Type = "Normal",
-		Rarity = "Rare",
+		Rarity = "Epic",
 		HP = 68, Attack = 62, Defense = 66, Speed = 89,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1171,7 +1179,7 @@ BrainrotData.ROSTER = {
 		Id = "banana_dancana",
 		Name = "Banana Dancana",
 		Type = "Grass",
-		Rarity = "Rare",
+		Rarity = "Legendary",
 		HP = 90, Attack = 78, Defense = 88, Speed = 82,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1189,7 +1197,7 @@ BrainrotData.ROSTER = {
 		Id = "bobrito_bandito",
 		Name = "Bobrito Bandito",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Rare",
 		HP = 54, Attack = 44, Defense = 48, Speed = 44,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1207,7 +1215,7 @@ BrainrotData.ROSTER = {
 		Id = "boneca_ambalabu",
 		Name = "Boneca Ambalabu",
 		Type = "Charm",
-		Rarity = "Common",
+		Rarity = "Rare",
 		HP = 47, Attack = 63, Defense = 57, Speed = 57,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1225,7 +1233,7 @@ BrainrotData.ROSTER = {
 		Id = "brri_brri_bicus_dicus",
 		Name = "Brri Brri Bicus Dicus",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Epic",
 		HP = 48, Attack = 63, Defense = 58, Speed = 53,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1243,7 +1251,7 @@ BrainrotData.ROSTER = {
 		Id = "burbaloni_luliloli",
 		Name = "Burbaloni Luliloli",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Legendary",
 		HP = 68, Attack = 58, Defense = 52, Speed = 51,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1261,7 +1269,7 @@ BrainrotData.ROSTER = {
 		Id = "cachorrito_melonito",
 		Name = "Cachorrito Melonito",
 		Type = "Grass",
-		Rarity = "Common",
+		Rarity = "Mythic",
 		HP = 47, Attack = 44, Defense = 56, Speed = 55,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1279,7 +1287,7 @@ BrainrotData.ROSTER = {
 		Id = "cavallo_virtuoso",
 		Name = "Cavallo Virtuoso",
 		Type = "Beast",
-		Rarity = "Rare",
+		Rarity = "Mythic",
 		HP = 63, Attack = 64, Defense = 80, Speed = 65,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1297,7 +1305,7 @@ BrainrotData.ROSTER = {
 		Id = "chicleteirina_bicicleteirina",
 		Name = "Chicleteirina Bicicleteirina",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 65, Attack = 61, Defense = 53, Speed = 59,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1315,7 +1323,7 @@ BrainrotData.ROSTER = {
 		Id = "chillin_chili",
 		Name = "Chillin Chili",
 		Type = "Fire",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 42, Attack = 52, Defense = 52, Speed = 59,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1333,7 +1341,7 @@ BrainrotData.ROSTER = {
 		Id = "dragon_cannelloni",
 		Name = "Dragon Cannelloni",
 		Type = "Fire",
-		Rarity = "Rare",
+		Rarity = "Secret",
 		HP = 74, Attack = 76, Defense = 68, Speed = 77,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1351,7 +1359,7 @@ BrainrotData.ROSTER = {
 		Id = "esok_sekolah",
 		Name = "Esok Sekolah",
 		Type = "Normal",
-		Rarity = "Epic",
+		Rarity = "Secret",
 		HP = 107, Attack = 110, Defense = 80, Speed = 101,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1369,7 +1377,7 @@ BrainrotData.ROSTER = {
 		Id = "espresso_signora",
 		Name = "Espresso Signora",
 		Type = "Electric",
-		Rarity = "Common",
+		Rarity = "Brainrot God",
 		HP = 63, Attack = 43, Defense = 61, Speed = 68,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1387,7 +1395,7 @@ BrainrotData.ROSTER = {
 		Id = "fluri_flura",
 		Name = "Fluri Flura",
 		Type = "Normal",
-		Rarity = "Epic",
+		Rarity = "Common",
 		HP = 97, Attack = 104, Defense = 88, Speed = 104,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1405,7 +1413,7 @@ BrainrotData.ROSTER = {
 		Id = "ganganzelli_trulala",
 		Name = "Ganganzelli Trulala",
 		Type = "Normal",
-		Rarity = "Rare",
+		Rarity = "Mythic",
 		HP = 80, Attack = 70, Defense = 63, Speed = 69,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1441,7 +1449,7 @@ BrainrotData.ROSTER = {
 		Id = "girafa_celeste",
 		Name = "Girafa Celeste",
 		Type = "Beast",
-		Rarity = "Common",
+		Rarity = "Brainrot God",
 		HP = 70, Attack = 63, Defense = 68, Speed = 63,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1477,7 +1485,7 @@ BrainrotData.ROSTER = {
 		Id = "illuminato_triangolo",
 		Name = "Illuminato Triangolo",
 		Type = "Electric",
-		Rarity = "Common",
+		Rarity = "Legendary",
 		HP = 56, Attack = 69, Defense = 43, Speed = 67,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1495,7 +1503,7 @@ BrainrotData.ROSTER = {
 		Id = "job_job_job_sahur",
 		Name = "Job Job Job Sahur",
 		Type = "Fire",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 60, Attack = 49, Defense = 66, Speed = 60,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1513,7 +1521,7 @@ BrainrotData.ROSTER = {
 		Id = "karkerkar_kurkur",
 		Name = "Karkerkar Kurkur",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 56, Attack = 59, Defense = 46, Speed = 44,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1531,7 +1539,7 @@ BrainrotData.ROSTER = {
 		Id = "la_grande_combinasion",
 		Name = "La Grande Combinasion",
 		Type = "Normal",
-		Rarity = "Epic",
+		Rarity = "Secret",
 		HP = 91, Attack = 104, Defense = 85, Speed = 97,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1549,7 +1557,7 @@ BrainrotData.ROSTER = {
 		Id = "lerulerulerule",
 		Name = "Lerulerulerule",
 		Type = "Normal",
-		Rarity = "Epic",
+		Rarity = "Mythic",
 		HP = 109, Attack = 80, Defense = 99, Speed = 90,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1567,7 +1575,7 @@ BrainrotData.ROSTER = {
 		Id = "lionel_cactuseli",
 		Name = "Lionel Cactuseli",
 		Type = "Grass",
-		Rarity = "Rare",
+		Rarity = "Legendary",
 		HP = 75, Attack = 60, Defense = 63, Speed = 89,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1603,7 +1611,7 @@ BrainrotData.ROSTER = {
 		Id = "matteo",
 		Name = "Matteo",
 		Type = "Tech",
-		Rarity = "Legendary",
+		Rarity = "Brainrot God",
 		HP = 109, Attack = 107, Defense = 101, Speed = 107,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1621,7 +1629,7 @@ BrainrotData.ROSTER = {
 		Id = "meowl",
 		Name = "Meowl",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "OG",
 		HP = 68, Attack = 58, Defense = 70, Speed = 42,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1639,7 +1647,7 @@ BrainrotData.ROSTER = {
 		Id = "noo_my_examen",
 		Name = "Noo My Examen",
 		Type = "Normal",
-		Rarity = "Rare",
+		Rarity = "Secret",
 		HP = 62, Attack = 83, Defense = 75, Speed = 86,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1657,7 +1665,7 @@ BrainrotData.ROSTER = {
 		Id = "nyannini_cattalini",
 		Name = "Nyannini Cattalini",
 		Type = "Beast",
-		Rarity = "Epic",
+		Rarity = "Brainrot God",
 		HP = 82, Attack = 104, Defense = 97, Speed = 104,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1675,7 +1683,7 @@ BrainrotData.ROSTER = {
 		Id = "odin_din_din_dun",
 		Name = "Odin Din Din Dun",
 		Type = "Normal",
-		Rarity = "Rare",
+		Rarity = "Brainrot God",
 		HP = 64, Attack = 64, Defense = 81, Speed = 75,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1693,7 +1701,7 @@ BrainrotData.ROSTER = {
 		Id = "pakrahmatmamat",
 		Name = "Pakrahmatmamat",
 		Type = "Normal",
-		Rarity = "Epic",
+		Rarity = "Brainrot God",
 		HP = 110, Attack = 97, Defense = 85, Speed = 88,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1711,7 +1719,7 @@ BrainrotData.ROSTER = {
 		Id = "pakrahmatmatina",
 		Name = "Pakrahmatmatina",
 		Type = "Normal",
-		Rarity = "Rare",
+		Rarity = "Brainrot God",
 		HP = 76, Attack = 87, Defense = 79, Speed = 73,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1729,7 +1737,7 @@ BrainrotData.ROSTER = {
 		Id = "pipi_potato",
 		Name = "Pipi Potato",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Legendary",
 		HP = 64, Attack = 63, Defense = 62, Speed = 46,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1747,7 +1755,7 @@ BrainrotData.ROSTER = {
 		Id = "quesadilla_crocodila",
 		Name = "Quesadilla Crocodila",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 62, Attack = 49, Defense = 52, Speed = 61,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1765,7 +1773,7 @@ BrainrotData.ROSTER = {
 		Id = "six_seven",
 		Name = "Six Seven",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 60, Attack = 51, Defense = 54, Speed = 68,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1801,7 +1809,7 @@ BrainrotData.ROSTER = {
 		Id = "strawberrelli_flamingelli",
 		Name = "Strawberrelli Flamingelli",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Legendary",
 		HP = 47, Attack = 42, Defense = 50, Speed = 40,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1819,7 +1827,7 @@ BrainrotData.ROSTER = {
 		Id = "strawberry_elephant",
 		Name = "Strawberry Elephant",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "OG",
 		HP = 58, Attack = 57, Defense = 47, Speed = 58,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1837,7 +1845,7 @@ BrainrotData.ROSTER = {
 		Id = "swag_soda",
 		Name = "Swag Soda",
 		Type = "Tech",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 47, Attack = 40, Defense = 42, Speed = 62,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1891,7 +1899,7 @@ BrainrotData.ROSTER = {
 		Id = "tigroligre_frutonni",
 		Name = "Tigroligre Frutonni",
 		Type = "Beast",
-		Rarity = "Common",
+		Rarity = "Brainrot God",
 		HP = 42, Attack = 56, Defense = 47, Speed = 48,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1927,7 +1935,7 @@ BrainrotData.ROSTER = {
 		Id = "tirilikalika_tirilikalako",
 		Name = "Tirilikalika Tirilikalako",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Legendary",
 		HP = 44, Attack = 63, Defense = 69, Speed = 68,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1945,7 +1953,7 @@ BrainrotData.ROSTER = {
 		Id = "torrtuginni_dragonfrutini",
 		Name = "Torrtuginni Dragonfrutini",
 		Type = "Fire",
-		Rarity = "Epic",
+		Rarity = "Secret",
 		HP = 98, Attack = 98, Defense = 95, Speed = 87,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1963,7 +1971,7 @@ BrainrotData.ROSTER = {
 		Id = "tralaledon",
 		Name = "Tralaledon",
 		Type = "Water",
-		Rarity = "Rare",
+		Rarity = "Secret",
 		HP = 85, Attack = 75, Defense = 85, Speed = 73,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1981,7 +1989,7 @@ BrainrotData.ROSTER = {
 		Id = "tralalita_tralala",
 		Name = "Tralalita Tralala",
 		Type = "Water",
-		Rarity = "Rare",
+		Rarity = "Brainrot God",
 		HP = 66, Attack = 63, Defense = 63, Speed = 81,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -1999,7 +2007,7 @@ BrainrotData.ROSTER = {
 		Id = "tric_trac_barabum",
 		Name = "Tric Trac Barabum",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Rare",
 		HP = 53, Attack = 51, Defense = 53, Speed = 53,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -2017,7 +2025,7 @@ BrainrotData.ROSTER = {
 		Id = "trulimero_trulicina",
 		Name = "Trulimero Trulicina",
 		Type = "Charm",
-		Rarity = "Common",
+		Rarity = "Epic",
 		HP = 61, Attack = 60, Defense = 60, Speed = 43,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -2035,7 +2043,7 @@ BrainrotData.ROSTER = {
 		Id = "w_or_l",
 		Name = "W Or L",
 		Type = "Normal",
-		Rarity = "Common",
+		Rarity = "Secret",
 		HP = 41, Attack = 52, Defense = 63, Speed = 50,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -2053,7 +2061,7 @@ BrainrotData.ROSTER = {
 		Id = "yess_my_examen",
 		Name = "Yess My Examen",
 		Type = "Normal",
-		Rarity = "Legendary",
+		Rarity = "Secret",
 		HP = 125, Attack = 127, Defense = 103, Speed = 107,
 		Description = "A wild brainrot from the expanded collection.",
 		Display = {
@@ -2089,7 +2097,7 @@ end
 -- // Milestone 2: fusion, orb rewards, rivals ----------------------------------
 -- Weighted random reward for orb caches: mostly Commons, rarely better.
 BrainrotData.ORB_REWARD_WEIGHTS = {
-	Common = 62, Rare = 27, Epic = 9, Legendary = 2,
+	Common = 55, Rare = 24, Epic = 12, Legendary = 6, Mythic = 2, ["Brainrot God"] = 0.8, Secret = 0.18, OG = 0.02,
 }
 
 function BrainrotData.GetRandomIdOfRarity(rarity: string): string?
@@ -2125,7 +2133,16 @@ end
 -- 3 Legendaries -> a guaranteed SHINY (any brainrot). Shiny sacrifices
 -- are blocked to protect lucky pulls.
 BrainrotData.FUSION_MATERIAL_COST = { Common = 15, Rare = 30, Epic = 60 }
-BrainrotData.FUSION_COIN_COST = { Common = 100, Rare = 250, Epic = 500, Legendary = 1000 }
+BrainrotData.FUSION_COIN_COST = {
+	Common = 100,
+	Rare = 250,
+	Epic = 500,
+	Legendary = 1000,
+	Mythic = 2500,
+	["Brainrot God"] = 6000,
+	Secret = 15000,
+	OG = 50000,
+}
 
 function BrainrotData.GetFusionResultRarity(rarity: string): string?
 	for i, r in ipairs(BrainrotData.RARITY_ORDER) do
@@ -2351,13 +2368,13 @@ BrainrotData.EGG_TIERS = {
 		Name = "Big Egg",
 		Color = Color3.fromRGB(140, 180, 230),
 		HatchMinutes = 45,
-		Weights = { Common = 40, Rare = 35, Epic = 20, Legendary = 5 },
+		Weights = { Common = 38, Rare = 32, Epic = 18, Legendary = 8, Mythic = 3, ["Brainrot God"] = 0.9, Secret = 0.1 },
 	},
 	golden = {
 		Name = "Golden Egg",
 		Color = Color3.fromRGB(255, 200, 60),
 		HatchMinutes = 90,
-		Weights = { Common = 15, Rare = 30, Epic = 35, Legendary = 20 },
+		Weights = { Common = 12, Rare = 26, Epic = 30, Legendary = 20, Mythic = 8, ["Brainrot God"] = 3, Secret = 0.9, OG = 0.1 },
 	},
 }
 BrainrotData.EGG_ORDER = { "small", "big", "golden" }
