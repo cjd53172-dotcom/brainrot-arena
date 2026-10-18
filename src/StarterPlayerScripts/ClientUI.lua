@@ -222,30 +222,7 @@ workspace.DescendantAdded:Connect(function(descendant)
 		if def then
 			applyBrainrotNametag(descendant, def.Name, def.Rarity)
 
-			task.defer(function()
-				if not (descendant and descendant.Parent) then
-					return
-				end
-				-- Plot showcase/worker models are already placed by the server.
-				local ancestor = descendant.Parent
-				if ancestor and (ancestor.Name == "Displays" or ancestor.Name == "Workers") then
-					return
-				end
-				local part = descendant.PrimaryPart or descendant:FindFirstChildWhichIsA("BasePart")
-				if part then
-					local regionPart = workspace:GetPartsInPart(part)
-					for _, p in ipairs(regionPart) do
-						local n = p.Name
-						if n == "Platform" or n == "Pedestal" or string.sub(n, 1, 9) == "Pedestal_" then
-							local platformHeight = p.Size.Y
-							local brainrotSize = descendant:GetExtentsSize()
-							local targetCFrame = p.CFrame * CFrame.new(0, (platformHeight / 2) + (brainrotSize.Y / 2), 0)
-							descendant:PivotTo(targetCFrame)
-							break
-						end
-					end
-				end
-			end)
+			-- Server already sits and orients these. Client PivotTo was flattening pack meshes.
 		end
 	end
 end)
@@ -1842,6 +1819,13 @@ hideAllPanels = function()
 end
 
 refreshFishingPanel = function()
+	pcall(function()
+		game:GetService("ContextActionService"):UnbindAction("BrainrotReel")
+	end)
+	local oldReel = gui:FindFirstChild("ReelNowButton")
+	if oldReel then
+		oldReel:Destroy()
+	end
 	for _, c in ipairs(fishingPanel:GetChildren()) do
 		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
 			c:Destroy()
@@ -1886,22 +1870,61 @@ refreshFishingPanel = function()
 				task.wait(0.03)
 			end
 		end)
+		makeLabel(fishingPanel, "Controller: press X (or A / RT / E) to reel.", 13, Color3.fromRGB(200, 220, 255), order)
+		order += 1
 		local reelBtn = Instance.new("TextButton")
-		reelBtn.Size = UDim2.new(1, 0, 0, 48)
-		reelBtn.Text = "🎣 REEL IN!"
+		reelBtn.Size = UDim2.new(1, 0, 0, 56)
+		reelBtn.Text = "🎣 REEL IN!  (X / E)"
 		reelBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
 		reelBtn.TextColor3 = Color3.new(1,1,1)
 		reelBtn.Font = Enum.Font.GothamBold
 		reelBtn.TextSize = 18
 		reelBtn.LayoutOrder = order
+		reelBtn.Selectable = true
 		reelBtn.Parent = fishingPanel
 		corner(reelBtn, 8)
-		reelBtn.MouseButton1Click:Connect(function()
+		local overlay = gui:FindFirstChild("ReelNowButton")
+		if overlay and overlay:IsA("TextButton") then
+			overlay:Destroy()
+		end
+		local bigReel = Instance.new("TextButton")
+		bigReel.Name = "ReelNowButton"
+		bigReel.Size = UDim2.new(0.56, 0, 0, 72)
+		bigReel.Position = UDim2.new(0.22, 0, 0.78, 0)
+		bigReel.BackgroundColor3 = Color3.fromRGB(220, 160, 40)
+		bigReel.Text = "🎣 REEL IN!"
+		bigReel.Font = Enum.Font.GothamBlack
+		bigReel.TextSize = 24
+		bigReel.TextColor3 = Color3.new(1, 1, 1)
+		bigReel.Selectable = true
+		bigReel.ZIndex = 20
+		bigReel.Parent = gui
+		corner(bigReel, 14)
+		local function doReel()
+			if fishingState ~= "Bite" then
+				return
+			end
 			local quality = 1 - math.abs((markerPos + 0.025) - 0.5) * 2
 			quality = math.clamp(quality, 0, 1)
 			reelRemote:FireServer(quality)
 			fishingState = "None"
-		end)
+			if bigReel.Parent then
+				bigReel:Destroy()
+			end
+			game:GetService("ContextActionService"):UnbindAction("BrainrotReel")
+		end
+		reelBtn.MouseButton1Click:Connect(doReel)
+		bigReel.MouseButton1Click:Connect(doReel)
+		local guiService = game:GetService("GuiService")
+		guiService.GuiNavigationEnabled = true
+		guiService.AutoSelectGuiEnabled = true
+		guiService.SelectedObject = bigReel
+		game:GetService("ContextActionService"):BindAction("BrainrotReel", function(_name, state)
+			if state == Enum.UserInputState.Begin then
+				doReel()
+			end
+			return Enum.ContextActionResult.Sink
+		end, false, Enum.KeyCode.ButtonA, Enum.KeyCode.ButtonX, Enum.KeyCode.ButtonR2, Enum.KeyCode.ButtonL2, Enum.KeyCode.E)
 	elseif fishingState == "Missed" then
 		makeLabel(fishingPanel, "💨 It got away...", 16, Color3.fromRGB(180, 180, 180), order)
 		order += 1

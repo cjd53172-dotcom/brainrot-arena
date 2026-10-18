@@ -145,13 +145,48 @@ local function bboxSizeOf(model: Model): Vector3
 	return Vector3.new(1, 1, 1)
 end
 
--- Stand pack meshes up: make the longest axis vertical (Tung Tung, shovels, etc.).
+-- Store the extra tilt so wander lookAt CFrames do not flatten pack meshes.
+function PlotSystem.RememberStand(model: Model)
+	local p = model:GetPivot()
+	local flatLook = Vector3.new(p.LookVector.X, 0, p.LookVector.Z)
+	if flatLook.Magnitude < 0.08 then
+		flatLook = Vector3.new(0, 0, -1)
+	else
+		flatLook = flatLook.Unit
+	end
+	local yaw = CFrame.lookAt(Vector3.zero, flatLook, Vector3.yAxis)
+	local existing = model:FindFirstChild("StandRotation")
+	if existing then
+		existing:Destroy()
+	end
+	local v = Instance.new("CFrameValue")
+	v.Name = "StandRotation"
+	v.Value = yaw:Inverse() * (p - p.Position)
+	v.Parent = model
+end
+
+function PlotSystem.FacingCFrame(model: Model, pos: Vector3, dir: Vector3): CFrame
+	local flat = Vector3.new(dir.X, 0, dir.Z)
+	if flat.Magnitude < 0.05 then
+		flat = Vector3.new(0, 0, -1)
+	else
+		flat = flat.Unit
+	end
+	local stand = CFrame.new()
+	local v = model:FindFirstChild("StandRotation")
+	if v and v:IsA("CFrameValue") then
+		stand = (v :: CFrameValue).Value
+	end
+	return CFrame.new(pos) * CFrame.lookAt(Vector3.zero, flat, Vector3.yAxis) * stand
+end
+
+-- Only stand up stick-like meshes (Tung Tung). Wide pots/potatoes stay as authored.
 local function uprightModel(model: Model)
-	for _ = 1, 3 do
-		local size = bboxSizeOf(model)
-		if size.Y + 0.05 >= math.max(size.X, size.Z) then
-			return
-		end
+	local size = bboxSizeOf(model)
+	local maxD = math.max(size.X, size.Y, size.Z)
+	local minD = math.min(size.X, size.Y, size.Z)
+	local midD = size.X + size.Y + size.Z - maxD - minD
+	if maxD > midD * 1.45 and size.Y + 0.08 < maxD then
 		local pivot = model:GetPivot()
 		local options: { CFrame }
 		if size.X >= size.Z then
@@ -177,6 +212,7 @@ local function uprightModel(model: Model)
 		end
 		model:PivotTo(bestCF)
 	end
+	PlotSystem.RememberStand(model)
 end
 
 local MAX_DISPLAY_SIZE = 4.2
@@ -454,7 +490,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 28-signs")
+print("[PlotSystem] source 29-stand")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -472,7 +508,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v28-signs")
+	print("[PlotSystem] Loaded placement v29-stand")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()

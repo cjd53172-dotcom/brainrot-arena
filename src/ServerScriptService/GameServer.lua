@@ -1383,6 +1383,8 @@ do
 		prompt.HoldDuration = 0
 		prompt.MaxActivationDistance = 14
 		prompt.RequiresLineOfSight = false
+		prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
 		prompt.Parent = pad
 		table.insert(fishingSpots, { Id = "dock" .. i, Model = dock, Name = names[i] or ("Dock " .. i), Prompt = prompt })
 		print("[GameServer] Fishing dock " .. tostring(i) .. " at " .. tostring(Vector3.new(s.X, s.Y, s.Z)))
@@ -1407,6 +1409,42 @@ local function pushFishingState(player: Player, state: string, reward: any?, ope
 end
 
 local playerFishingGear: { [number]: any } = {}
+
+local function finishReel(player: Player, quality: number)
+	local gear = playerFishingGear[player.UserId]
+	playerFishingGear[player.UserId] = nil
+	local reward = FishingSystem.Reel(player, quality)
+	local bobberPos = if gear and gear.Bobber then gear.Bobber.Position else nil
+	if bobberPos and reward and reward.Kind ~= "Miss" then
+		VisualEffects.PlayCatch(bobberPos, reward.Kind)
+		if reward.Kind == "Fish" or reward.Kind == "Brainrot" then
+			local fish = VisualEffects.BuildFish(reward.Kind == "Brainrot")
+			fish:PivotTo(CFrame.new(bobberPos + Vector3.new(0, 1, 0)))
+			fish.Parent = workspace
+			task.spawn(function()
+				for i = 1, 15 do
+					if not fish or not fish.Parent then break end
+					local t = i / 15
+					fish:PivotTo(CFrame.new(
+						bobberPos + Vector3.new(0, 1 + math.sin(t * math.pi) * 4, 0)
+					) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
+					task.wait(0.05)
+				end
+				task.wait(1)
+				if fish and fish.Parent then fish:Destroy() end
+			end)
+		end
+	end
+	VisualEffects.ClearFishingGear(gear)
+	if reward then
+		pushFishingState(player, "None", reward)
+		pushCollection(player)
+		if reward.Kind == "Brainrot" then
+			autoShowcase(player)
+			PlotSystem.RefreshPlot(player)
+		end
+	end
+end
 
 local function startFishing(player: Player, spotId: string, openPanel: boolean)
 		VisualEffects.ClearFishingGear(playerFishingGear[player.UserId])
@@ -1441,6 +1479,25 @@ local function startFishing(player: Player, spotId: string, openPanel: boolean)
 					local gear = playerFishingGear[player.UserId]
 					if gear and gear.Bobber then
 						VisualEffects.PlayBite(gear.Bobber)
+						local old = gear.Bobber:FindFirstChild("ReelPrompt")
+						if old then
+							old:Destroy()
+						end
+						local reelPrompt = Instance.new("ProximityPrompt")
+						reelPrompt.Name = "ReelPrompt"
+						reelPrompt.ActionText = "Reel In"
+						reelPrompt.ObjectText = "Bite!"
+						reelPrompt.HoldDuration = 0
+						reelPrompt.MaxActivationDistance = 40
+						reelPrompt.RequiresLineOfSight = false
+						reelPrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+						reelPrompt.KeyboardKeyCode = Enum.KeyCode.E
+						reelPrompt.Parent = gear.Bobber
+						reelPrompt.Triggered:Connect(function(p: Player)
+							if p == player then
+								finishReel(player, 0.7)
+							end
+						end)
 					end
 					pushFishingState(player, "Bite", nil, true)
 				end
@@ -1480,46 +1537,7 @@ end
 local reelInRemote = CachedRemotes["ReelIn"]
 if reelInRemote then
 	reelInRemote.OnServerEvent:Connect(function(player: Player, quality: any)
-		-- Hardened Anti-Cheat State Check: Extract and clear registration instantly
-		local gear = playerFishingGear[player.UserId]
-		playerFishingGear[player.UserId] = nil
-
-		local q = tonumber(quality) or 0.5
-		local reward = FishingSystem.Reel(player, q)
-
-		local bobberPos = if gear and gear.Bobber then gear.Bobber.Position else nil
-		if bobberPos and reward and reward.Kind ~= "Miss" then
-			VisualEffects.PlayCatch(bobberPos, reward.Kind)
-			if reward.Kind == "Fish" or reward.Kind == "Brainrot" then
-				local fish = VisualEffects.BuildFish(reward.Kind == "Brainrot")
-				fish:PivotTo(CFrame.new(bobberPos + Vector3.new(0, 1, 0)))
-				fish.Parent = workspace
-
-				task.spawn(function()
-					for i = 1, 15 do
-						if not fish or not fish.Parent then break end
-						local t = i / 15
-						fish:PivotTo(CFrame.new(
-							bobberPos + Vector3.new(0, 1 + math.sin(t * math.pi) * 4, 0)
-							) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
-						task.wait(0.05)
-					end
-					task.wait(1)
-					if fish and fish.Parent then fish:Destroy() end
-				end)
-			end
-		end
-		VisualEffects.ClearFishingGear(gear)
-
-		if reward then
-			pushFishingState(player, "None", reward)
-			pushCollection(player)
-			if reward.Kind == "Brainrot" then
-				autoShowcase(player)
-				PlotSystem.RefreshPlot(player)
-				pushCollection(player)
-			end
-		end
+		finishReel(player, tonumber(quality) or 0.5)
 	end)
 end
 
@@ -1532,6 +1550,191 @@ JanitorConnections.PlayerRemovingFishing = Players.PlayerRemoving:Connect(functi
 	end
 	playerFishingGear[player.UserId] = nil
 end)
+
+-- Lucky blocks and hidden secrets (controller-friendly ProximityPrompts).
+do
+	local function hint(player: Player, text: string)
+		local ev = CachedRemotes["ShowHint"]
+		if ev then
+			ev:FireClient(player, text)
+		end
+	end
+	local function sitModel(model: Model, x: number, z: number)
+		PlotSystem.SitOnTerrain(model, x, z)
+		model.Parent = workspace
+	end
+	local function randomCommonId(): string
+		local ids = {}
+		for _, def in ipairs(BrainrotData.ROSTER) do
+			if def.Rarity == "Common" then
+				table.insert(ids, def.Id)
+			end
+		end
+		if #ids == 0 then
+			return "tung_sahur"
+		end
+		return ids[math.random(1, #ids)]
+	end
+
+	local luckSpots = {
+		{ Id = "luck1", X = 140, Z = 70 },
+		{ Id = "luck2", X = 40, Z = 110 },
+		{ Id = "luck3", X = 200, Z = -20 },
+		{ Id = "luck4", X = 300, Z = 180 },
+		{ Id = "luck5", X = -40, Z = 40 },
+	}
+	for _, spot in ipairs(luckSpots) do
+		local model = Instance.new("Model")
+		model.Name = "LuckyBlock_" .. spot.Id
+		local part = Instance.new("Part")
+		part.Name = "Block"
+		part.Size = Vector3.new(4.2, 4.2, 4.2)
+		part.Color = Color3.fromRGB(255, 210, 60)
+		part.Material = Enum.Material.Neon
+		part.Anchored = true
+		part.CanCollide = true
+		part.Parent = model
+		local symbol = Instance.new("BillboardGui")
+		symbol.Size = UDim2.new(0, 80, 0, 36)
+		symbol.StudsOffset = Vector3.new(0, 3.4, 0)
+		symbol.AlwaysOnTop = false
+		symbol.Parent = part
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextSize = 22
+		label.TextColor3 = Color3.fromRGB(40, 20, 0)
+		label.Text = "?"
+		label.Parent = symbol
+		local spark = Instance.new("ParticleEmitter")
+		spark.Color = ColorSequence.new(Color3.fromRGB(255, 230, 80))
+		spark.Rate = 8
+		spark.Lifetime = NumberRange.new(0.6, 1.2)
+		spark.Speed = NumberRange.new(1, 3)
+		spark.LightEmission = 0.6
+		spark.Parent = part
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "Open"
+		prompt.ObjectText = "Lucky Block"
+		prompt.HoldDuration = 0.35
+		prompt.MaxActivationDistance = 10
+		prompt.RequiresLineOfSight = false
+		prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
+		prompt.Parent = part
+		sitModel(model, spot.X, spot.Z)
+		local blockId = spot.Id
+		prompt.Triggered:Connect(function(player: Player)
+			local data = PlayerData.Get(player)
+			if not data then
+				return
+			end
+			if type(data.LuckyCooldown) ~= "table" then
+				data.LuckyCooldown = {}
+			end
+			local now = os.time()
+			local ready = data.LuckyCooldown[blockId] or 0
+			if now < ready then
+				hint(player, "Lucky Block recharges in " .. tostring(ready - now) .. "s")
+				return
+			end
+			data.LuckyCooldown[blockId] = now + 90
+			local roll = math.random()
+			if roll < 0.08 then
+				local id = randomCommonId()
+				local inst = PlayerData.TryAddBrainrot(player, id, false, BrainrotData.RollVariant())
+				if inst then
+					hint(player, "Lucky Block! A brainrot popped out!")
+					autoShowcase(player)
+					pushCollection(player)
+					PlotSystem.RefreshPlot(player)
+				else
+					PlayerData.AddCoins(player, 250)
+					hint(player, "Lucky Block! Inventory full — +250 coins")
+					pushCollection(player)
+				end
+			elseif roll < 0.28 then
+				data.LuckBoostUntil = now + 180
+				hint(player, "Lucky Block! 2x luck for 3 minutes")
+			elseif roll < 0.55 then
+				PlayerData.AddRareMaterial(player, "Pearl Shard", 1)
+				hint(player, "Lucky Block! +1 Pearl Shard")
+			else
+				local coins = math.random(80, 280)
+				PlayerData.AddCoins(player, coins)
+				hint(player, "Lucky Block! +" .. tostring(coins) .. " coins")
+				pushCollection(player)
+			end
+		end)
+	end
+
+	local secrets = {
+		{ Id = "dock_crate", Name = "Sunken Crate", X = 250, Z = -90 },
+		{ Id = "arena_nook", Name = "Colosseum Nook", X = -170, Z = -40 },
+		{ Id = "woods_stump", Name = "Whispering Stump", X = 410, Z = 90 },
+		{ Id = "peak_cache", Name = "Sky Cache", X = 173, Z = -190 },
+		{ Id = "cave_glint", Name = "Crystal Glint", X = 370, Z = 250 },
+		{ Id = "hill_mark", Name = "Hill Mark", X = 90, Z = 250 },
+	}
+	local secretCount = #secrets
+	for _, spot in ipairs(secrets) do
+		local model = Instance.new("Model")
+		model.Name = "Secret_" .. spot.Id
+		local part = Instance.new("Part")
+		part.Name = "Cache"
+		part.Size = Vector3.new(2.2, 1.4, 2.2)
+		part.Color = Color3.fromRGB(70, 50, 90)
+		part.Material = Enum.Material.Amethyst
+		part.Anchored = true
+		part.CanCollide = true
+		part.Parent = model
+		local glow = Instance.new("PointLight")
+		glow.Brightness = 0.6
+		glow.Range = 10
+		glow.Color = Color3.fromRGB(180, 120, 255)
+		glow.Parent = part
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "Search"
+		prompt.ObjectText = "Hidden Secret"
+		prompt.HoldDuration = 0.4
+		prompt.MaxActivationDistance = 8
+		prompt.RequiresLineOfSight = false
+		prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
+		prompt.Parent = part
+		sitModel(model, spot.X, spot.Z)
+		local secretId = spot.Id
+		local secretName = spot.Name
+		prompt.Triggered:Connect(function(player: Player)
+			local data = PlayerData.Get(player)
+			if not data then
+				return
+			end
+			if type(data.SecretsFound) ~= "table" then
+				data.SecretsFound = {}
+			end
+			if data.SecretsFound[secretId] then
+				hint(player, "You already found " .. secretName .. ".")
+				return
+			end
+			data.SecretsFound[secretId] = true
+			local found = 0
+			for _ in pairs(data.SecretsFound) do
+				found += 1
+			end
+			local coins = 150 + found * 50
+			PlayerData.AddCoins(player, coins)
+			hint(player, "Secret: " .. secretName .. "! +" .. tostring(coins) .. " coins (" .. tostring(found) .. "/" .. tostring(secretCount) .. ")")
+			if found >= secretCount then
+				PlayerData.AddCoins(player, 1000)
+				hint(player, "All secrets found! +1000 bonus coins")
+			end
+			pushCollection(player)
+		end)
+	end
+	print("[GameServer] Lucky blocks " .. tostring(#luckSpots) .. " secrets " .. tostring(secretCount))
+end
 
 -- // Expeditions system module ---------------------------------------------------
 local startExpeditionRemote = CachedRemotes["StartExpedition"]
@@ -2169,6 +2372,20 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		end
 	end)
 
+	local catchPrompt = Instance.new("ProximityPrompt")
+	catchPrompt.Name = "CatchPrompt"
+	catchPrompt.ActionText = "Catch"
+	catchPrompt.ObjectText = BrainrotData.GetDisplayName(def, wander.Variant, wander.Shiny == true)
+	catchPrompt.HoldDuration = 0
+	catchPrompt.MaxActivationDistance = 12
+	catchPrompt.RequiresLineOfSight = false
+	catchPrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+	catchPrompt.KeyboardKeyCode = Enum.KeyCode.E
+	catchPrompt.Parent = hitbox
+	catchPrompt.Triggered:Connect(function(p: Player)
+		attemptCatch(p)
+	end)
+
 	if not wanderModels[player.UserId] then wanderModels[player.UserId] = {} end
 	wanderModels[player.UserId][wanderId] = model
 	wander.Model = model
@@ -2276,7 +2493,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				end
 
 				local bobY = math.abs(math.sin(os.clock() * 8)) * 0.4
-				local cf = CFrame.new(currentPos + Vector3.new(0, bobY, 0), currentPos + dir * 5)
+				local cf = PlotSystem.FacingCFrame(model, currentPos + Vector3.new(0, bobY, 0), dir)
 
 				-- Robust Lifecycle Guard: Instantly exit thread memory space if asset was removed
 				if not model or not model.Parent then break end
@@ -2323,14 +2540,7 @@ task.spawn(function()
 							local overdue = (now - last) / interval
 
 							if roll < weight * overdue then
-								local luckTier = PlayerData.GetUpgradeTier(player, 'Luck')
-								local luckMult = 1
-								if luckTier > 0 then
-									local luckUpgradeDef = PlayerData.UPGRADE_DEFS.Luck
-									if luckUpgradeDef then
-										luckMult = luckUpgradeDef.Values[luckTier] or 1
-									end
-								end
+								local luckMult = PlayerData.GetLuckMultiplier(player)
 
 								for attempt = 1, 5 do
 									if not player.Parent then break end

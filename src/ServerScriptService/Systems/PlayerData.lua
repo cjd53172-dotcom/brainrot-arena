@@ -83,6 +83,9 @@ local function defaultData()
 		PlotTheme = "default",
 		UnlockedThemes = { default = true },
 		Decorations = {}, -- [decoId] = true
+		LuckBoostUntil = 0,
+		SecretsFound = {}, -- [secretId] = true
+		LuckyCooldown = {}, -- [blockId] = unix
 	}
 end
 
@@ -917,6 +920,21 @@ function PlayerData.ApplyStats(player: Player)
 		humanoid.UseJumpPower = true
 		humanoid.JumpPower = PlayerData.UPGRADE_DEFS.Jump.Values[jumpTier]
 	end
+end
+
+
+function PlayerData.GetLuckMultiplier(player: Player): number
+	local data = session[player.UserId]
+	local mult = 1
+	local luckTier = PlayerData.GetUpgradeTier(player, "Luck")
+	local def = PlayerData.UPGRADE_DEFS.Luck
+	if luckTier > 0 and def and def.Values then
+		mult = def.Values[luckTier] or 1
+	end
+	if data and (data.LuckBoostUntil or 0) > os.time() then
+		mult *= 2
+	end
+	return mult
 end
 
 return PlayerData
