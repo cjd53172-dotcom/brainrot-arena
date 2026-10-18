@@ -61,7 +61,7 @@ end
 -- // Precise Platform Surface Alignment Helper ----------------------------------
 -- Measures the exact bounding box of any model and places its lowest point
 -- precisely on top of the target base/pedestal surface, preventing clipping.
-local function modelAabb(model: Model): (Vector3, Vector3)?
+local function modelAabb(model: Model): (Vector3?, Vector3?)
 	local minX, minY, minZ = math.huge, math.huge, math.huge
 	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
 	local found = false
