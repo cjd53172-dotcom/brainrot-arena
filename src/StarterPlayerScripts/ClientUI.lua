@@ -627,12 +627,22 @@ local function instanceLabel(inst: any): string
 end
 
 local function refreshButtons()
-	collectionBtn.Text = ("Brainrots (%d)"):format(#ownedInstances)
+	local n = #ownedInstances
+	collectionBtn.Text = ("Brainrots (%d)"):format(n)
 	local shown = 0
 	for _ in pairs(showcaseIds) do
 		shown += 1
 	end
 	showcaseBtn.Text = ("Showcase (%d)"):format(shown)
+	local mobileBar = gui:FindFirstChild("MobileBar")
+	local mBrain = mobileBar and mobileBar:FindFirstChild("MobileBrainrots")
+	if mBrain and mBrain:IsA("TextButton") then
+		(mBrain :: TextButton).Text = "🧠\n" .. tostring(n)
+	end
+	local mShow = mobileBar and mobileBar:FindFirstChild("MobileShowcase")
+	if mShow and mShow:IsA("TextButton") then
+		(mShow :: TextButton).Text = "⭐\n(" .. tostring(shown) .. ")"
+	end
 end
 
 refreshCollectionPanel = function()
@@ -3448,6 +3458,11 @@ local function buildMobileBar()
 	}
 	for _, item in ipairs(mobileButtons) do
 		local mBtn = Instance.new("TextButton")
+		if item.Label == "Brainrots" then
+			mBtn.Name = "MobileBrainrots"
+		elseif item.Label == "Show" then
+			mBtn.Name = "MobileShowcase"
+		end
 		mBtn.Size = UDim2.new(0, 64, 0, 56)
 		mBtn.BackgroundColor3 = THEME.Card
 		mBtn.Text = item.Icon .. "\n" .. item.Label
@@ -3470,6 +3485,7 @@ local function buildMobileBar()
 			end)
 		end
 	end
+	refreshButtons()
 end
 
 if isMobile then
