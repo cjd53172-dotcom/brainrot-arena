@@ -2123,6 +2123,19 @@ function BrainrotData.GetWorkIdForType(brainrotType: string): string?
 	return nil
 end
 
+-- Fusion spends plot-work materials matching the brainrot's type.
+-- Unknown types (Normal, Charm, …) spend Timber so fusion still works.
+function BrainrotData.GetFusionMaterialInfo(def: any, variantId: string?): (string, string, number, number)
+	local rarity = (def and def.Rarity) or "Common"
+	local matCost = BrainrotData.FUSION_MATERIAL_COST[rarity] or 15
+	local coinCost = BrainrotData.FUSION_COIN_COST[rarity] or 100
+	local t = BrainrotData.GetEffectiveType(def, variantId)
+	local workId = BrainrotData.GetWorkIdForType(t) or "foraging"
+	local workDef = BrainrotData.WORK_TYPES[workId]
+	local matName = workDef and workDef.Material or "Timber"
+	return workId, matName, matCost, coinCost
+end
+
 -- 100 sequential arena gates. Teams and power scale with the gate number.
 local function idsOfRarity(rarity: string): { string }
 	local pool = {}

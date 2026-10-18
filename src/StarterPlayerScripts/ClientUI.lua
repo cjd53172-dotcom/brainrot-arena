@@ -802,13 +802,27 @@ pad(fusionPanel, 12)
 local fusionTitle = Instance.new("TextLabel")
 fusionTitle.Size = UDim2.new(1, -24, 0, 40)
 fusionTitle.BackgroundTransparency = 1
-fusionTitle.Text = "⚗ Fusion Lab — 3 duplicates + materials = higher rarity!"
+fusionTitle.Text = "⚗ Fusion Lab — 3 copies + type materials + coins"
 fusionTitle.Font = Enum.Font.GothamBold
 fusionTitle.TextSize = 15
 fusionTitle.TextColor3 = Color3.fromRGB(220, 170, 255)
 fusionTitle.TextWrapped = true
 fusionTitle.LayoutOrder = 0
 fusionTitle.Parent = fusionPanel
+
+local workState: any = { Materials = {}, Stations = {} }
+
+local fusionHowTo = Instance.new("TextLabel")
+fusionHowTo.Size = UDim2.new(1, -24, 0, 72)
+fusionHowTo.BackgroundTransparency = 1
+fusionHowTo.Text = "Materials come from Work stations on your plot (assign brainrots, then Collect).\nWood→Timber  Water→Fish  Fire→Ingots  Sky→Cloud Cotton  Shadow→Dark Stone.\nOther types spend Timber. Rare gems come from Expeditions, not fusion."
+fusionHowTo.Font = Enum.Font.Gotham
+fusionHowTo.TextSize = 13
+fusionHowTo.TextColor3 = Color3.fromRGB(190, 170, 220)
+fusionHowTo.TextWrapped = true
+fusionHowTo.TextXAlignment = Enum.TextXAlignment.Left
+fusionHowTo.LayoutOrder = 0
+fusionHowTo.Parent = fusionPanel
 
 local function refreshFusionPanel()
 	for _, child in ipairs(fusionPanel:GetChildren()) do
@@ -830,7 +844,7 @@ local function refreshFusionPanel()
 			anyGroup = true
 			local def = lookupDef(brainrotId)
 			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, -24, 0, 76)
+			row.Size = UDim2.new(1, -24, 0, 92)
 			row.BackgroundColor3 = Color3.fromRGB(35, 28, 48)
 			row.BorderSizePixel = 0
 			row.LayoutOrder = order
@@ -839,7 +853,7 @@ local function refreshFusionPanel()
 			order += 1
 
 			local nameLabel = Instance.new("TextLabel")
-			nameLabel.Size = UDim2.new(1, -120, 0, 26)
+			nameLabel.Size = UDim2.new(1, -120, 0, 24)
 			nameLabel.Position = UDim2.new(0, 10, 0, 6)
 			nameLabel.BackgroundTransparency = 1
 			nameLabel.Text = ("%s  x%d"):format(def and def.Name or brainrotId, #list)
@@ -850,24 +864,31 @@ local function refreshFusionPanel()
 			nameLabel.Parent = row
 
 			local costText: string
+			local costColor = Color3.fromRGB(200, 180, 220)
 			if def and def.Rarity == "Legendary" then
-				costText = "Result: guaranteed SHINY!"
+				local coins = BrainrotData.FUSION_COIN_COST.Legendary or 1000
+				costText = ("Need %d coins → guaranteed SHINY"):format(coins)
 			else
-				local workId = def and BrainrotData.GetWorkIdForType(BrainrotData.GetEffectiveType(def, nil))
-				local matName = workId and BrainrotData.WORK_TYPES[workId].Material or "materials"
+				local variantId = list[1] and list[1].Variant
+				local workId, matName, matCost, coinFee = BrainrotData.GetFusionMaterialInfo(def, variantId)
+				local have = ((workState.Materials or {})[workId] or 0)
 				local resultRarity = def and BrainrotData.GetFusionResultRarity(def.Rarity) or "?"
-				costText = ("Cost: %d %s → %s"):format(
-					def and BrainrotData.FUSION_MATERIAL_COST[def.Rarity] or 15, matName, resultRarity)
+				costText = ("Need %d %s (have %d) + %d coins → %s"):format(matCost, matName, have, coinFee, resultRarity)
+				if have < matCost then
+					costColor = Color3.fromRGB(255, 150, 140)
+				end
 			end
 			local costLabel = Instance.new("TextLabel")
-			costLabel.Size = UDim2.new(1, -120, 0, 22)
-			costLabel.Position = UDim2.new(0, 10, 0, 34)
+			costLabel.Size = UDim2.new(1, -120, 0, 48)
+			costLabel.Position = UDim2.new(0, 10, 0, 32)
 			costLabel.BackgroundTransparency = 1
 			costLabel.Text = costText
 			costLabel.Font = Enum.Font.Gotham
 			costLabel.TextSize = 13
-			costLabel.TextColor3 = Color3.fromRGB(200, 180, 220)
+			costLabel.TextColor3 = costColor
+			costLabel.TextWrapped = true
 			costLabel.TextXAlignment = Enum.TextXAlignment.Left
+			costLabel.TextYAlignment = Enum.TextYAlignment.Top
 			costLabel.Parent = row
 
 			local fuseBtn = Instance.new("TextButton")
@@ -1735,17 +1756,6 @@ statsBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
-local fishBtn = Instance.new("TextButton")
-fishBtn.Size = UDim2.new(0, 104, 0, 40)
-fishBtn.Position = UDim2.new(0.5, 284, 1, -172)
-fishBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 120)
-fishBtn.Text = "🎣 Fish"
-fishBtn.Font = Enum.Font.GothamBold
-fishBtn.TextSize = 13
-fishBtn.TextColor3 = Color3.fromRGB(150, 200, 255)
-fishBtn.Parent = gui
-corner(fishBtn, 10)
-
 local fishingPanel, _fishTitle = makePanel("🎣 Fishing — catch brainrots and treasures!", Color3.fromRGB(150, 200, 255))
 local fishingState: string = "None"
 
@@ -1756,15 +1766,6 @@ hideAllPanels = function()
 	fishingPanel.Visible = false
 end
 
-fishBtn.MouseButton1Click:Connect(function()
-	local was = fishingPanel.Visible
-	hideAllPanels()
-	if not was then
-		fishingPanel.Visible = true
-		refreshFishingPanel()
-	end
-end)
-
 refreshFishingPanel = function()
 	for _, c in ipairs(fishingPanel:GetChildren()) do
 		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
@@ -1773,21 +1774,7 @@ refreshFishingPanel = function()
 	end
 	local order = 1
 	if fishingState == "None" then
-		makeLabel(fishingPanel, "Find a fishing dock near water, then cast your line!", 14, Color3.new(1,1,1), order)
-		order += 1
-		local castBtn = Instance.new("TextButton")
-		castBtn.Size = UDim2.new(1, 0, 0, 48)
-		castBtn.Text = "🎣 Cast Line"
-		castBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 160)
-		castBtn.TextColor3 = Color3.new(1,1,1)
-		castBtn.Font = Enum.Font.GothamBold
-		castBtn.TextSize = 16
-		castBtn.LayoutOrder = order
-		castBtn.Parent = fishingPanel
-		corner(castBtn, 8)
-		castBtn.MouseButton1Click:Connect(function()
-			castRemote:FireServer("dock1")
-		end)
+		makeLabel(fishingPanel, "Walk onto a dock under the FISHING sign and press Cast Line.", 14, Color3.new(1,1,1), order)
 	elseif fishingState == "Waiting" then
 		makeLabel(fishingPanel, "⏳ Waiting for a bite...", 16, Color3.fromRGB(150, 200, 255), order)
 		order += 1
@@ -1857,24 +1844,19 @@ refreshFishingPanel = function()
 			fishingState = "None"
 			refreshFishingPanel()
 		end)
+		makeLabel(fishingPanel, "Use Cast Line on the dock to try again.", 13, Color3.fromRGB(180, 180, 180), order + 1)
 	end
 end
 
 fishingUpdateRemote.OnClientEvent:Connect(function(payload: any)
+	if payload.OpenPanel then
+		hideAllPanels()
+		fishingPanel.Visible = true
+	end
 	if payload.State then
 		fishingState = payload.State
 		if fishingPanel.Visible then
 			refreshFishingPanel()
-		end
-		if fishingState == "Bite" then
-			fishBtn.Text = "❗ BITE!"
-			fishBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
-		elseif fishingState == "Waiting" then
-			fishBtn.Text = "⏳ Waiting..."
-			fishBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-		else
-			fishBtn.Text = "🎣 Fish"
-			fishBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 120)
 		end
 	end
 	if payload.Reward then
@@ -1953,7 +1935,6 @@ local assignWorkerRemote = remotes:WaitForChild("AssignWorker")
 local collectRemote = remotes:WaitForChild("CollectStation")
 local workUpdateRemote = remotes:WaitForChild("WorkUpdate")
 
-local workState: any = { Materials = {}, Stations = {} }
 local jobsByInstance: { [string]: string } = {}
 local pickingForWorkId: string? = nil
 
@@ -2957,7 +2938,6 @@ local function buildMobileBar()
 		exploreBtn, dailyBtn, eggBtn, mineBtn, styleBtn, statsBtn }) do
 		btn.Visible = false
 	end
-	fishBtn.Visible = false
 
 	local mobileBar = Instance.new("ScrollingFrame")
 	mobileBar.Name = "MobileBar"
@@ -3003,7 +2983,6 @@ local function buildMobileBar()
 		{ Icon = "🥚", Label = "Eggs", Panel = eggPanel, Refresh = refreshEggPanel },
 		{ Icon = "⛏️", Label = "Mine", Panel = minePanel, Refresh = refreshMinePanel },
 		{ Icon = "🎨", Label = "Style", Panel = customizePanel, Refresh = refreshCustomizePanel },
-		{ Icon = "🎣", Label = "Fish", Panel = fishingPanel, Refresh = refreshFishingPanel },
 	}
 	for _, item in ipairs(mobileButtons) do
 		local mBtn = Instance.new("TextButton")

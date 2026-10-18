@@ -38,6 +38,38 @@ local FUSION_Z = WORLD_DZ + 12
 local plotsFolder: Folder? = nil
 local playerPlots: { [number]: Model } = {} -- [userId] -> plot
 
+function PlotSystem.PickClearSpot(preferX: number, preferZ: number): (number, number)
+	local function blocked(x: number, z: number): boolean
+		if not plotsFolder then
+			return false
+		end
+		for _, plot in ipairs(plotsFolder:GetChildren()) do
+			local base = plot:FindFirstChild("Base")
+			if base and base:IsA("BasePart") then
+				local dx = x - (base :: BasePart).Position.X
+				local dz = z - (base :: BasePart).Position.Z
+				if math.abs(dx) < 72 and math.abs(dz) < 72 then
+					return true
+				end
+			end
+		end
+		return false
+	end
+	if not blocked(preferX, preferZ) then
+		return preferX, preferZ
+	end
+	for r = 24, 240, 24 do
+		for a = 0, 11 do
+			local x = preferX + math.cos(a * math.pi / 6) * r
+			local z = preferZ + math.sin(a * math.pi / 6) * r
+			if not blocked(x, z) then
+				return x, z
+			end
+		end
+	end
+	return preferX, preferZ
+end
+
 local SHAPES = {
 	Block = Enum.PartType.Block,
 	Ball = Enum.PartType.Ball,
@@ -388,7 +420,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 15-upright")
+print("[PlotSystem] source 17-fusion")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local label = PlotSystem.ArenaBoardLabel
@@ -398,7 +430,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v15-upright")
+	print("[PlotSystem] Loaded placement v17-fusion")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -766,56 +798,33 @@ function PlotSystem.Setup()
 	plaza.Name = "Plaza"
 	plaza.Parent = workspace
 
-	local lab = Instance.new("Model")
-	lab.Name = "FusionLab"
-	newPart({
-		Name = "Base",
-		Size = Vector3.new(10, 1, 10),
-		Position = Vector3.new(FUSION_X, 0.5, FUSION_Z),
-		Anchored = true,
-		Color = Color3.fromRGB(60, 60, 80),
-		Material = Enum.Material.SmoothPlastic,
-	}, lab)
-	newPart({
-		Name = "Chamber",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(6, 5, 6),
-		Position = Vector3.new(FUSION_X, 3.5, FUSION_Z),
-		Anchored = true,
-		Color = Color3.fromRGB(150, 80, 220),
-		Material = Enum.Material.Neon,
-		CanCollide = false,
-	}, lab)
-	local labSign = newPart({
-		Name = "Sign",
-		Size = Vector3.new(9, 3, 0.6),
-		Position = Vector3.new(FUSION_X, 7.5, FUSION_Z),
-		Anchored = true,
-		Color = Color3.fromRGB(90, 70, 50),
-		Material = Enum.Material.Wood,
-	}, lab)
-	local labGui = Instance.new("SurfaceGui")
-	labGui.Face = Enum.NormalId.Front
-	labGui.Parent = labSign
-	local labLabel = Instance.new("TextLabel")
-	labLabel.Size = UDim2.new(1, 0, 1, 0)
-	labLabel.BackgroundTransparency = 1
-	labLabel.Text = "FUSION LAB\n3 duplicates + materials"
-	labLabel.TextScaled = true
-	labLabel.Font = Enum.Font.GothamBold
-	labLabel.TextColor3 = Color3.new(1, 1, 1)
-	labLabel.TextStrokeTransparency = 0.6
-	labLabel.Parent = labGui
-	local labPrompt = Instance.new("ProximityPrompt")
-	labPrompt.Name = "FusionPrompt"
-	labPrompt.ActionText = "Open Fusion Lab"
-	labPrompt.ObjectText = "Fusion Lab"
-	labPrompt.HoldDuration = 0
-	labPrompt.MaxActivationDistance = 14
-	labPrompt.Parent = labSign
+	local FUSION_PLACE_X, FUSION_PLACE_Z = PlotSystem.PickClearSpot(WORLD_DX - 90, WORLD_DZ - 60)
+
+	local lab: Model
+	local customFusion = ReplicatedStorage:FindFirstChild("FusionMachine") or ReplicatedStorage:FindFirstChild("FusionLabModel")
+	if customFusion and customFusion:IsA("Model") then
+		lab = (customFusion :: Model):Clone()
+		lab.Name = "FusionLab"
+	else
+		lab = VisualEffects.BuildFusionMachine()
+	end
+	lab:PivotTo(CFrame.new(FUSION_PLACE_X, 0, FUSION_PLACE_Z))
 	lab.Parent = plaza
-	liftModel(lab, groundY(FUSION_X, FUSION_Z))
-	PlotSystem.FusionPrompt = labPrompt
+	liftModel(lab, groundY(FUSION_PLACE_X, FUSION_PLACE_Z))
+	local labPromptInst = lab:FindFirstChild("FusionPrompt", true)
+	if not (labPromptInst and labPromptInst:IsA("ProximityPrompt")) then
+		local attach = lab.PrimaryPart or lab:FindFirstChildWhichIsA("BasePart")
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "FusionPrompt"
+		prompt.ActionText = "Open Fusion Lab"
+		prompt.ObjectText = "Fusion Reactor"
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 16
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = attach
+		labPromptInst = prompt
+	end
+	PlotSystem.FusionPrompt = labPromptInst :: ProximityPrompt
 
 	local arena = Instance.new("Model")
 	arena.Name = "Arena"

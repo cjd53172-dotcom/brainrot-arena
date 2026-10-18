@@ -1230,6 +1230,7 @@ function VisualEffects.BuildFishingSpot(): Model
 
 	-- Sign
 	local sign = Instance.new("Part")
+	sign.Name = "DockSign"
 	sign.Size = Vector3.new(4, 2, 0.4)
 	sign.Color = Color3.fromRGB(60, 40, 20)
 	sign.Material = Enum.Material.Wood
@@ -1243,12 +1244,24 @@ function VisualEffects.BuildFishingSpot(): Model
 	local signLabel = Instance.new("TextLabel")
 	signLabel.Size = UDim2.new(1, 0, 1, 0)
 	signLabel.BackgroundTransparency = 1
-	signLabel.Text = "🎣 FISHING\nCast from the dock!"
+	signLabel.Text = "CAST LINE HERE"
 	signLabel.Font = Enum.Font.GothamBold
-	signLabel.TextSize = 22
+	signLabel.TextScaled = true
 	signLabel.TextColor3 = Color3.new(1, 1, 1)
 	signLabel.TextStrokeTransparency = 0.5
 	signLabel.Parent = signGui
+
+	local castPad = Instance.new("Part")
+	castPad.Name = "CastPad"
+	castPad.Size = Vector3.new(4, 0.5, 7)
+	castPad.Color = Color3.fromRGB(110, 75, 40)
+	castPad.Material = Enum.Material.WoodPlanks
+	castPad.Transparency = 1
+	castPad.Anchored = true
+	castPad.CanCollide = false
+	castPad.Position = Vector3.new(0, 1.2, 0)
+	castPad.Parent = model
+	model.PrimaryPart = castPad
 
 	-- Water (larger, animated waves)
 	local water = Instance.new("Part")
@@ -1273,6 +1286,158 @@ function VisualEffects.BuildFishingSpot(): Model
 	waves.Rate = 8
 	waves.Parent = water
 
+	return model
+end
+
+function VisualEffects.BuildFishingLandmark(): Model
+	local model = Instance.new("Model")
+	model.Name = "FishingLandmark"
+
+	local post = Instance.new("Part")
+	post.Name = "Post"
+	post.Size = Vector3.new(1.4, 18, 1.4)
+	post.Color = Color3.fromRGB(80, 55, 30)
+	post.Material = Enum.Material.Wood
+	post.Anchored = true
+	post.Position = Vector3.new(0, 9, 0)
+	post.Parent = model
+
+	local board = Instance.new("Part")
+	board.Name = "Board"
+	board.Size = Vector3.new(28, 10, 1.2)
+	board.Color = Color3.fromRGB(30, 90, 150)
+	board.Material = Enum.Material.SmoothPlastic
+	board.Anchored = true
+	board.Position = Vector3.new(0, 16, 0)
+	board.Parent = model
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "FISHING"
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextStrokeTransparency = 0.4
+	label.Parent = gui
+
+	local guiBack = Instance.new("SurfaceGui")
+	guiBack.Face = Enum.NormalId.Back
+	guiBack.Parent = board
+	local labelBack = Instance.new("TextLabel")
+	labelBack.Size = UDim2.new(1, 0, 1, 0)
+	labelBack.BackgroundTransparency = 1
+	labelBack.Text = "FISHING"
+	labelBack.Font = Enum.Font.GothamBlack
+	labelBack.TextScaled = true
+	labelBack.TextColor3 = Color3.fromRGB(255, 255, 255)
+	labelBack.TextStrokeTransparency = 0.4
+	labelBack.Parent = guiBack
+
+	model.PrimaryPart = board
+	return model
+end
+
+function VisualEffects.BuildFusionMachine(): Model
+	local model = Instance.new("Model")
+	model.Name = "FusionLab"
+
+	local function add(name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, shape: Enum.PartType?): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Material = mat
+		p.Anchored = true
+		if shape then
+			p.Shape = shape
+		end
+		p.Parent = model
+		return p
+	end
+
+	local metal = Color3.fromRGB(48, 48, 62)
+	local dark = Color3.fromRGB(28, 24, 40)
+	local neon = Color3.fromRGB(170, 80, 255)
+	local gold = Color3.fromRGB(255, 200, 80)
+
+	local base = add("Base", Vector3.new(16, 1.2, 16), CFrame.new(0, 0.6, 0), dark, Enum.Material.Metal)
+	add("Ring", Vector3.new(14, 0.5, 14), CFrame.new(0, 1.2, 0), metal, Enum.Material.DiamondPlate)
+	add("Step", Vector3.new(10, 0.4, 10), CFrame.new(0, 1.5, 0), Color3.fromRGB(70, 55, 100), Enum.Material.SmoothPlastic)
+
+	for i = 0, 3 do
+		local a = i * math.pi / 2 + math.pi / 4
+		local x, z = math.cos(a) * 6.2, math.sin(a) * 6.2
+		add("Pylon" .. i, Vector3.new(1.4, 9, 1.4), CFrame.new(x, 5.7, z), metal, Enum.Material.Metal)
+		add("PylonGlow" .. i, Vector3.new(0.35, 7, 0.35), CFrame.new(x, 5.7, z), neon, Enum.Material.Neon)
+	end
+
+	local chamber = add("Chamber", Vector3.new(8, 6.5, 6.5), CFrame.new(0, 5.6, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(140, 90, 220), Enum.Material.ForceField, Enum.PartType.Cylinder)
+	chamber.Transparency = 0.35
+	chamber.CanCollide = false
+
+	local core = add("Core", Vector3.new(3.2, 3.2, 3.2), CFrame.new(0, 5.6, 0), neon, Enum.Material.Neon, Enum.PartType.Ball)
+	core.CanCollide = false
+	local light = Instance.new("PointLight")
+	light.Color = neon
+	light.Brightness = 3
+	light.Range = 22
+	light.Parent = core
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Color = ColorSequence.new(neon, Color3.fromRGB(255, 180, 255))
+	sparks.Size = NumberSequence.new(0.25, 0.05)
+	sparks.Lifetime = NumberRange.new(0.6, 1.2)
+	sparks.Rate = 18
+	sparks.Speed = NumberRange.new(1, 3)
+	sparks.Parent = core
+
+	add("Cap", Vector3.new(7, 1.2, 7), CFrame.new(0, 10.1, 0), metal, Enum.Material.Metal)
+	add("Crown", Vector3.new(2.4, 2.2, 2.4), CFrame.new(0, 11.4, 0), gold, Enum.Material.Neon, Enum.PartType.Ball)
+
+	for i = 1, 3 do
+		local a = (i / 3) * math.pi * 2
+		local x, z = math.cos(a) * 5.4, math.sin(a) * 5.4
+		add("Pod" .. i, Vector3.new(2.4, 1.6, 2.4), CFrame.new(x, 2.5, z), Color3.fromRGB(90, 70, 130), Enum.Material.SmoothPlastic)
+		add("PodGlow" .. i, Vector3.new(1.4, 0.4, 1.4), CFrame.new(x, 3.4, z), neon, Enum.Material.Neon)
+		add("Pipe" .. i, Vector3.new(0.5, 0.5, 4.2), CFrame.new(x * 0.5, 3.8, z * 0.5) * CFrame.lookAt(Vector3.new(x * 0.5, 3.8, z * 0.5), Vector3.new(0, 5.2, 0)), metal, Enum.Material.Metal)
+	end
+
+	local console = add("Console", Vector3.new(5.5, 2.2, 2.4), CFrame.new(0, 2.4, 7.2), Color3.fromRGB(40, 35, 55), Enum.Material.SmoothPlastic)
+	add("Screen", Vector3.new(4.2, 1.4, 0.2), CFrame.new(0, 3.4, 8.35), neon, Enum.Material.Neon)
+
+	local sign = add("Sign", Vector3.new(14, 4.2, 0.7), CFrame.new(0, 14.2, 0), Color3.fromRGB(40, 20, 60), Enum.Material.SmoothPlastic)
+	local function face(part: BasePart, face: Enum.NormalId, text: string)
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.Parent = part
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = Color3.fromRGB(255, 230, 255)
+		label.TextStrokeTransparency = 0.4
+		label.Parent = gui
+	end
+	face(sign, Enum.NormalId.Front, "FUSION LAB")
+	face(sign, Enum.NormalId.Back, "FUSION LAB")
+	face(console, Enum.NormalId.Top, "3 COPIES + PLOT WORK MATS")
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "FusionPrompt"
+	prompt.ActionText = "Open Fusion Lab"
+	prompt.ObjectText = "Fusion Reactor"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 16
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = console
+
+	model.PrimaryPart = base
 	return model
 end
 

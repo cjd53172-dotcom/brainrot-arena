@@ -509,25 +509,23 @@ if fuseBrainrotsRemote then
 			local resultId = resultRarity and BrainrotData.GetRandomIdOfRarity(resultRarity) or nil
 			if not resultId then return end
 
-			-- Material extraction processing rules calculation loop
-			local workId = BrainrotData.GetWorkIdForType(BrainrotData.GetEffectiveType(def, nil))
-			local cost = BrainrotData.FUSION_MATERIAL_COST[rarity] or 15
-			local coinFee = BrainrotData.FUSION_COIN_COST[rarity] or 100
+			local firstInst = PlayerData.GetInstance(player, instanceIds[1])
+			local workId, matName, cost, coinFee = BrainrotData.GetFusionMaterialInfo(def, firstInst and firstInst.Variant)
 
 			if not PlayerData.SpendCoins(player, coinFee) then
 				local hintEvent = CachedRemotes["ShowHint"]
 				if hintEvent then
-					hintEvent:FireClient(player, "Not enough coins! Need " .. tostring(coinFee) .. ".")
+					hintEvent:FireClient(player, "Need " .. tostring(coinFee) .. " coins to fuse.")
 				end
 				return
 			end
 
-			if not workId or not PlayerData.SpendMaterials(player, { [workId] = cost }) then
-				-- Safe Transactional Rollback: Refund currency if material balance check fails
+			if not PlayerData.SpendMaterials(player, { [workId] = cost }) then
 				PlayerData.AddCoins(player, coinFee)
+				local have = (data.Materials[workId] or 0)
 				local hintEvent = CachedRemotes["ShowHint"]
 				if hintEvent then
-					hintEvent:FireClient(player, "Not enough materials for fusion!")
+					hintEvent:FireClient(player, ("Need %d %s from plot Work (you have %d). Assign matching workers, then Collect."):format(cost, matName, have))
 				end
 				return
 			end
@@ -827,16 +825,15 @@ do
 	local stall = Instance.new("Model")
 	stall.Name = "StatTrainerStall"
 
+	local cx, cz = PlotSystem.PickClearSpot(40, 40)
 	local groundY = 16
 	local upParams = RaycastParams.new()
 	upParams.FilterType = Enum.RaycastFilterType.Include
 	upParams.FilterDescendantsInstances = { workspace.Terrain }
-	local hit = workspace:Raycast(Vector3.new(105, 500, 100), Vector3.new(0, -1000, 0), upParams)
+	local hit = workspace:Raycast(Vector3.new(cx, 500, cz), Vector3.new(0, -1000, 0), upParams)
 	if hit then
 		groundY = hit.Position.Y
 	end
-	-- Plaza, not on a player pad.
-	local cx, cz = 105, 100
 
 	local function stallPart(name: string, size: Vector3, pos: Vector3, color: Color3, mat: Enum.Material): Part
 		local p = Instance.new("Part")
@@ -850,22 +847,11 @@ do
 		return p
 	end
 
-	stallPart("Floor", Vector3.new(10, 0.6, 8), Vector3.new(cx, groundY + 0.3, cz), Color3.fromRGB(90, 70, 45), Enum.Material.WoodPlanks)
-	local counter = stallPart("Counter", Vector3.new(8, 1.2, 2.2), Vector3.new(cx, groundY + 1.5, cz + 1.4), Color3.fromRGB(120, 85, 50), Enum.Material.Wood)
-	stallPart("Canopy", Vector3.new(10, 0.3, 8), Vector3.new(cx, groundY + 6.4, cz), Color3.fromRGB(180, 40, 40), Enum.Material.Fabric)
-	stallPart("PoleL", Vector3.new(0.4, 6, 0.4), Vector3.new(cx - 4.5, groundY + 3.4, cz - 3.4), Color3.fromRGB(80, 60, 40), Enum.Material.Wood)
-	stallPart("PoleR", Vector3.new(0.4, 6, 0.4), Vector3.new(cx + 4.5, groundY + 3.4, cz - 3.4), Color3.fromRGB(80, 60, 40), Enum.Material.Wood)
-	stallPart("PoleBL", Vector3.new(0.4, 6, 0.4), Vector3.new(cx - 4.5, groundY + 3.4, cz + 3.4), Color3.fromRGB(80, 60, 40), Enum.Material.Wood)
-	stallPart("PoleBR", Vector3.new(0.4, 6, 0.4), Vector3.new(cx + 4.5, groundY + 3.4, cz + 3.4), Color3.fromRGB(80, 60, 40), Enum.Material.Wood)
+	local pad = stallPart("Floor", Vector3.new(8, 0.5, 8), Vector3.new(cx, groundY + 0.25, cz), Color3.fromRGB(70, 55, 40), Enum.Material.WoodPlanks)
+	local counter = stallPart("Counter", Vector3.new(5, 1.4, 2), Vector3.new(cx, groundY + 1.2, cz + 2.2), Color3.fromRGB(120, 85, 50), Enum.Material.Wood)
+	stallPart("Crate", Vector3.new(2.2, 1.6, 2.2), Vector3.new(cx - 2.4, groundY + 1.05, cz + 0.4), Color3.fromRGB(140, 95, 55), Enum.Material.WoodPlanks)
 
-	-- Shopkeep
-	local torso = stallPart("Torso", Vector3.new(2, 2.2, 1.1), Vector3.new(cx, groundY + 3.4, cz - 0.6), Color3.fromRGB(35, 70, 150), Enum.Material.Fabric)
-	stallPart("Head", Vector3.new(1.5, 1.5, 1.5), Vector3.new(cx, groundY + 5.1, cz - 0.6), Color3.fromRGB(240, 200, 160), Enum.Material.SmoothPlastic)
-	stallPart("Hat", Vector3.new(1.7, 0.5, 1.7), Vector3.new(cx, groundY + 5.95, cz - 0.6), Color3.fromRGB(30, 30, 40), Enum.Material.SmoothPlastic)
-	stallPart("ArmL", Vector3.new(0.7, 2, 0.7), Vector3.new(cx - 1.4, groundY + 3.3, cz - 0.6), Color3.fromRGB(240, 200, 160), Enum.Material.SmoothPlastic)
-	stallPart("ArmR", Vector3.new(0.7, 2, 0.7), Vector3.new(cx + 1.4, groundY + 3.3, cz - 0.6), Color3.fromRGB(240, 200, 160), Enum.Material.SmoothPlastic)
-
-	local sign = stallPart("Sign", Vector3.new(7, 1.8, 0.3), Vector3.new(cx, groundY + 7.5, cz), Color3.fromRGB(40, 30, 20), Enum.Material.Wood)
+	local sign = stallPart("Sign", Vector3.new(8, 2.4, 0.4), Vector3.new(cx, groundY + 8.2, cz), Color3.fromRGB(35, 28, 22), Enum.Material.Wood)
 	local signGui = Instance.new("SurfaceGui")
 	signGui.Face = Enum.NormalId.Front
 	signGui.Parent = sign
@@ -878,14 +864,53 @@ do
 	signLabel.TextColor3 = Color3.fromRGB(255, 220, 90)
 	signLabel.Parent = signGui
 
-	for i, label in ipairs({ "SPD", "JMP", "RCH", "LCK" }) do
-		local bottle = stallPart("Stock" .. i, Vector3.new(0.6, 0.9, 0.6), Vector3.new(cx - 2.4 + (i - 1) * 1.6, groundY + 2.55, cz + 1.4), Color3.fromRGB(255, 190, 70), Enum.Material.Neon)
-		bottle.CanCollide = false
+	local promptParent: BasePart = counter
+	local npc: Model? = nil
+	local custom = ReplicatedStorage:FindFirstChild("StatTrainerModel")
+	if custom and custom:IsA("Model") then
+		npc = custom:Clone()
+	else
+		local ok, built = pcall(function()
+			local desc = Instance.new("HumanoidDescription")
+			desc.HeadColor = Color3.fromRGB(255, 204, 153)
+			desc.TorsoColor = Color3.fromRGB(30, 90, 170)
+			desc.LeftArmColor = Color3.fromRGB(255, 204, 153)
+			desc.RightArmColor = Color3.fromRGB(255, 204, 153)
+			desc.LeftLegColor = Color3.fromRGB(35, 35, 45)
+			desc.RightLegColor = Color3.fromRGB(35, 35, 45)
+			desc.HatAccessory = ""
+			return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+		end)
+		if ok and built and built:IsA("Model") then
+			npc = built
+		end
+	end
+	if npc then
+		npc.Name = "Trainer"
+		npc.Parent = stall
+		local pivotY = groundY + 3
+		npc:PivotTo(CFrame.new(cx, pivotY, cz - 0.4))
+		local hum = npc:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.DisplayName = "Stat Trainer"
+			hum.WalkSpeed = 0
+			hum.JumpPower = 0
+			hum.AutoJumpEnabled = false
+		end
+		for _, d in ipairs(npc:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+		local hrp = npc:FindFirstChild("HumanoidRootPart")
+		if hrp and hrp:IsA("BasePart") then
+			promptParent = hrp
+		end
 	end
 
-	stall.PrimaryPart = counter
+	stall.PrimaryPart = pad
 	stall.Parent = workspace
-	print("[GameServer] Stat trainer stall placed at " .. tostring(counter.Position))
+	print("[GameServer] Stat trainer placed at " .. tostring(Vector3.new(cx, groundY, cz)))
 
 	local upPrompt = Instance.new("ProximityPrompt")
 	upPrompt.ActionText = "Shop Upgrades"
@@ -893,7 +918,7 @@ do
 	upPrompt.HoldDuration = 0
 	upPrompt.MaxActivationDistance = 14
 	upPrompt.RequiresLineOfSight = false
-	upPrompt.Parent = counter
+	upPrompt.Parent = promptParent
 
 	upPrompt.Triggered:Connect(function(player: Player)
 		pushCollection(player)
@@ -1160,7 +1185,7 @@ do
 			if base and base:IsA("BasePart") then
 				local dx = x - (base :: BasePart).Position.X
 				local dz = z - (base :: BasePart).Position.Z
-				if math.abs(dx) < 48 and math.abs(dz) < 48 then
+				if math.abs(dx) < 72 and math.abs(dz) < 72 then
 					return true
 				end
 			end
@@ -1236,29 +1261,43 @@ do
 		local dock = VisualEffects.BuildFishingSpot()
 		dock:PivotTo(CFrame.new(s.X, s.Y, s.Z) * CFrame.Angles(0, s.Yaw or 0, 0))
 		dock.Parent = workspace
-		table.insert(fishingSpots, { Id = "dock" .. i, Model = dock, Name = names[i] or ("Dock " .. i) })
+		local pad = dock:FindFirstChild("CastPad")
+		if not (pad and pad:IsA("BasePart")) then
+			pad = dock.PrimaryPart or dock:FindFirstChildWhichIsA("BasePart")
+		end
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "FishPrompt"
+		prompt.ActionText = "Cast Line"
+		prompt.ObjectText = names[i] or "Fishing Dock"
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 14
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = pad
+		table.insert(fishingSpots, { Id = "dock" .. i, Model = dock, Name = names[i] or ("Dock " .. i), Prompt = prompt })
 		print("[GameServer] Fishing dock " .. tostring(i) .. " at " .. tostring(Vector3.new(s.X, s.Y, s.Z)))
+		if i == 1 then
+			local landmark = VisualEffects.BuildFishingLandmark()
+			landmark:PivotTo(CFrame.new(s.X, s.Y + 2, s.Z) * CFrame.Angles(0, (s.Yaw or 0) + math.pi, 0))
+			landmark.Parent = workspace
+		end
 	end
 end
 
 -- // Fishing System Core Logic Pipeline -------------------------------------------
-local function pushFishingState(player: Player, state: string, reward: any?)
+local function pushFishingState(player: Player, state: string, reward: any?, openPanel: boolean?)
 	local fishingUpdateEvent = CachedRemotes["FishingUpdate"]
 	if fishingUpdateEvent then
 		fishingUpdateEvent:FireClient(player, {
 			State = state,
 			Reward = reward,
+			OpenPanel = openPanel == true,
 		})
 	end
 end
 
 local playerFishingGear: { [number]: any } = {}
 
-local castLineRemote = CachedRemotes["CastLine"]
-if castLineRemote then
-	castLineRemote.OnServerEvent:Connect(function(player: Player, spotId: any)
-		if type(spotId) ~= "string" then return end
-
+local function startFishing(player: Player, spotId: string, openPanel: boolean)
 		local biteDelay = FishingSystem.Cast(player, spotId)
 		if biteDelay then
 			local char = player.Character
@@ -1281,7 +1320,7 @@ if castLineRemote then
 				playerFishingGear[player.UserId] = gear
 			end
 
-			pushFishingState(player, "Waiting")
+			pushFishingState(player, "Waiting", nil, openPanel)
 
 			task.delay(biteDelay, function()
 				local state = FishingSystem.CheckBite(player)
@@ -1290,7 +1329,7 @@ if castLineRemote then
 					if gear and gear.Bobber then
 						VisualEffects.PlayBite(gear.Bobber)
 					end
-					pushFishingState(player, "Bite")
+					pushFishingState(player, "Bite", nil, true)
 				end
 			end)
 
@@ -1309,6 +1348,24 @@ if castLineRemote then
 				end
 			end)
 		end
+end
+
+for _, spot in ipairs(fishingSpots) do
+	if spot.Prompt and spot.Prompt:IsA("ProximityPrompt") then
+		local id = spot.Id
+		spot.Prompt.Triggered:Connect(function(player: Player)
+			startFishing(player, id, true)
+		end)
+	end
+end
+
+local castLineRemote = CachedRemotes["CastLine"]
+if castLineRemote then
+	castLineRemote.OnServerEvent:Connect(function(player: Player, spotId: any)
+		if type(spotId) ~= "string" then
+			return
+		end
+		startFishing(player, spotId, true)
 	end)
 end
 
