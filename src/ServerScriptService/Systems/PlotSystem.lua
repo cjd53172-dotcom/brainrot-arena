@@ -454,7 +454,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 26-board")
+print("[PlotSystem] source 27-pvp")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -472,7 +472,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v26-board")
+	print("[PlotSystem] Loaded placement v27-pvp")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -914,8 +914,8 @@ function PlotSystem.Setup()
 	end
 	local arenaSign = newPart({
 		Name = "Sign",
-		Size = Vector3.new(14 * s, 4 * s, 0.8 * s),
-		Position = Vector3.new(ARENA_X, 9 * s, ARENA_Z + 22 * s),
+		Size = Vector3.new(16, 5.2, 1),
+		Position = Vector3.new(ARENA_X - 22, 4, ARENA_Z + 30 * s + 14),
 		Anchored = true,
 		Color = Color3.fromRGB(90, 70, 50),
 		Material = Enum.Material.Wood,
@@ -932,12 +932,18 @@ function PlotSystem.Setup()
 	arenaLabel.TextColor3 = Color3.new(1, 1, 1)
 	arenaLabel.TextStrokeTransparency = 0.6
 	arenaLabel.Parent = arenaGui
+	local arenaGuiFront = Instance.new("SurfaceGui")
+	arenaGuiFront.Face = Enum.NormalId.Front
+	arenaGuiFront.Parent = arenaSign
+	local arenaLabelFront = arenaLabel:Clone()
+	arenaLabelFront.Parent = arenaGuiFront
 	local arenaPrompt = Instance.new("ProximityPrompt")
 	arenaPrompt.Name = "ArenaPrompt"
 	arenaPrompt.ActionText = "Enter Arena"
 	arenaPrompt.ObjectText = "Arena"
 	arenaPrompt.HoldDuration = 0
-	arenaPrompt.MaxActivationDistance = 28
+	arenaPrompt.MaxActivationDistance = 36
+	arenaPrompt.RequiresLineOfSight = false
 	arenaPrompt.Parent = arenaSign
 	arena.Parent = plaza
 	liftModel(arena, arenaTopY + 0.4)

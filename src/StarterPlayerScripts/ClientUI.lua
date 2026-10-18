@@ -29,6 +29,9 @@ local fuseRemote = remotes:WaitForChild("FuseBrainrots")
 local startBattleRemote = remotes:WaitForChild("StartBattle")
 local submitMovesRemote = remotes:WaitForChild("SubmitMoves")
 local forfeitRemote = remotes:WaitForChild("ForfeitBattle")
+local challengePvpRemote = remotes:WaitForChild("ChallengePvp")
+local respondPvpRemote = remotes:WaitForChild("RespondPvp")
+local pvpInviteRemote = remotes:WaitForChild("PvpInvite")
 -- Exploration & progression remotes
 local startExpeditionRemote = remotes:WaitForChild("StartExpedition")
 local expeditionUpdateRemote = remotes:WaitForChild("ExpeditionUpdate")
@@ -971,11 +974,37 @@ teamLayout.Padding = UDim.new(0, 4)
 teamLayout.SortOrder = Enum.SortOrder.LayoutOrder
 teamLayout.Parent = teamList
 
+local pvpLabel = Instance.new("TextLabel")
+pvpLabel.Size = UDim2.new(1, -24, 0, 22)
+pvpLabel.Position = UDim2.new(0, 12, 0, 232)
+pvpLabel.BackgroundTransparency = 1
+pvpLabel.Text = "PvP — challenge a player:"
+pvpLabel.Font = Enum.Font.GothamBold
+pvpLabel.TextSize = 14
+pvpLabel.TextColor3 = Color3.fromRGB(255, 210, 120)
+pvpLabel.TextXAlignment = Enum.TextXAlignment.Left
+pvpLabel.Parent = arenaPanel
+
+local pvpList = Instance.new("ScrollingFrame")
+pvpList.Size = UDim2.new(1, -24, 0, 72)
+pvpList.Position = UDim2.new(0, 12, 0, 254)
+pvpList.BackgroundColor3 = Color3.fromRGB(22, 14, 14)
+pvpList.BorderSizePixel = 0
+pvpList.ScrollBarThickness = 6
+pvpList.CanvasSize = UDim2.new(0, 0, 0, 0)
+pvpList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+pvpList.Parent = arenaPanel
+corner(pvpList, 8)
+local pvpLayout = Instance.new("UIListLayout")
+pvpLayout.Padding = UDim.new(0, 4)
+pvpLayout.SortOrder = Enum.SortOrder.LayoutOrder
+pvpLayout.Parent = pvpList
+
 local rivalLabel = Instance.new("TextLabel")
 rivalLabel.Size = UDim2.new(1, -24, 0, 24)
-rivalLabel.Position = UDim2.new(0, 12, 0, 236)
+rivalLabel.Position = UDim2.new(0, 12, 0, 330)
 rivalLabel.BackgroundTransparency = 1
-rivalLabel.Text = "Rival:"
+rivalLabel.Text = "NPC gates:"
 rivalLabel.Font = Enum.Font.GothamBold
 rivalLabel.TextSize = 14
 rivalLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -983,8 +1012,8 @@ rivalLabel.TextXAlignment = Enum.TextXAlignment.Left
 rivalLabel.Parent = arenaPanel
 
 local rivalList = Instance.new("ScrollingFrame")
-rivalList.Size = UDim2.new(1, -24, 0, 170)
-rivalList.Position = UDim2.new(0, 12, 0, 262)
+rivalList.Size = UDim2.new(1, -24, 0, 96)
+rivalList.Position = UDim2.new(0, 12, 0, 354)
 rivalList.BackgroundColor3 = Color3.fromRGB(22, 14, 14)
 rivalList.BorderSizePixel = 0
 rivalList.ScrollBarThickness = 6
@@ -1022,7 +1051,9 @@ corner(arenaClose, 8)
 
 local selectedTeam: { string } = {}
 local selectedRivalId: string? = nil
+local selectedPvpUserId: number? = nil
 local beatenRivals: { [string]: boolean } = {}
+local nearbyPlayers: { any } = {}
 
 local function refreshArenaPanel()
 	for _, child in ipairs(teamList:GetChildren()) do
@@ -1030,9 +1061,45 @@ local function refreshArenaPanel()
 			child:Destroy()
 		end
 	end
+	for _, child in ipairs(pvpList:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
 	for _, child in ipairs(rivalList:GetChildren()) do
 		if child:IsA("Frame") then
 			child:Destroy()
+		end
+	end
+	if #nearbyPlayers == 0 then
+		local empty = Instance.new("TextButton")
+		empty.Size = UDim2.new(1, -8, 0, 28)
+		empty.BackgroundTransparency = 1
+		empty.Text = "No other players here yet."
+		empty.Font = Enum.Font.Gotham
+		empty.TextSize = 13
+		empty.TextColor3 = Color3.fromRGB(160, 160, 170)
+		empty.LayoutOrder = 0
+		empty.Active = false
+		empty.Parent = pvpList
+	else
+		for i, row in ipairs(nearbyPlayers) do
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1, -8, 0, 30)
+			btn.BackgroundColor3 = if selectedPvpUserId == row.UserId then Color3.fromRGB(180, 110, 40) else Color3.fromRGB(50, 36, 22)
+			btn.Text = "⚔  " .. tostring(row.Name)
+			btn.Font = Enum.Font.GothamBold
+			btn.TextSize = 14
+			btn.TextColor3 = Color3.new(1, 1, 1)
+			btn.LayoutOrder = i
+			btn.Parent = pvpList
+			corner(btn, 6)
+			btn.MouseButton1Click:Connect(function()
+				selectedPvpUserId = row.UserId
+				selectedRivalId = nil
+				startBattleBtn.Text = "Challenge " .. tostring(row.Name)
+				refreshArenaPanel()
+			end)
 		end
 	end
 	local order = 1
@@ -1128,6 +1195,8 @@ local function refreshArenaPanel()
 			corner(pickBtn, 8)
 			pickBtn.MouseButton1Click:Connect(function()
 				selectedRivalId = rival.Id
+				selectedPvpUserId = nil
+				startBattleBtn.Text = "Start Battle"
 				for _, c in ipairs(rivalList:GetChildren()) do
 					if c:IsA("Frame") then
 						for _, b in ipairs(c:GetChildren()) do
@@ -1445,8 +1514,13 @@ local function buildBattleUI(state: any)
 	end
 	battleActive = true
 	refreshMoveButtons()
-	local waitName = state.waitingFor and state.waitingFor.name or "your fighter"
-	battleLogLine("Speed order! " .. waitName .. " is up first — pick a move.", Color3.fromRGB(255, 220, 120))
+	local waiting = state.waitingFor
+	local waitName = waiting and waiting.name or "your fighter"
+	if waiting and waiting.side ~= "player" then
+		battleLogLine("Waiting for " .. waitName .. "...", Color3.fromRGB(200, 200, 220))
+	else
+		battleLogLine("Speed order! " .. waitName .. " is up first — pick a move.", Color3.fromRGB(255, 220, 120))
+	end
 end
 
 local function applyTurn(payload: any)
@@ -2361,8 +2435,12 @@ startBattleBtn.MouseButton1Click:Connect(function()
 		end)
 		return
 	end
+	if selectedPvpUserId then
+		challengePvpRemote:FireServer(selectedPvpUserId, selectedTeam)
+		return
+	end
 	if not selectedRivalId then
-		hintLabel.Text = "Pick a rival to fight!"
+		hintLabel.Text = "Pick a player or an NPC gate!"
 		hintLabel.Visible = true
 		task.delay(3, function()
 			hintLabel.Visible = false
@@ -2380,13 +2458,77 @@ end)
 
 openArenaRemote.OnClientEvent:Connect(function(payload: any)
 	beatenRivals = payload.Beaten or {}
+	nearbyPlayers = payload.Players or {}
 	hideAllPanels()
 	selectedTeam = {}
 	selectedRivalId = nil
+	selectedPvpUserId = nil
+	startBattleBtn.Text = "Start Battle"
 	teamLabel.Text = "Your team (0/3):"
 	refreshArenaPanel()
 	arenaPanel.Visible = true
 end)
+
+do
+	local inviteBar = Instance.new("Frame")
+	inviteBar.Name = "PvpInvite"
+	inviteBar.Size = UDim2.new(0, 420, 0, 88)
+	inviteBar.Position = UDim2.new(0.5, -210, 0, 120)
+	inviteBar.BackgroundColor3 = Color3.fromRGB(70, 40, 20)
+	inviteBar.Visible = false
+	inviteBar.Parent = gui
+	corner(inviteBar, 12)
+	local inviteText = Instance.new("TextLabel")
+	inviteText.Size = UDim2.new(1, -16, 0, 40)
+	inviteText.Position = UDim2.new(0, 8, 0, 4)
+	inviteText.BackgroundTransparency = 1
+	inviteText.Text = "PvP challenge"
+	inviteText.Font = Enum.Font.GothamBold
+	inviteText.TextSize = 16
+	inviteText.TextColor3 = Color3.fromRGB(255, 230, 160)
+	inviteText.TextWrapped = true
+	inviteText.Parent = inviteBar
+	local acceptBtn = Instance.new("TextButton")
+	acceptBtn.Size = UDim2.new(0, 190, 0, 32)
+	acceptBtn.Position = UDim2.new(0, 12, 1, -40)
+	acceptBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 70)
+	acceptBtn.Text = "Accept"
+	acceptBtn.Font = Enum.Font.GothamBold
+	acceptBtn.TextSize = 16
+	acceptBtn.TextColor3 = Color3.new(1, 1, 1)
+	acceptBtn.Parent = inviteBar
+	corner(acceptBtn, 8)
+	local declineBtn = Instance.new("TextButton")
+	declineBtn.Size = UDim2.new(0, 190, 0, 32)
+	declineBtn.Position = UDim2.new(1, -202, 1, -40)
+	declineBtn.BackgroundColor3 = Color3.fromRGB(140, 40, 40)
+	declineBtn.Text = "Decline"
+	declineBtn.Font = Enum.Font.GothamBold
+	declineBtn.TextSize = 16
+	declineBtn.TextColor3 = Color3.new(1, 1, 1)
+	declineBtn.Parent = inviteBar
+	corner(declineBtn, 8)
+	pvpInviteRemote.OnClientEvent:Connect(function(info: any)
+		inviteText.Text = tostring(info.HostName or "A player") .. " challenged you to PvP!\nPick 3 in Arena, then Accept."
+		inviteBar.Visible = true
+		hideAllPanels()
+		refreshArenaPanel()
+		arenaPanel.Visible = true
+	end)
+	acceptBtn.MouseButton1Click:Connect(function()
+		if #selectedTeam ~= 3 then
+			hintLabel.Text = "Pick 3 fighters first, then Accept."
+			hintLabel.Visible = true
+			return
+		end
+		respondPvpRemote:FireServer(true, selectedTeam)
+		inviteBar.Visible = false
+	end)
+	declineBtn.MouseButton1Click:Connect(function()
+		respondPvpRemote:FireServer(false, {})
+		inviteBar.Visible = false
+	end)
+end
 
 fusionResultRemote.OnClientEvent:Connect(function(payload: any)
 	local text: string

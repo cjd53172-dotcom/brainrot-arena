@@ -53,7 +53,7 @@ local REMOTE_LIST = {
 	"EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", 
 	"CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", 
 	"BuyUpgrade", "PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate", "OpenStats", "SellBrainrots",
-	"WorldEvent", "MusicUpdate" 
+	"WorldEvent", "MusicUpdate", "ChallengePvp", "RespondPvp", "PvpInvite" 
 }
 
 local CachedRemotes: { [string]: RemoteEvent } = {}
@@ -677,61 +677,79 @@ if submitMovesRemote then
 		local result, err = BattleSystem.SubmitMoves(player, moveIndices)
 		if not result then return end
 
-		task.spawn(function()
-			PlotSystem.PlayBattleTurn(player, result.events)
-			if result.winner then
-				PlotSystem.PlayVictory(player, result.winner)
-			end
-		end)
-
 		local payload: any = {
 			Phase = "Turn",
 			Events = result.events,
 			State = BattleSystem.GetClientState(player),
 		}
 
-		if result.winner == "player" then
-			LeaderboardSystem.RecordWin(player)
-			SoundSystem.PlayForPlayer(player, "BattleWin")
-			task.defer(paintArenaBoard)
-
-			local newAch = AchievementSystem.RecordProgress(player, "battles_won", 1)
-			for _, achId in ipairs(newAch) do
-				local def = AchievementSystem.DEFS[achId]
-				if def then
-					local achEvent = CachedRemotes["AchievementUnlocked"]
-					if achEvent then
-						achEvent:FireClient(player, { Name = def.Name, Desc = def.Desc })
+		local battleNow = BattleSystem.GetBattle(player)
+		local viewers = if battleNow then BattleSystem.GetViewers(battleNow) else { player }
+		task.spawn(function()
+			for _, viewer in ipairs(viewers) do
+				PlotSystem.PlayBattleTurn(viewer, result.events)
+				if result.winner then
+					local visWin = result.winner
+					if battleNow and battleNow.pvp and viewer == battleNow.guest then
+						visWin = if result.winner == "player" then "enemy" else "player"
+					end
+					PlotSystem.PlayVictory(viewer, visWin)
+				end
+			end
+		end)
+		if result.winner then
+			local winnerPlr: Player? = nil
+			if battleNow and battleNow.pvp then
+				winnerPlr = if result.winner == "player" then battleNow.player else battleNow.guest
+			elseif result.winner == "player" then
+				winnerPlr = player
+			end
+			if winnerPlr then
+				LeaderboardSystem.RecordWin(winnerPlr)
+				SoundSystem.PlayForPlayer(winnerPlr, "BattleWin")
+				task.defer(paintArenaBoard)
+				local newAch = AchievementSystem.RecordProgress(winnerPlr, "battles_won", 1)
+				for _, achId in ipairs(newAch) do
+					local def = AchievementSystem.DEFS[achId]
+					if def then
+						local achEvent = CachedRemotes["AchievementUnlocked"]
+						if achEvent then
+							achEvent:FireClient(winnerPlr, { Name = def.Name, Desc = def.Desc })
+						end
 					end
 				end
 			end
-
-			local battle = BattleSystem.GetBattle(player)
-			local rival = battle and BrainrotData.GetRival(battle.rivalId) or nil
-			if rival then
-				battleReward(player, rival)
+			if result.winner == "player" and battleNow and not battleNow.pvp then
+				local rival = BrainrotData.GetRival(battleNow.rivalId)
+				if rival then
+					battleReward(player, rival)
+					payload.Rewards = {
+						Coins = rival.RewardCoins or 0,
+						RewardRarity = rival.RewardRarity,
+					}
+				end
 			end
-
-			payload.Rewards = {
-				Coins = rival and rival.RewardCoins or 0,
-				RewardRarity = rival and rival.RewardRarity or nil,
-			}
-
-			-- Hardened Context Lock: Hold structural cleanup inside thread timeline loop
 			task.delay(4, function()
-				PlotSystem.ClearBattleModels(player)
-				BattleSystem.ClearBattle(player)
-			end)
-		elseif result.winner == "enemy" then
-			task.delay(4, function()
-				PlotSystem.ClearBattleModels(player)
+				for _, viewer in ipairs(viewers) do
+					PlotSystem.ClearBattleModels(viewer)
+				end
 				BattleSystem.ClearBattle(player)
 			end)
 		end
 
 		local battleUpdateEvent = CachedRemotes["BattleUpdate"]
 		if battleUpdateEvent then
-			battleUpdateEvent:FireClient(player, payload)
+			for _, viewer in ipairs(viewers) do
+				local send: any = {
+					Phase = "Turn",
+					Events = result.events,
+					State = BattleSystem.GetClientState(viewer),
+				}
+				if viewer == player then
+					send.Rewards = payload.Rewards
+				end
+				battleUpdateEvent:FireClient(viewer, send)
+			end
 		end
 	end)
 end
@@ -741,17 +759,126 @@ if forfeitBattleRemote then
 	forfeitBattleRemote.OnServerEvent:Connect(function(player: Player)
 		local battle = BattleSystem.Forfeit(player)
 		if battle then
+			local viewers = BattleSystem.GetViewers(battle)
 			local battleUpdateEvent = CachedRemotes["BattleUpdate"]
 			if battleUpdateEvent then
-				battleUpdateEvent:FireClient(player, {
-					Phase = "End",
-					State = BattleSystem.GetClientState(player),
-				})
+				for _, viewer in ipairs(viewers) do
+					battleUpdateEvent:FireClient(viewer, {
+						Phase = "End",
+						State = BattleSystem.GetClientState(viewer),
+					})
+				end
 			end
 			task.delay(2, function()
-				PlotSystem.ClearBattleModels(player)
+				for _, viewer in ipairs(viewers) do
+					PlotSystem.ClearBattleModels(viewer)
+				end
 				BattleSystem.ClearBattle(player)
 			end)
+		end
+	end)
+end
+
+local pendingPvp: { [number]: any } = {}
+
+local function otherArenaPlayers(except: Player): { any }
+	local out = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= except then
+			table.insert(out, { UserId = p.UserId, Name = p.DisplayName })
+		end
+	end
+	return out
+end
+
+local challengePvpRemote = CachedRemotes["ChallengePvp"]
+if challengePvpRemote then
+	challengePvpRemote.OnServerEvent:Connect(function(player: Player, targetId: any, teamIds: any)
+		if type(targetId) ~= "number" or type(teamIds) ~= "table" or #teamIds ~= 3 then
+			return
+		end
+		local target = Players:GetPlayerByUserId(targetId)
+		if not target or target == player then
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(player, "That player is not available.")
+			end
+			return
+		end
+		if BattleSystem.GetBattle(player) or BattleSystem.GetBattle(target) then
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(player, "Someone is already in a battle.")
+			end
+			return
+		end
+		pendingPvp[target.UserId] = {
+			Host = player,
+			HostTeam = teamIds,
+			At = os.time(),
+		}
+		local invite = CachedRemotes["PvpInvite"]
+		if invite then
+			invite:FireClient(target, { HostUserId = player.UserId, HostName = player.DisplayName })
+		end
+		local hintEvent = CachedRemotes["ShowHint"]
+		if hintEvent then
+			hintEvent:FireClient(player, "Challenge sent to " .. target.DisplayName .. "!")
+			hintEvent:FireClient(target, player.DisplayName .. " challenged you to PvP!")
+		end
+	end)
+end
+
+local respondPvpRemote = CachedRemotes["RespondPvp"]
+if respondPvpRemote then
+	respondPvpRemote.OnServerEvent:Connect(function(player: Player, accept: any, teamIds: any)
+		local pending = pendingPvp[player.UserId]
+		pendingPvp[player.UserId] = nil
+		if not pending or not pending.Host or not pending.Host.Parent then
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(player, "That challenge expired.")
+			end
+			return
+		end
+		local host = pending.Host :: Player
+		if accept ~= true then
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(host, player.DisplayName .. " declined PvP.")
+			end
+			return
+		end
+		if type(teamIds) ~= "table" or #teamIds ~= 3 then
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(player, "Pick 3 fighters, then Accept.")
+			end
+			pendingPvp[player.UserId] = pending
+			return
+		end
+		local battle, err = BattleSystem.StartPvpBattle(host, pending.HostTeam, player, teamIds)
+		if not battle then
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(player, "Can't start PvP: " .. tostring(err))
+				hintEvent:FireClient(host, "Can't start PvP: " .. tostring(err))
+			end
+			return
+		end
+		task.spawn(function()
+			PlotSystem.SpawnBattleModels(host, battle.pTeam, battle.eTeam)
+			PlotSystem.SpawnBattleModels(player, battle.eTeam, battle.pTeam)
+		end)
+		local battleUpdateEvent = CachedRemotes["BattleUpdate"]
+		if battleUpdateEvent then
+			for _, viewer in ipairs(BattleSystem.GetViewers(battle)) do
+				battleUpdateEvent:FireClient(viewer, {
+					Phase = "Start",
+					Events = battle.openingEvents or {},
+					State = BattleSystem.GetClientState(viewer),
+				})
+			end
 		end
 	end)
 end
@@ -777,6 +904,7 @@ if PlotSystem.ArenaPrompt then
 					local d = PlayerData.Get(player)
 					return d and d.RivalsBeaten or {}
 				end)(),
+				Players = otherArenaPlayers(player),
 			})
 		end
 	end)
