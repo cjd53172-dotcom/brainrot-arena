@@ -1,8 +1,8 @@
 --!strict
 --[[
 	LeaderboardSystem (ModuleScript -> ServerScriptService/Systems)
-	Global battle wins leaderboard using OrderedDataStore.
-	Tracks total arena wins per player.
+	Arena wins board: OrderedDataStore plus live session/online players
+	so Studio and empty stores still show names.
 ]]
 
 local DataStoreService = game:GetService("DataStoreService")
@@ -15,75 +15,114 @@ pcall(function()
 	winsStore = DataStoreService:GetOrderedDataStore("BattleWins_v1")
 end)
 
--- Cache for leaderboard display (refreshed periodically)
+local sessionWins: { [number]: number } = {}
+
 LeaderboardSystem.CachedBoard = {}
 LeaderboardSystem.LastRefresh = 0
 
--- Record a battle win for a player.
 function LeaderboardSystem.RecordWin(player: Player)
-	if not winsStore then return end
 	local userId = player.UserId
-	pcall(function()
-		local current = 0
-		local success, value = pcall(function()
-			return (winsStore :: OrderedDataStore):GetAsync(tostring(userId))
-		end)
-		if success and value then
-			current = value
-		end
+	sessionWins[userId] = (sessionWins[userId] or 0) + 1
+	LeaderboardSystem.LastRefresh = 0
+	if winsStore then
 		pcall(function()
-			(winsStore :: OrderedDataStore):SetAsync(tostring(userId), current + 1)
+			(winsStore :: OrderedDataStore):IncrementAsync(tostring(userId), 1)
 		end)
-	end)
+	end
 end
 
--- Get top N players. Returns { { UserId, Wins, Name } }.
 function LeaderboardSystem.GetTop(n: number): { any }
-	if not winsStore then return {} end
-
-	-- Use cache if fresh (< 60s)
-	if os.time() - LeaderboardSystem.LastRefresh < 60 and #LeaderboardSystem.CachedBoard > 0 then
+	n = math.max(1, n)
+	if os.time() - LeaderboardSystem.LastRefresh < 15 and #LeaderboardSystem.CachedBoard > 0 then
 		return LeaderboardSystem.CachedBoard
 	end
 
-	local result = {}
-	pcall(function()
-		local pages = (winsStore :: OrderedDataStore):GetSortedAsync(false, n)
-		local items = pages:GetCurrentPage()
-		for _, item in ipairs(items) do
-			local userId = tonumber(item.key)
+	local byId: { [number]: any } = {}
+
+	if winsStore then
+		pcall(function()
+			local pages = (winsStore :: OrderedDataStore):GetSortedAsync(false, n)
+			local items = pages:GetCurrentPage()
+			for _, item in ipairs(items) do
+				local userId = tonumber(item.key)
+				if userId then
+					local name = "Player" .. tostring(userId)
+					pcall(function()
+						name = Players:GetNameFromUserIdAsync(userId)
+					end)
+					byId[userId] = {
+						UserId = userId,
+						Wins = tonumber(item.value) or 0,
+						Name = name,
+					}
+				end
+			end
+		end)
+	end
+
+	for userId, wins in pairs(sessionWins) do
+		local row = byId[userId]
+		if row then
+			if wins > (row.Wins or 0) then
+				row.Wins = wins
+			end
+		else
 			local name = "Player" .. tostring(userId)
-			-- Try to get name
-			pcall(function()
-				name = Players:GetNameFromUserIdAsync(userId)
-			end)
-			table.insert(result, {
-				UserId = userId,
-				Wins = item.value,
-				Name = name,
-			})
+			local live = Players:GetPlayerByUserId(userId)
+			if live then
+				name = live.Name
+			else
+				pcall(function()
+					name = Players:GetNameFromUserIdAsync(userId)
+				end)
+			end
+			byId[userId] = { UserId = userId, Wins = wins, Name = name }
 		end
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		local row = byId[player.UserId]
+		if row then
+			row.Name = player.Name
+			if (sessionWins[player.UserId] or 0) > (row.Wins or 0) then
+				row.Wins = sessionWins[player.UserId]
+			end
+		else
+			byId[player.UserId] = {
+				UserId = player.UserId,
+				Wins = sessionWins[player.UserId] or 0,
+				Name = player.Name,
+			}
+		end
+	end
+
+	local result = {}
+	for _, row in pairs(byId) do
+		table.insert(result, row)
+	end
+	table.sort(result, function(a, b)
+		if a.Wins == b.Wins then
+			return tostring(a.Name) < tostring(b.Name)
+		end
+		return (a.Wins or 0) > (b.Wins or 0)
 	end)
+	while #result > n do
+		table.remove(result)
+	end
 
 	LeaderboardSystem.CachedBoard = result
 	LeaderboardSystem.LastRefresh = os.time()
 	return result
 end
 
--- Get a player's rank and wins.
 function LeaderboardSystem.GetPlayerRank(player: Player): any
-	if not winsStore then return { Rank = 0, Wins = 0 } end
-	local userId = player.UserId
-	local wins = 0
-	pcall(function()
-		local success, value = pcall(function()
-			return (winsStore :: OrderedDataStore):GetAsync(tostring(userId))
-		end)
-		if success and value then
-			wins = value
+	local top = LeaderboardSystem.GetTop(50)
+	for i, row in ipairs(top) do
+		if row.UserId == player.UserId then
+			return { Rank = i, Wins = row.Wins or 0 }
 		end
-	end)
-	return { Rank = 0, Wins = wins } -- rank calculation omitted for simplicity
+	end
+	return { Rank = 0, Wins = sessionWins[player.UserId] or 0 }
 end
 
 return LeaderboardSystem

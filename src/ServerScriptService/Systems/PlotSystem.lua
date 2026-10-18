@@ -455,7 +455,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 25-board")
+print("[PlotSystem] source 26-board")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -473,7 +473,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v25-board")
+	print("[PlotSystem] Loaded placement v26-board")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -952,17 +952,18 @@ function PlotSystem.Setup()
 	local function addBoardFace(part: BasePart, face: Enum.NormalId, title: boolean): TextLabel
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = face
-		gui.PixelsPerStud = 20
+		gui.PixelsPerStud = 25
 		gui.LightInfluence = 0
 		gui.Parent = part
 		local label = Instance.new("TextLabel")
 		label.Name = if title then "TitleText" else "RankText"
-		label.Size = UDim2.new(1, -20, 1, -20)
-		label.Position = UDim2.new(0, 10, 0, 10)
+		label.Size = UDim2.new(1, -24, 1, -24)
+		label.Position = UDim2.new(0, 12, 0, 12)
 		label.BackgroundTransparency = 1
-		label.Text = if title then "ARENA CHAMPIONS" else "Win battles to claim a name."
+		label.Text = if title then "ARENA CHAMPIONS" else "No wins yet — beat a rival!"
 		label.Font = Enum.Font.GothamBold
-		label.TextScaled = true
+		label.TextScaled = title
+		label.TextSize = 28
 		label.TextColor3 = Color3.fromRGB(255, 220, 120)
 		label.TextStrokeTransparency = 0.3
 		label.TextWrapped = true
@@ -978,35 +979,19 @@ function PlotSystem.Setup()
 	local wallR = 30 * s
 	local boardX = ARENA_X
 	local boardZ = ARENA_Z + wallR + 18
-	local boardY = arenaSign.Position.Y + 10
+	local boardY = arenaSign.Position.Y + 8
 	local frame = newPart({
 		Name = "ChampionBoard",
-		Size = Vector3.new(48, 32, 2.4),
+		Size = Vector3.new(28, 20, 1.2),
 		Position = Vector3.new(boardX, boardY, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(28, 22, 16),
-	}, plaza)
-	newPart({
-		Name = "ChampionTrim",
-		Size = Vector3.new(50, 34, 1.2),
-		Position = Vector3.new(boardX, boardY, boardZ - 1.5),
-		Anchored = true,
-		Material = Enum.Material.Metal,
-		Color = Color3.fromRGB(255, 200, 70),
-	}, plaza)
-	newPart({
-		Name = "ChampionTrimBack",
-		Size = Vector3.new(50, 34, 1.2),
-		Position = Vector3.new(boardX, boardY, boardZ + 1.5),
-		Anchored = true,
-		Material = Enum.Material.Metal,
-		Color = Color3.fromRGB(255, 200, 70),
+		Color = Color3.fromRGB(22, 18, 14),
 	}, plaza)
 	local header = newPart({
 		Name = "ChampionHeader",
-		Size = Vector3.new(48, 6, 2.2),
-		Position = Vector3.new(boardX, boardY + 20, boardZ),
+		Size = Vector3.new(28, 3.2, 1.2),
+		Position = Vector3.new(boardX, boardY + 12.2, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(40, 28, 12),
@@ -1016,38 +1001,13 @@ function PlotSystem.Setup()
 	addBoardFace(frame, Enum.NormalId.Front, false)
 	addBoardFace(frame, Enum.NormalId.Back, false)
 
-	local beacon = newPart({
-		Name = "ChampionBeacon",
-		Size = Vector3.new(12, 4, 12),
-		Position = Vector3.new(boardX, boardY + 28, boardZ),
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(255, 210, 80),
-	}, plaza)
-	local signBeacon = Instance.new("BillboardGui")
-	signBeacon.Name = "LeaderboardBeacon"
-	signBeacon.Size = UDim2.new(0, 420, 0, 80)
-	signBeacon.StudsOffset = Vector3.new(0, 8, 0)
-	signBeacon.MaxDistance = 600
-	signBeacon.AlwaysOnTop = true
-	signBeacon.Parent = arenaSign
-	local signBeaconText = Instance.new("TextLabel")
-	signBeaconText.Size = UDim2.new(1, 0, 1, 0)
-	signBeaconText.BackgroundTransparency = 1
-	signBeaconText.Text = "LEADERBOARD"
-	signBeaconText.Font = Enum.Font.GothamBlack
-	signBeaconText.TextScaled = true
-	signBeaconText.TextColor3 = Color3.fromRGB(255, 230, 120)
-	signBeaconText.TextStrokeTransparency = 0.2
-	signBeaconText.Parent = signBeacon
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "LeaderboardBeacon"
-	billboard.Size = UDim2.new(0, 420, 0, 90)
-	billboard.StudsOffset = Vector3.new(0, 6, 0)
-	billboard.MaxDistance = 500
-	billboard.AlwaysOnTop = true
-	billboard.Parent = beacon
+	billboard.Size = UDim2.new(10, 0, 1.6, 0)
+	billboard.StudsOffset = Vector3.new(0, 2.8, 0)
+	billboard.MaxDistance = 110
+	billboard.AlwaysOnTop = false
+	billboard.Parent = header
 	local beaconText = Instance.new("TextLabel")
 	beaconText.Size = UDim2.new(1, 0, 1, 0)
 	beaconText.BackgroundTransparency = 1
@@ -1055,7 +1015,7 @@ function PlotSystem.Setup()
 	beaconText.Font = Enum.Font.GothamBlack
 	beaconText.TextScaled = true
 	beaconText.TextColor3 = Color3.fromRGB(255, 230, 120)
-	beaconText.TextStrokeTransparency = 0.2
+	beaconText.TextStrokeTransparency = 0.35
 	beaconText.Parent = billboard
 
 	PlotSystem.ArenaBoardLabels = labels

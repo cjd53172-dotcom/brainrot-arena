@@ -70,12 +70,12 @@ end
 
 local function paintArenaBoard()
 	local top = LeaderboardSystem.GetTop(10)
-	local lines = { "ARENA CHAMPIONS" }
+	local lines = {}
 	if #top == 0 then
-		table.insert(lines, "Win battles to claim a name.")
+		table.insert(lines, "No wins yet — beat a rival!")
 	else
 		for i, row in ipairs(top) do
-			table.insert(lines, string.format("%d.  %s   %d wins", i, tostring(row.Name), tonumber(row.Wins) or 0))
+			table.insert(lines, string.format("%d.  %s   —   %d wins", i, tostring(row.Name), tonumber(row.Wins) or 0))
 		end
 	end
 	PlotSystem.SetArenaBoardText(table.concat(lines, "\n"))
@@ -1622,6 +1622,8 @@ local function onPlayerAdded(player: Player)
 		DailyQuestSystem.EnsureToday(player)
 		pushDailyState(player)
 		pushExpeditionState(player)
+		LeaderboardSystem.LastRefresh = 0
+		paintArenaBoard()
 		pushEggState(player)
 		pushCustomizeState(player)
 		PlotSystem.RefreshEggs(player)
