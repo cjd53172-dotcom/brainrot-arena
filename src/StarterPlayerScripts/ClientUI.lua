@@ -199,7 +199,10 @@ workspace.DescendantAdded:Connect(function(descendant)
 					if part then
 						local regionPart = workspace:GetPartsInPart(part)
 						for _, p in ipairs(regionPart) do
-							if p.Name == "Platform" or p.Name == "Pedestal" or p.Size.Y < 1.5 then
+							-- Only real stand parts. Size.Y < 1.5 also matched the plot
+							-- grass (Base), which pulled models underground into the floor.
+							local n = p.Name
+							if n == "Platform" or n == "Pedestal" or string.sub(n, 1, 9) == "Pedestal_" then
 								local platformHeight = p.Size.Y
 								local brainrotSize = descendant:GetExtentsSize()
 								local targetCFrame = p.CFrame * CFrame.new(0, (platformHeight / 2) + (brainrotSize.Y / 2), 0)

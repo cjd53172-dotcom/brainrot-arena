@@ -63,10 +63,15 @@ end
 -- precisely on top of the target base/pedestal surface, preventing clipping.
 local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: number?)
 	local cf, size = model:GetBoundingBox()
-	local targetTopY = targetPart.Position.Y + (targetPart.Size.Y / 2) + (extraOffset or 0)
-	local currentBottomY = cf.Position.Y - (size.Y / 2)
-	local diffY = targetTopY - currentBottomY
-	model:PivotTo(model:GetPivot() + Vector3.new(0, diffY, 0))
+	-- Pack models are built at the world origin. Snap the bounding-box
+	-- bottom-center onto the target's top-center (X, Y, and Z).
+	local target = Vector3.new(
+		targetPart.Position.X,
+		targetPart.Position.Y + targetPart.Size.Y / 2 + (extraOffset or 0),
+		targetPart.Position.Z
+	)
+	local currentBottom = Vector3.new(cf.Position.X, cf.Position.Y - size.Y / 2, cf.Position.Z)
+	model:PivotTo(model:GetPivot() + (target - currentBottom))
 end
 
 -- // Pack auto-import ---------------------------------------------------------------
