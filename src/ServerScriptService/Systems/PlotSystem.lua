@@ -34,14 +34,13 @@ local ARENA_PAD = 280
 local FUSION_X = WORLD_DX
 local FUSION_Z = WORLD_DZ + 12
 -- One plaza row in front of the plots (west of plot 1, south lawn).
--- Order: Stat Trainer, Fusion, Expeditions, Quests.
+-- Order: Fusion, Stat Trainer (old expedition slot), Quests. Expeditions are portals.
 local PLAZA_Z = 28
 local PLAZA_GAP = 24
 local PLAZA_X0 = 68
 PlotSystem.PlazaSpots = {
-	Trainer = Vector2.new(PLAZA_X0, PLAZA_Z),
 	Fusion = Vector2.new(PLAZA_X0 + PLAZA_GAP, PLAZA_Z),
-	Expedition = Vector2.new(PLAZA_X0 + PLAZA_GAP * 2, PLAZA_Z),
+	Trainer = Vector2.new(PLAZA_X0 + PLAZA_GAP * 2, PLAZA_Z),
 	Quest = Vector2.new(PLAZA_X0 + PLAZA_GAP * 3, PLAZA_Z),
 }
 

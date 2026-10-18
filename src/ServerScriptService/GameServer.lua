@@ -263,31 +263,70 @@ local function makeBat(): Tool
 	tool.ToolTip = "Click to swing!"
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
-	local baseGrip = CFrame.new(0, -1.4, 0)
+	local baseGrip = CFrame.new(0.15, -0.2, 0) * CFrame.Angles(0, 0, math.rad(8))
 	tool.Grip = baseGrip
 
-	local handle = Instance.new("Part")
-	handle.Name = "Handle"
-	handle.Size = Vector3.new(0.6, 3.6, 0.6)
-	handle.Color = Color3.fromRGB(176, 124, 70)
-	handle.Material = Enum.Material.Wood
-	handle.CanCollide = false
-	handle.Massless = true
-	handle.Parent = tool
+	local wood = Color3.fromRGB(196, 142, 78)
+	local barrel = Color3.fromRGB(214, 162, 92)
+	local tape = Color3.fromRGB(38, 32, 28)
+	local knobCol = Color3.fromRGB(160, 110, 60)
+	local ringCol = Color3.fromRGB(230, 210, 150)
 
-	local head = Instance.new("Part")
-	head.Name = "BatHead"
-	head.Size = Vector3.new(0.95, 1.5, 0.95)
-	head.Color = Color3.fromRGB(150, 100, 55)
-	head.Material = Enum.Material.Wood
-	head.CanCollide = false
-	head.Massless = true
-	head.CFrame = handle.CFrame * CFrame.new(0, 1.1, 0)
-	head.Parent = tool
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = handle
-	weld.Part1 = head
-	weld.Parent = head
+	local function weldTo(a: BasePart, b: BasePart)
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = a
+		w.Part1 = b
+		w.Parent = b
+	end
+
+	-- Cylinder parts are long on X; rotate so the bat stands on Y.
+	local function cyl(name: string, length: number, dia: number, color: Color3, y: number, mat: Enum.Material): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Shape = Enum.PartType.Cylinder
+		p.Size = Vector3.new(length, dia, dia)
+		p.Color = color
+		p.Material = mat
+		p.CanCollide = false
+		p.Massless = true
+		p.CFrame = CFrame.new(0, y, 0) * CFrame.Angles(0, 0, math.pi / 2)
+		p.Parent = tool
+		return p
+	end
+
+	local handle = cyl("Handle", 1.15, 0.3, tape, 0, Enum.Material.Fabric)
+	local knob = Instance.new("Part")
+	knob.Name = "Knob"
+	knob.Shape = Enum.PartType.Ball
+	knob.Size = Vector3.new(0.48, 0.48, 0.48)
+	knob.Color = knobCol
+	knob.Material = Enum.Material.Wood
+	knob.CanCollide = false
+	knob.Massless = true
+	knob.CFrame = CFrame.new(0, -0.78, 0)
+	knob.Parent = tool
+	weldTo(handle, knob)
+
+	local throat = cyl("Throat", 1.05, 0.26, wood, 1.05, Enum.Material.Wood)
+	weldTo(handle, throat)
+	local taper = cyl("Taper", 0.55, 0.42, wood, 1.75, Enum.Material.Wood)
+	weldTo(handle, taper)
+	local barrelPart = cyl("Barrel", 2.35, 0.72, barrel, 3.05, Enum.Material.Wood)
+	weldTo(handle, barrelPart)
+	local cup = cyl("Cup", 0.28, 0.78, Color3.fromRGB(180, 128, 70), 4.22, Enum.Material.Wood)
+	weldTo(handle, cup)
+	local ring = cyl("LabelRing", 0.12, 0.76, ringCol, 2.15, Enum.Material.SmoothPlastic)
+	weldTo(handle, ring)
+	local brand = Instance.new("Part")
+	brand.Name = "Brand"
+	brand.Size = Vector3.new(0.22, 0.55, 0.04)
+	brand.Color = Color3.fromRGB(40, 28, 18)
+	brand.Material = Enum.Material.SmoothPlastic
+	brand.CanCollide = false
+	brand.Massless = true
+	brand.CFrame = CFrame.new(0, 3.1, 0.38)
+	brand.Parent = tool
+	weldTo(handle, brand)
 
 	local lastSwing = 0
 	tool.Activated:Connect(function()
@@ -754,7 +793,7 @@ if PlotSystem.ArenaBoardPrompt then
 	end)
 end
 
--- // Plaza kiosks: quests + expeditions ------------------------------------------
+-- // Plaza kiosk: quests (expeditions open from zone portals) --------------------
 local plazaFolder = workspace:FindFirstChild("Plaza") or workspace
 local oldQuest = workspace:FindFirstChild("QuestBoard")
 if oldQuest then
@@ -803,12 +842,8 @@ do
 	local stall = Instance.new("Model")
 	stall.Name = "StatTrainerStall"
 
-	local extras: { Vector2 } = {}
-	if PlotSystem.FusionXZ then
-		table.insert(extras, PlotSystem.FusionXZ)
-	end
-	-- Beside the quest board (127, 60), not on top of the fusion reactor.
-	local cx, cz = PlotSystem.PickClearSpot(100, 78, extras)
+	local trainerSpot = PlotSystem.PlazaSpots.Trainer
+	local cx, cz = trainerSpot.X, trainerSpot.Y
 	local groundY = 16
 	local upParams = RaycastParams.new()
 	upParams.FilterType = Enum.RaycastFilterType.Include
@@ -892,7 +927,7 @@ do
 	end
 
 	stall.PrimaryPart = pad
-	stall.Parent = workspace
+	stall.Parent = plazaFolder
 	print("[GameServer] Stat trainer placed at " .. tostring(Vector3.new(cx, groundY, cz)))
 
 	local upPrompt = Instance.new("ProximityPrompt")
@@ -911,14 +946,6 @@ do
 		end
 	end)
 end
-
--- // Expedition kiosk ------------------------------------------------------------
-local expKiosk = VisualEffects.BuildExpeditionKiosk()
-expKiosk.Parent = plazaFolder
-local expSpot = PlotSystem.PlazaSpots.Expedition
-PlotSystem.SitOnTerrain(expKiosk, expSpot.X, expSpot.Y)
-print("[GameServer] Expedition kiosk at " .. tostring(expKiosk:GetPivot().Position))
-local expPrompt = attachKioskPrompt(expKiosk, "Send Expeditions", "Expedition Board", "ExpeditionButton")
 
 pushExpeditionState = function(player: Player)
 	local status = ExpeditionSystem.GetStatus(player)
@@ -942,13 +969,6 @@ local function openExpeditionBoard(player: Player, selectZone: string?)
 		updateEvent:FireClient(player, status)
 	end
 end
-
-expPrompt.Triggered:Connect(openExpeditionBoard)
-local expClick = Instance.new("ClickDetector")
-expClick.MaxActivationDistance = 16
-local expClickPart = expKiosk:FindFirstChild("ExpeditionButton", true) or expKiosk.PrimaryPart
-expClick.Parent = expClickPart
-expClick.MouseClick:Connect(openExpeditionBoard)
 
 -- // Zone portals creation configuration maps ------------------------------------
 local PORTAL_SPACING = 18

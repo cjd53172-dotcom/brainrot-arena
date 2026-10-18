@@ -420,8 +420,10 @@ BrainrotData.ROSTER = {
 			Size = Vector3.new(2.2, 3.4, 2.2),
 			Face = "angry",
 			Extras = {
-				{ Name = "Bat", Shape = "Cylinder", Color = Color3.fromRGB(210, 170, 110), Size = Vector3.new(0.45, 3.2, 0.45), Offset = Vector3.new(1.7, 0.6, 0.3), Rotation = Vector3.new(0, 0, -0.5) },
-				{ Name = "BatTip", Shape = "Cylinder", Color = Color3.fromRGB(190, 150, 95), Size = Vector3.new(0.55, 0.5, 0.55), Offset = Vector3.new(2.45, 1.9, 0.3), Rotation = Vector3.new(0, 0, -0.5) },
+				{ Name = "BatKnob", Shape = "Ball", Color = Color3.fromRGB(160, 110, 60), Size = Vector3.new(0.42, 0.42, 0.42), Offset = Vector3.new(1.15, -0.55, 0.35) },
+				{ Name = "BatGrip", Shape = "Cylinder", Color = Color3.fromRGB(40, 32, 28), Size = Vector3.new(0.32, 1.1, 0.32), Offset = Vector3.new(1.35, 0.05, 0.35), Rotation = Vector3.new(0, 0, -0.45) },
+				{ Name = "Bat", Shape = "Cylinder", Color = Color3.fromRGB(214, 162, 92), Size = Vector3.new(0.55, 2.4, 0.55), Offset = Vector3.new(1.95, 1.35, 0.35), Rotation = Vector3.new(0, 0, -0.45) },
+				{ Name = "BatTip", Shape = "Cylinder", Color = Color3.fromRGB(180, 128, 70), Size = Vector3.new(0.68, 0.35, 0.68), Offset = Vector3.new(2.45, 2.35, 0.35), Rotation = Vector3.new(0, 0, -0.45) },
 			},
 		},
 		Moves = {
