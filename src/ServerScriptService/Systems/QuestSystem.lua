@@ -32,11 +32,21 @@ QuestSystem.QUEST_ORDER = {
 	"material_gatherer",
 	"fusion_discovery",
 	"arena_entrant",
-	"rival_rocco",
-	"rival_marina",
-	"rival_bruno",
-	"rival_umbra",
-	"rival_campione",
+	"arena_gate_001",
+	"arena_gate_005",
+	"arena_gate_010",
+	"arena_gate_025",
+	"arena_gate_050",
+	"arena_gate_100",
+}
+
+-- Old boss/rival quests mapped onto the 100-gate ladder.
+local LEGACY_QUESTS: { [string]: string } = {
+	rival_rocco = "arena_gate_001",
+	rival_marina = "arena_gate_005",
+	rival_bruno = "arena_gate_010",
+	rival_umbra = "arena_gate_025",
+	rival_campione = "arena_gate_050",
 }
 
 QuestSystem.QUESTS = {
@@ -45,82 +55,90 @@ QuestSystem.QUESTS = {
 		Description = "Catch 1 wild brainrot roaming the world.",
 		Objective = "brainrots",
 		Goal = 1,
-		Reward = { BrainrotId = "tung_sahur", Coins = 50 },
+		Reward = { BrainrotId = "tung_sahur", Coins = 120 },
 	},
 	growing_team = {
 		Name = "Growing Team",
 		Description = "Own 4 brainrots.",
 		Objective = "brainrots",
 		Goal = 4,
-		Reward = { Coins = 100 },
+		Reward = { Coins = 250 },
 	},
 	clock_in = {
 		Name = "Clock In",
 		Description = "Assign 1 brainrot to work at a station on your plot.",
 		Objective = "workers",
 		Goal = 1,
-		Reward = { Coins = 75 },
+		Reward = { Coins = 200 },
 	},
 	material_gatherer = {
 		Name = "Material Gatherer",
 		Description = "Collect 30 materials from your workstations.",
 		Objective = "materials",
 		Goal = 30,
-		Reward = { RandomRarity = "Rare" },
+		Reward = { Coins = 400, RandomRarity = "Rare" },
 	},
 	fusion_discovery = {
 		Name = "Fusion Discovery",
-		Description = "Fuse 3 duplicates at the Fusion Lab on your plot.",
+		Description = "Fuse 3 duplicates at the Fusion Lab.",
 		Objective = "fusions",
 		Goal = 1,
-		Reward = { Coins = 150 },
+		Reward = { Coins = 600 },
 	},
 	arena_entrant = {
 		Name = "Arena Entrant",
-		Description = "Own 6 brainrots, then face the arena rivals.",
+		Description = "Own 6 brainrots, then walk to the Colosseum.",
 		Objective = "brainrots",
 		Goal = 6,
-		Reward = { Coins = 100 },
+		Reward = { Coins = 500 },
 	},
-	rival_rocco = {
-		Name = "Rival: Rocco the Rookie",
-		Description = "Defeat Rocco the Rookie in a 3v3 arena battle.",
+	arena_gate_001 = {
+		Name = "First Blood",
+		Description = "Win Arena Battle 1 at the Colosseum.",
 		Objective = "rival",
 		Goal = 1,
-		RivalId = "rocco",
-		Reward = { Coins = 200 },
+		RivalId = "gate_001",
+		Reward = { Coins = 800 },
 	},
-	rival_marina = {
-		Name = "Rival: Marina",
-		Description = "Defeat Marina, Tidecaller of the plaza.",
+	arena_gate_005 = {
+		Name = "Warming Up",
+		Description = "Win Arena Battle 5. Commons will not carry you forever.",
 		Objective = "rival",
 		Goal = 1,
-		RivalId = "marina",
-		Reward = { Coins = 100, RandomRarity = "Epic" },
+		RivalId = "gate_005",
+		Reward = { Coins = 1800, RandomRarity = "Rare" },
 	},
-	rival_bruno = {
-		Name = "Rival: Chef Bruno",
-		Description = "Defeat Chef Bruno. He cooks his opponents.",
+	arena_gate_010 = {
+		Name = "Gate 10",
+		Description = "Win Arena Battle 10.",
 		Objective = "rival",
 		Goal = 1,
-		RivalId = "bruno",
-		Reward = { Coins = 400 },
+		RivalId = "gate_010",
+		Reward = { Coins = 3500, RandomRarity = "Rare" },
 	},
-	rival_umbra = {
-		Name = "Rival: Umbra",
-		Description = "Defeat Umbra and silence the whispers.",
+	arena_gate_025 = {
+		Name = "Quarter Century",
+		Description = "Win Arena Battle 25. Bring Epics.",
 		Objective = "rival",
 		Goal = 1,
-		RivalId = "umbra",
-		Reward = { Coins = 600 },
+		RivalId = "gate_025",
+		Reward = { Coins = 9000, RandomRarity = "Epic" },
 	},
-	rival_campione = {
-		Name = "Rival: Campione",
-		Description = "Defeat Campione, the undisputed plaza champion.",
+	arena_gate_050 = {
+		Name = "Halfway Champion",
+		Description = "Win Arena Battle 50.",
 		Objective = "rival",
 		Goal = 1,
-		RivalId = "campione",
-		Reward = { Coins = 1000, RandomRarity = "Legendary" },
+		RivalId = "gate_050",
+		Reward = { Coins = 22000, RandomRarity = "Legendary" },
+	},
+	arena_gate_100 = {
+		Name = "Colosseum Crown",
+		Description = "Win Arena Battle 100 and own the ladder.",
+		Objective = "rival",
+		Goal = 1,
+		RivalId = "gate_100",
+		Reward = { Coins = 60000, RandomRarity = "Legendary" },
 	},
 }
 
@@ -132,8 +150,32 @@ local function collectionRemote()
 	return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CollectionUpdate")
 end
 
+function QuestSystem.Sanitize(player: Player)
+	local data = PlayerData.Get(player)
+	if not data then
+		return
+	end
+	local current = data.ActiveQuestId
+	if current and LEGACY_QUESTS[current] then
+		current = LEGACY_QUESTS[current]
+		data.ActiveQuestId = current
+		data.QuestProgress = 0
+	end
+	if current and not QuestSystem.QUESTS[current] then
+		data.ActiveQuestId = nil
+		for _, id in ipairs(QuestSystem.QUEST_ORDER) do
+			if not data.QuestsCompleted[id] then
+				data.ActiveQuestId = id
+				data.QuestProgress = 0
+				break
+			end
+		end
+	end
+end
+
 -- Returns (questDef, questId) or (nil, nil).
 function QuestSystem.GetActiveQuest(player: Player): (any?, string?)
+	QuestSystem.Sanitize(player)
 	local data = PlayerData.Get(player)
 	if not data or not data.ActiveQuestId then
 		return nil, nil
@@ -271,8 +313,14 @@ function QuestSystem.CompleteQuest(player: Player, questId: string)
 
 	-- Newly unlocked quest may already be satisfied (e.g. own 6 brainrots).
 	local newQuest, newQuestId = QuestSystem.GetActiveQuest(player)
-	if newQuest and newQuestId and newQuest.Objective ~= "orbs" and newQuest.Objective ~= "rival" then
-		QuestSystem.CheckObjective(player, newQuest.Objective)
+	if newQuest and newQuestId then
+		if newQuest.Objective == "rival" and newQuest.RivalId then
+			if PlayerData.HasBeatenRival(player, newQuest.RivalId) then
+				QuestSystem.CheckObjective(player, "rival", newQuest.RivalId)
+			end
+		elseif newQuest.Objective ~= "orbs" then
+			QuestSystem.CheckObjective(player, newQuest.Objective)
+		end
 	end
 
 	questRemote():FireClient(player, {

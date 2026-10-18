@@ -2322,21 +2322,21 @@ BrainrotData.DAILY_TIERS = {
 -- Quest templates: { Description, Target, RewardCoins }. Target varies by tier.
 BrainrotData.DAILY_QUEST_POOL = {
 	easy = {
-		{ Text = "Collect 10 coins from the obby", Target = 10, Coins = 50 },
-		{ Text = "Collect 3 Brainrot Orbs", Target = 3, Coins = 50 },
-		{ Text = "Collect materials from a workstation", Target = 5, Coins = 50 },
+		{ Text = "Collect 10 coins from the obby", Target = 10, Coins = 150 },
+		{ Text = "Collect 3 Brainrot Orbs", Target = 3, Coins = 150 },
+		{ Text = "Collect materials from a workstation", Target = 5, Coins = 180 },
 	},
 	medium = {
-		{ Text = "Win 1 battle in the Arena", Target = 1, Coins = 150 },
-		{ Text = "Complete 1 expedition", Target = 1, Coins = 150 },
-		{ Text = "Fuse 1 brainrot", Target = 1, Coins = 150 },
-		{ Text = "Collect 30 coins from the obby", Target = 30, Coins = 150 },
+		{ Text = "Win 1 battle in the Arena", Target = 1, Coins = 500 },
+		{ Text = "Complete 1 expedition", Target = 1, Coins = 450 },
+		{ Text = "Fuse 1 brainrot", Target = 1, Coins = 500 },
+		{ Text = "Collect 30 coins from the obby", Target = 30, Coins = 400 },
 	},
 	hard = {
-		{ Text = "Win 3 battles in the Arena", Target = 3, Coins = 400 },
-		{ Text = "Complete 3 expeditions", Target = 3, Coins = 400 },
-		{ Text = "Hatch 1 mystery egg", Target = 1, Coins = 400 },
-		{ Text = "Earn 500 coins", Target = 500, Coins = 400 },
+		{ Text = "Win 5 battles in the Arena", Target = 5, Coins = 2200 },
+		{ Text = "Complete 3 expeditions", Target = 3, Coins = 1600 },
+		{ Text = "Hatch 1 mystery egg", Target = 1, Coins = 1400 },
+		{ Text = "Earn 500 coins", Target = 500, Coins = 1800 },
 	},
 }
 
