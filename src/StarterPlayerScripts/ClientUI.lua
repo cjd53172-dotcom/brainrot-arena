@@ -3795,3 +3795,20 @@ task.defer(function()
 	-- Ranks UI removed: the champion board lives at the arena.
 end)
 
+-- Roblox otherwise drops idle players after ~20 minutes. Keep the session alive.
+do
+	player.Idled:Connect(function()
+		pcall(function()
+			local vu = game:GetService("VirtualUser")
+			vu:CaptureController()
+			vu:ClickButton2(Vector2.new())
+		end)
+		local cam = workspace.CurrentCamera
+		if cam then
+			local cf = cam.CFrame
+			cam.CFrame = cf * CFrame.new(0, 0, 0.0001)
+			cam.CFrame = cf
+		end
+	end)
+end
+
