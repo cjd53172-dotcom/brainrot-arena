@@ -249,15 +249,22 @@ BrainrotData.PACK_FOLDERS = {
 }
 
 -- Normal is most of the drops; Galaxia is a trophy.
+-- Includes pack forms (oro, lava, …) and the type templates (umbral, ember, …).
 BrainrotData.VARIANT_ROLL = {
-	{ Id = nil, Weight = 72 },
-	{ Id = "solido", Weight = 9 },
-	{ Id = "oro", Weight = 7 },
-	{ Id = "lava", Weight = 5 },
-	{ Id = "arcoiris", Weight = 3.5 },
-	{ Id = "diamante", Weight = 2 },
-	{ Id = "hacker", Weight = 1 },
-	{ Id = "galaxia", Weight = 0.5 },
+	{ Id = nil, Weight = 68 },
+	{ Id = "umbral", Weight = 5 },
+	{ Id = "ember", Weight = 4 },
+	{ Id = "abyssal", Weight = 4 },
+	{ Id = "venom", Weight = 4 },
+	{ Id = "solido", Weight = 4 },
+	{ Id = "oro", Weight = 3 },
+	{ Id = "lava", Weight = 2.5 },
+	{ Id = "gale", Weight = 2 },
+	{ Id = "arcoiris", Weight = 1.5 },
+	{ Id = "diamante", Weight = 1 },
+	{ Id = "gilded", Weight = 0.8 },
+	{ Id = "hacker", Weight = 0.5 },
+	{ Id = "galaxia", Weight = 0.2 },
 }
 
 function BrainrotData.RollVariant(): string?

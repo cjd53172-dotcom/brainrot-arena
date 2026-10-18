@@ -119,11 +119,13 @@ function FishingSystem.Reel(player: Player, timingQuality: number): any?
 		PlayerData.AddRareMaterial(player, reward.Name, reward.Amount)
 	elseif reward.Kind == "Brainrot" then
 		local shiny = math.random() < BrainrotData.SHINY_CHANCE
-		local inst, err = PlayerData.TryAddBrainrot(player, reward.BrainrotId, shiny, nil)
+		local variant = BrainrotData.RollVariant()
+		local inst, err = PlayerData.TryAddBrainrot(player, reward.BrainrotId, shiny, variant)
 		if inst then
 			local def = BrainrotData.GetBrainrot(reward.BrainrotId)
-			reward.BrainrotName = def and def.Name or "?"
+			reward.BrainrotName = def and BrainrotData.GetDisplayName(def, variant, shiny) or "?"
 			reward.Shiny = shiny
+			reward.Variant = variant
 			reward.Rarity = def and def.Rarity or "Common"
 		else
 			-- Inventory full: give coins instead

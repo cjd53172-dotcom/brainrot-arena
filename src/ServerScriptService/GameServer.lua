@@ -2572,8 +2572,8 @@ task.spawn(function()
 		local t = os.time()
 		return t - (t % 3600) + 3600
 	end
-	local nextAt = os.time() + 480
-	print("[GameServer] First Legendary Rush in 8 min, then hourly. unix " .. tostring(nextAt))
+	local nextAt = nextHourUnix()
+	print("[GameServer] Next Legendary Rush on the hour. unix " .. tostring(nextAt))
 	while true do
 		if os.time() >= nextAt then
 			WanderSystem.SetEventActive(true)
