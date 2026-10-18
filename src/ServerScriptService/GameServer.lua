@@ -2338,9 +2338,6 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	end
 	-- Plots stay at display size (~4 studs). Wilds are 6× that.
 	local WILD_SIZE_MULT = 6
-	pcall(function()
-		model:ScaleTo(model:GetScale() * WILD_SIZE_MULT)
-	end)
 
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
@@ -2374,8 +2371,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	model:PivotTo(currentPivot + (spawnPos - currentPivot.Position))
 	model:SetAttribute("WildOwner", player.UserId) -- other players' screens hide it (see ClientUI)
 	model.Parent = workspace
-	-- Do not FitInWorld here. Live servers still see a tiny FileMesh bbox and
-	-- force-fit would shrink the 6x wilds back down to plot size.
+	PlotSystem.ApplyWildSize(model, WILD_SIZE_MULT)
 	do
 		local okBB, bbCF, bbSize = pcall(function()
 			return model:GetBoundingBox()

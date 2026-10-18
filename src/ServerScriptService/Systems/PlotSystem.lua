@@ -323,7 +323,26 @@ local function fitLyingFileMesh(model: Model, maxSize: number)
 			(d :: DataModelMesh).Scale = (d :: DataModelMesh).Scale * factor
 		end
 	end
+	model:SetAttribute("FileMeshFit", true)
 	print("[PlotSystem] force-fit " .. model.Name .. " x" .. string.format("%.3f", factor))
+end
+
+-- Live pack meshes ignore Model:ScaleTo; their size is FileMesh.Scale.
+-- Studio already has a real bbox, so ScaleTo is enough there.
+function PlotSystem.ApplyWildSize(model: Model, mult: number)
+	if model:GetAttribute("FileMeshFit") == true then
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("SpecialMesh") or d:IsA("FileMesh") or d:IsA("DataModelMesh") then
+				(d :: DataModelMesh).Scale = (d :: DataModelMesh).Scale * mult
+			end
+		end
+		print("[PlotSystem] wild FileMesh x" .. tostring(mult) .. " " .. model.Name)
+		return
+	end
+	pcall(function()
+		model:ScaleTo(model:GetScale() * mult)
+	end)
+	print("[PlotSystem] wild ScaleTo x" .. tostring(mult) .. " " .. model.Name)
 end
 
 -- Call after the model is in Workspace. Pack meshes often report a tiny
