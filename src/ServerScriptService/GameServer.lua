@@ -2372,6 +2372,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	model:PivotTo(currentPivot + (spawnPos - currentPivot.Position))
 	model:SetAttribute("WildOwner", player.UserId) -- other players' screens hide it (see ClientUI)
 	model.Parent = workspace
+	PlotSystem.FitInWorld(model, 4.2)
 	PlotSystem.ApplyWildSize(model, WILD_SIZE_MULT)
 	do
 		local okBB, bbCF, bbSize = pcall(function()

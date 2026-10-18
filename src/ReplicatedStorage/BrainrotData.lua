@@ -95,6 +95,11 @@ BrainrotData.FLIP_UPSIDE_DOWN = {
 	garamararam = true,
 } :: { [string]: boolean }
 
+-- FileMesh assets that are far larger than the usual ~150-stud pack.
+BrainrotData.PACK_MESH_UNITS = {
+	orcalero = 8000,
+} :: { [string]: number }
+
 -- // Collection rules -----------------------------------------------------------
 -- The roster can grow forever; the inventory and showcase stay bounded.
 BrainrotData.INVENTORY_LIMIT = 1000
