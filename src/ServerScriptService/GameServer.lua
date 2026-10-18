@@ -9,11 +9,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
--- Laser Tag is a different Place. If this script is ever Played there
--- (BrainrotSync / paste), do not spawn plots, plaza, or wilds on that map.
+-- Laser Tag is a different Place. Never build plots there, even if Studio
+-- reports PlaceId 0 or GitHub scripts were synced by mistake.
 local HUB_PLACE_ID = 92909397469421
+local LASER_TAG_PLACE_ID = 84198140833268
+print("[GameServer] PlaceId=" .. tostring(game.PlaceId))
+local laserScripts = script.Parent:FindFirstChild("ReturnToArena") or script.Parent:FindFirstChild("LaserTagOrbs")
+if game.PlaceId == LASER_TAG_PLACE_ID or laserScripts then
+	warn("[GameServer] Laser Tag place/scripts detected. Hub world skipped. Delete GameServer from Laser Tag; delete ReturnToArena from the hub.")
+	return
+end
 if game.PlaceId ~= 0 and game.PlaceId ~= HUB_PLACE_ID then
-	warn("[GameServer] PlaceId " .. tostring(game.PlaceId) .. " is not Brainrot Arena hub. Hub world skipped. Do not Sync GitHub in Laser Tag.")
+	warn("[GameServer] PlaceId " .. tostring(game.PlaceId) .. " is not Brainrot Arena hub. Hub world skipped.")
 	return
 end
 
