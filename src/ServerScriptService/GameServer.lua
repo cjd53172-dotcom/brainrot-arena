@@ -263,11 +263,14 @@ local function makeBat(): Tool
 	tool.ToolTip = "Click to swing!"
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
-	local baseGrip = CFrame.new(0.15, -0.2, 0) * CFrame.Angles(0, 0, math.rad(8))
+	tool.ManualActivationOnly = false
+	-- Handle Y is the bat's length (Roblox tools expect that). Offset so the
+	-- taped grip sits in the hand and the barrel points up/forward.
+	local baseGrip = CFrame.new(0, -0.15, 0.1)
 	tool.Grip = baseGrip
 
 	local wood = Color3.fromRGB(196, 142, 78)
-	local barrel = Color3.fromRGB(214, 162, 92)
+	local barrelCol = Color3.fromRGB(214, 162, 92)
 	local tape = Color3.fromRGB(38, 32, 28)
 	local knobCol = Color3.fromRGB(160, 110, 60)
 	local ringCol = Color3.fromRGB(230, 210, 150)
@@ -279,7 +282,16 @@ local function makeBat(): Tool
 		w.Parent = b
 	end
 
-	-- Cylinder parts are long on X; rotate so the bat stands on Y.
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(0.32, 1.2, 0.32)
+	handle.Color = tape
+	handle.Material = Enum.Material.Fabric
+	handle.CanCollide = false
+	handle.Massless = true
+	handle.Parent = tool
+
+	-- Cylinder parts are long on X; rotate onto the handle's Y axis.
 	local function cyl(name: string, length: number, dia: number, color: Color3, y: number, mat: Enum.Material): Part
 		local p = Instance.new("Part")
 		p.Name = name
@@ -289,12 +301,12 @@ local function makeBat(): Tool
 		p.Material = mat
 		p.CanCollide = false
 		p.Massless = true
-		p.CFrame = CFrame.new(0, y, 0) * CFrame.Angles(0, 0, math.pi / 2)
+		p.CFrame = handle.CFrame * CFrame.new(0, y, 0) * CFrame.Angles(0, 0, math.pi / 2)
 		p.Parent = tool
+		weldTo(handle, p)
 		return p
 	end
 
-	local handle = cyl("Handle", 1.15, 0.3, tape, 0, Enum.Material.Fabric)
 	local knob = Instance.new("Part")
 	knob.Name = "Knob"
 	knob.Shape = Enum.PartType.Ball
@@ -303,20 +315,15 @@ local function makeBat(): Tool
 	knob.Material = Enum.Material.Wood
 	knob.CanCollide = false
 	knob.Massless = true
-	knob.CFrame = CFrame.new(0, -0.78, 0)
+	knob.CFrame = handle.CFrame * CFrame.new(0, -0.78, 0)
 	knob.Parent = tool
 	weldTo(handle, knob)
 
-	local throat = cyl("Throat", 1.05, 0.26, wood, 1.05, Enum.Material.Wood)
-	weldTo(handle, throat)
-	local taper = cyl("Taper", 0.55, 0.42, wood, 1.75, Enum.Material.Wood)
-	weldTo(handle, taper)
-	local barrelPart = cyl("Barrel", 2.35, 0.72, barrel, 3.05, Enum.Material.Wood)
-	weldTo(handle, barrelPart)
-	local cup = cyl("Cup", 0.28, 0.78, Color3.fromRGB(180, 128, 70), 4.22, Enum.Material.Wood)
-	weldTo(handle, cup)
-	local ring = cyl("LabelRing", 0.12, 0.76, ringCol, 2.15, Enum.Material.SmoothPlastic)
-	weldTo(handle, ring)
+	cyl("Throat", 1.05, 0.26, wood, 1.05, Enum.Material.Wood)
+	cyl("Taper", 0.55, 0.42, wood, 1.75, Enum.Material.Wood)
+	cyl("Barrel", 2.35, 0.72, barrelCol, 3.05, Enum.Material.Wood)
+	cyl("Cup", 0.28, 0.78, Color3.fromRGB(180, 128, 70), 4.22, Enum.Material.Wood)
+	cyl("LabelRing", 0.12, 0.76, ringCol, 2.15, Enum.Material.SmoothPlastic)
 	local brand = Instance.new("Part")
 	brand.Name = "Brand"
 	brand.Size = Vector3.new(0.22, 0.55, 0.04)
@@ -324,11 +331,31 @@ local function makeBat(): Tool
 	brand.Material = Enum.Material.SmoothPlastic
 	brand.CanCollide = false
 	brand.Massless = true
-	brand.CFrame = CFrame.new(0, 3.1, 0.38)
+	brand.CFrame = handle.CFrame * CFrame.new(0, 3.1, 0.38)
 	brand.Parent = tool
 	weldTo(handle, brand)
 
 	local lastSwing = 0
+	local swinging = false
+	local function playSwing()
+		if swinging then
+			return
+		end
+		swinging = true
+		task.spawn(function()
+			for i = 1, 7 do
+				tool.Grip = baseGrip * CFrame.Angles(math.rad(-18 * i), math.rad(4 * i), 0)
+				task.wait(0.018)
+			end
+			for i = 6, 0, -1 do
+				tool.Grip = baseGrip * CFrame.Angles(math.rad(-18 * i), math.rad(4 * i), 0)
+				task.wait(0.018)
+			end
+			tool.Grip = baseGrip
+			swinging = false
+		end)
+	end
+
 	tool.Activated:Connect(function()
 		local char = tool.Parent
 		if not char or not char:IsA("Model") then return end
@@ -340,18 +367,7 @@ local function makeBat(): Tool
 		if now - lastSwing < BAT_COOLDOWN then return end
 		lastSwing = now
 		local root = rootInst :: BasePart
-
-		-- swing animation (spin the grip forward and back)
-		task.spawn(function()
-			for i = 1, 6 do
-				tool.Grip = baseGrip * CFrame.Angles(math.rad(-20 * i), 0, 0)
-				task.wait(0.02)
-			end
-			for i = 5, 0, -1 do
-				tool.Grip = baseGrip * CFrame.Angles(math.rad(-20 * i), 0, 0)
-				task.wait(0.02)
-			end
-		end)
+		playSwing()
 
 		local boxCF = root.CFrame * CFrame.new(0, 0, -BAT_RANGE / 2)
 		local params = OverlapParams.new()
