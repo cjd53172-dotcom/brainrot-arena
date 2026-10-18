@@ -162,19 +162,26 @@ local function placeReturnGate(at: Vector3, look: Vector3?)
 	else
 		flat = flat.Unit
 	end
-	-- Stay at chest height. A long downward ray hits indoor ceilings and hides the slab.
-	local x = at.X + flat.X * 5
-	local z = at.Z + flat.Z * 5
-	local y = at.Y + 2
+	-- Put the gate to the SIDE of the pad, not in the doorway, so walking out is not a teleport.
+	local right = Vector3.new(-flat.Z, 0, flat.X)
+	if right.Magnitude < 0.05 then
+		right = Vector3.new(1, 0, 0)
+	else
+		right = right.Unit
+	end
+	local x = at.X + right.X * 7
+	local z = at.Z + right.Z * 7
+	local y = at.Y + 3
 
 	local gate = Instance.new("Part")
 	gate.Name = "ReturnToArena"
-	gate.Size = Vector3.new(8, 14, 1.6)
+	gate.Size = Vector3.new(4, 8, 0.8)
 	gate.Anchored = true
 	gate.CanCollide = false
+	gate.CanTouch = false
 	gate.Color = Color3.fromRGB(255, 180, 40)
 	gate.Material = Enum.Material.Neon
-	gate.CFrame = CFrame.new(Vector3.new(x, y, z), Vector3.new(x, y, z) + flat)
+	gate.CFrame = CFrame.new(Vector3.new(x, y, z), Vector3.new(x, y, z) + right)
 	gate.Parent = workspace
 
 	local sign = Instance.new("BillboardGui")
@@ -195,21 +202,14 @@ local function placeReturnGate(at: Vector3, look: Vector3?)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "Return"
 	prompt.ObjectText = "Brainrot Arena"
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 18
+	prompt.HoldDuration = 0.4
+	prompt.MaxActivationDistance = 10
 	prompt.RequiresLineOfSight = false
 	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.Parent = gate
 
 	prompt.Triggered:Connect(goHome)
-	gate.Touched:Connect(function(hit: BasePart)
-		local char = hit and hit.Parent
-		local player = char and Players:GetPlayerFromCharacter(char)
-		if player then
-			goHome(player)
-		end
-	end)
 end
 
 local function collectSpawns(): { BasePart }
@@ -234,34 +234,6 @@ local function placeAtAllSpawns()
 	end
 	for _, spawn in ipairs(spawns) do
 		placeReturnGate(spawn.Position, spawn.CFrame.LookVector)
-	end
-end
-
-local function placeBesidePlayer(player: Player)
-	local char = player.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not (hrp and hrp:IsA("BasePart")) then
-		return
-	end
-	local look = (hrp :: BasePart).CFrame.LookVector
-	placeReturnGate((hrp :: BasePart).Position + look * 10, look)
-end
-
-Players.PlayerAdded:Connect(function(player: Player)
-	player.CharacterAdded:Connect(function()
-		task.wait(1.2)
-		placeBesidePlayer(player)
-	end)
-end)
-for _, player in ipairs(Players:GetPlayers()) do
-	player.CharacterAdded:Connect(function()
-		task.wait(1.2)
-		placeBesidePlayer(player)
-	end)
-	if player.Character then
-		task.defer(function()
-			placeBesidePlayer(player)
-		end)
 	end
 end
 
