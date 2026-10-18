@@ -30,6 +30,9 @@ local ARENA_X = WORLD_DX - 300
 local ARENA_Z = WORLD_DZ - 260
 local ARENA_SCALE = 2
 local ARENA_PAD = 140
+-- Fusion lab sits near the plaza boards, not on a player pad.
+local FUSION_X = WORLD_DX + 28
+local FUSION_Z = WORLD_DZ - 52
 -- Plots are lined up side-by-side along X, all facing +Z (front = +Z).
 
 local plotsFolder: Folder? = nil
@@ -358,7 +361,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 12-combatpack")
+print("[PlotSystem] source 13-plaza")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local label = PlotSystem.ArenaBoardLabel
@@ -368,7 +371,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v12-combatpack")
+	print("[PlotSystem] Loaded placement v13-plaza")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -741,7 +744,7 @@ function PlotSystem.Setup()
 	newPart({
 		Name = "Base",
 		Size = Vector3.new(10, 1, 10),
-		Position = Vector3.new(70 + WORLD_DX, 0.5, 0 + WORLD_DZ),
+		Position = Vector3.new(FUSION_X, 0.5, FUSION_Z),
 		Anchored = true,
 		Color = Color3.fromRGB(60, 60, 80),
 		Material = Enum.Material.SmoothPlastic,
@@ -750,7 +753,7 @@ function PlotSystem.Setup()
 		Name = "Chamber",
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(6, 5, 6),
-		Position = Vector3.new(70 + WORLD_DX, 3.5, 0 + WORLD_DZ),
+		Position = Vector3.new(FUSION_X, 3.5, FUSION_Z),
 		Anchored = true,
 		Color = Color3.fromRGB(150, 80, 220),
 		Material = Enum.Material.Neon,
@@ -759,7 +762,7 @@ function PlotSystem.Setup()
 	local labSign = newPart({
 		Name = "Sign",
 		Size = Vector3.new(9, 3, 0.6),
-		Position = Vector3.new(70 + WORLD_DX, 7.5, 0 + WORLD_DZ),
+		Position = Vector3.new(FUSION_X, 7.5, FUSION_Z),
 		Anchored = true,
 		Color = Color3.fromRGB(90, 70, 50),
 		Material = Enum.Material.Wood,
@@ -784,7 +787,7 @@ function PlotSystem.Setup()
 	labPrompt.MaxActivationDistance = 14
 	labPrompt.Parent = labSign
 	lab.Parent = plaza
-	liftModel(lab, groundY(70 + WORLD_DX, 0 + WORLD_DZ))
+	liftModel(lab, groundY(FUSION_X, FUSION_Z))
 	PlotSystem.FusionPrompt = labPrompt
 
 	local arena = Instance.new("Model")

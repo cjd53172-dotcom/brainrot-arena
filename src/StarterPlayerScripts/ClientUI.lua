@@ -1532,6 +1532,7 @@ exploreBtn.Font = Enum.Font.GothamBold
 exploreBtn.TextSize = 13
 exploreBtn.TextColor3 = Color3.fromRGB(170, 255, 170)
 exploreBtn.Parent = gui
+exploreBtn.Visible = false
 corner(exploreBtn, 10)
 
 local dailyBtn = Instance.new("TextButton")
@@ -2859,7 +2860,11 @@ end
 
 expeditionUpdateRemote.OnClientEvent:Connect(function(payload: any)
 	expeditionData = payload
-	if expeditionPanel.Visible then
+	if payload and payload.OpenPanel then
+		hideAllPanels()
+		refreshExpeditionPanel()
+		expeditionPanel.Visible = true
+	elseif expeditionPanel.Visible then
 		refreshExpeditionPanel()
 	end
 end)
@@ -2994,7 +2999,6 @@ local function buildMobileBar()
 		{ Icon = "⚗️", Label = "Fuse", Panel = fusionPanel, Refresh = refreshFusionPanel },
 		{ Icon = "⚔️", Label = "Arena", Panel = arenaPanel, Refresh = refreshArenaPanel },
 		{ Icon = "⭐", Label = "Show", Panel = editorPanel, Refresh = refreshEditorPanel },
-		{ Icon = "🗺️", Label = "Explore", Panel = expeditionPanel, Refresh = refreshExpeditionPanel },
 		{ Icon = "📅", Label = "Daily", Panel = dailyPanel, Refresh = refreshDailyPanel },
 		{ Icon = "🥚", Label = "Eggs", Panel = eggPanel, Refresh = refreshEggPanel },
 		{ Icon = "⛏️", Label = "Mine", Panel = minePanel, Refresh = refreshMinePanel },

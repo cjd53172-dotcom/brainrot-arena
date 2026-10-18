@@ -822,83 +822,80 @@ prompt.Triggered:Connect(function(player: Player)
 	end
 end)
 
--- // Stat upgrade board (spend coins on Speed / Jump / Reach / Luck) ----------------
+-- // Stat trainer stall (Speed / Jump / Reach / Luck) ----------------
 do
-	local upBoard = Instance.new("Part")
-	upBoard.Name = "UpgradeBoard"
-	upBoard.Size = Vector3.new(6, 5, 0.6)
-	upBoard.Anchored = true
-	upBoard.Color = Color3.fromRGB(70, 55, 20)
-	upBoard.Material = Enum.Material.Wood
+	local stall = Instance.new("Model")
+	stall.Name = "StatTrainerStall"
 
-	local upY = 16
+	local groundY = 16
 	local upParams = RaycastParams.new()
 	upParams.FilterType = Enum.RaycastFilterType.Include
 	upParams.FilterDescendantsInstances = { workspace.Terrain }
-	for _ = 1, 3 do
-		local hit = workspace:Raycast(Vector3.new(141, 500, 60), Vector3.new(0, -1000, 0), upParams)
-		if hit then
-			upY = hit.Position.Y + 3.5
-			break
-		end
-		if not game:IsLoaded() then task.wait(0.1) end
+	local hit = workspace:Raycast(Vector3.new(141, 500, 60), Vector3.new(0, -1000, 0), upParams)
+	if hit then
+		groundY = hit.Position.Y
 	end
-	upBoard.Position = Vector3.new(141, upY, 60)
-	upBoard.Parent = workspace
-	print("[GameServer] Upgrade board placed at " .. tostring(upBoard.Position))
+	local cx, cz = 141, 68
 
-	local upGui = Instance.new("SurfaceGui")
-	upGui.Face = Enum.NormalId.Front
-	upGui.Parent = upBoard
+	local function stallPart(name: string, size: Vector3, pos: Vector3, color: Color3, mat: Enum.Material): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.Position = pos
+		p.Anchored = true
+		p.Color = color
+		p.Material = mat
+		p.Parent = stall
+		return p
+	end
 
-	local upLabel = Instance.new("TextLabel")
-	upLabel.Size = UDim2.new(1, 0, 1, 0)
-	upLabel.BackgroundTransparency = 1
-	upLabel.Text = "STAT TRAINER\nWalk up to buy Speed, Jump, Reach, Luck"
-	upLabel.TextScaled = true
-	upLabel.Font = Enum.Font.GothamBold
-	upLabel.TextColor3 = Color3.fromRGB(255, 215, 90)
-	upLabel.TextStrokeTransparency = 0.5
-	upLabel.Parent = upGui
+	stallPart("Floor", Vector3.new(10, 0.6, 8), Vector3.new(cx, groundY + 0.3, cz), Color3.fromRGB(90, 70, 45), Enum.Material.WoodPlanks)
+	local counter = stallPart("Counter", Vector3.new(8, 1.2, 2.2), Vector3.new(cx, groundY + 1.5, cz + 1.4), Color3.fromRGB(120, 85, 50), Enum.Material.Wood)
+	stallPart("Canopy", Vector3.new(10, 0.3, 8), Vector3.new(cx, groundY + 6.4, cz), Color3.fromRGB(180, 40, 40), Enum.Material.Fabric)
+	stallPart("PoleL", Vector3.new(0.4, 6, 0.4), Vector3.new(cx - 4.5, groundY + 3.4, cz - 3.4), Color3.fromRGB(80, 60, 40), Enum.Material.Wood)
+	stallPart("PoleR", Vector3.new(0.4, 6, 0.4), Vector3.new(cx + 4.5, groundY + 3.4, cz - 3.4), Color3.fromRGB(80, 60, 40), Enum.Material.Wood)
+	stallPart("PoleBL", Vector3.new(0.4, 6, 0.4), Vector3.new(cx - 4.5, groundY + 3.4, cz + 3.4), Color3.fromRGB(80, 60, 40), Enum.Material.Wood)
+	stallPart("PoleBR", Vector3.new(0.4, 6, 0.4), Vector3.new(cx + 4.5, groundY + 3.4, cz + 3.4), Color3.fromRGB(80, 60, 40), Enum.Material.Wood)
 
-	local vendorTorso = Instance.new("Part")
-	vendorTorso.Name = "StatTrainer"
-	vendorTorso.Size = Vector3.new(2, 3, 1.2)
-	vendorTorso.Anchored = true
-	vendorTorso.Color = Color3.fromRGB(40, 80, 160)
-	vendorTorso.Material = Enum.Material.SmoothPlastic
-	vendorTorso.Position = upBoard.Position + Vector3.new(0, -0.5, 2.2)
-	vendorTorso.Parent = workspace
-	local vendorHead = Instance.new("Part")
-	vendorHead.Name = "StatTrainerHead"
-	vendorHead.Shape = Enum.PartType.Ball
-	vendorHead.Size = Vector3.new(1.4, 1.4, 1.4)
-	vendorHead.Anchored = true
-	vendorHead.Color = Color3.fromRGB(240, 200, 160)
-	vendorHead.Position = vendorTorso.Position + Vector3.new(0, 2.2, 0)
-	vendorHead.Parent = workspace
+	-- Shopkeep
+	local torso = stallPart("Torso", Vector3.new(2, 2.2, 1.1), Vector3.new(cx, groundY + 3.4, cz - 0.6), Color3.fromRGB(35, 70, 150), Enum.Material.Fabric)
+	stallPart("Head", Vector3.new(1.5, 1.5, 1.5), Vector3.new(cx, groundY + 5.1, cz - 0.6), Color3.fromRGB(240, 200, 160), Enum.Material.SmoothPlastic)
+	stallPart("Hat", Vector3.new(1.7, 0.5, 1.7), Vector3.new(cx, groundY + 5.95, cz - 0.6), Color3.fromRGB(30, 30, 40), Enum.Material.SmoothPlastic)
+	stallPart("ArmL", Vector3.new(0.7, 2, 0.7), Vector3.new(cx - 1.4, groundY + 3.3, cz - 0.6), Color3.fromRGB(240, 200, 160), Enum.Material.SmoothPlastic)
+	stallPart("ArmR", Vector3.new(0.7, 2, 0.7), Vector3.new(cx + 1.4, groundY + 3.3, cz - 0.6), Color3.fromRGB(240, 200, 160), Enum.Material.SmoothPlastic)
 
-	local coin = Instance.new("Part")
-	coin.Name = "UpgradeBoardGlow"
-	coin.Shape = Enum.PartType.Ball
-	coin.Size = Vector3.new(2, 2, 2)
-	coin.Anchored = true
-	coin.CanCollide = false
-	coin.Material = Enum.Material.Neon
-	coin.Color = Color3.fromRGB(255, 200, 60)
-	coin.Position = upBoard.Position + Vector3.new(0, 4.5, 0)
-	coin.Parent = workspace
+	local sign = stallPart("Sign", Vector3.new(7, 1.8, 0.3), Vector3.new(cx, groundY + 7.5, cz), Color3.fromRGB(40, 30, 20), Enum.Material.Wood)
+	local signGui = Instance.new("SurfaceGui")
+	signGui.Face = Enum.NormalId.Front
+	signGui.Parent = sign
+	local signLabel = Instance.new("TextLabel")
+	signLabel.Size = UDim2.new(1, 0, 1, 0)
+	signLabel.BackgroundTransparency = 1
+	signLabel.Text = "STAT TRAINER\nSpeed · Jump · Reach · Luck"
+	signLabel.TextScaled = true
+	signLabel.Font = Enum.Font.GothamBold
+	signLabel.TextColor3 = Color3.fromRGB(255, 220, 90)
+	signLabel.Parent = signGui
+
+	for i, label in ipairs({ "SPD", "JMP", "RCH", "LCK" }) do
+		local bottle = stallPart("Stock" .. i, Vector3.new(0.6, 0.9, 0.6), Vector3.new(cx - 2.4 + (i - 1) * 1.6, groundY + 2.55, cz + 1.4), Color3.fromRGB(255, 190, 70), Enum.Material.Neon)
+		bottle.CanCollide = false
+	end
+
+	stall.PrimaryPart = counter
+	stall.Parent = workspace
+	print("[GameServer] Stat trainer stall placed at " .. tostring(counter.Position))
 
 	local upPrompt = Instance.new("ProximityPrompt")
-	upPrompt.ActionText = "Upgrade Stats"
+	upPrompt.ActionText = "Shop Upgrades"
 	upPrompt.ObjectText = "Stat Trainer"
 	upPrompt.HoldDuration = 0
-	upPrompt.MaxActivationDistance = 12
+	upPrompt.MaxActivationDistance = 14
 	upPrompt.RequiresLineOfSight = false
-	upPrompt.Parent = vendorTorso
+	upPrompt.Parent = counter
 
 	upPrompt.Triggered:Connect(function(player: Player)
-		pushCollection(player) -- fresh coins + tiers before the panel opens
+		pushCollection(player)
 		local openStats = CachedRemotes["OpenStats"]
 		if openStats then
 			openStats:FireClient(player)
@@ -913,6 +910,13 @@ expBoard.Size = Vector3.new(6, 5, 0.6)
 expBoard.Anchored = true
 expBoard.Color = Color3.fromRGB(60, 120, 60)
 expBoard.Material = Enum.Material.Wood
+
+local expButton = Instance.new("Part")
+expButton.Name = "ExpeditionButton"
+expButton.Size = Vector3.new(1.8, 1.8, 0.6)
+expButton.Anchored = true
+expButton.Material = Enum.Material.Neon
+expButton.Color = Color3.fromRGB(80, 220, 90)
 
 do
 	local targetY = 16
@@ -929,8 +933,10 @@ do
 		if not game:IsLoaded() then task.wait(0.1) end
 	end
 	expBoard.Position = Vector3.new(135, targetY, 60)
+	expButton.Position = expBoard.Position + Vector3.new(0, -1.6, 1.1)
 end
 expBoard.Parent = workspace
+expButton.Parent = workspace
 
 local expGui = Instance.new("SurfaceGui")
 expGui.Face = Enum.NormalId.Front
@@ -939,7 +945,7 @@ expGui.Parent = expBoard
 local expLabel = Instance.new("TextLabel")
 expLabel.Size = UDim2.new(1, 0, 1, 0)
 expLabel.BackgroundTransparency = 1
-expLabel.Text = "EXPEDITION BOARD\nSend brainrots to gather!"
+expLabel.Text = "EXPEDITION BOARD\nPress the green button!"
 expLabel.TextScaled = true
 expLabel.Font = Enum.Font.GothamBold
 expLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -947,12 +953,12 @@ expLabel.TextStrokeTransparency = 0.6
 expLabel.Parent = expGui
 
 local expPrompt = Instance.new("ProximityPrompt")
-expPrompt.ActionText = "Open"
+expPrompt.ActionText = "Send Expeditions"
 expPrompt.ObjectText = "Expedition Board"
 expPrompt.HoldDuration = 0
-expPrompt.MaxActivationDistance = 12
+expPrompt.MaxActivationDistance = 14
 expPrompt.RequiresLineOfSight = false
-expPrompt.Parent = expBoard
+expPrompt.Parent = expButton
 
 pushExpeditionState = function(player: Player)
 	local status = ExpeditionSystem.GetStatus(player)
@@ -962,13 +968,23 @@ pushExpeditionState = function(player: Player)
 	end
 end
 
-expPrompt.Triggered:Connect(function(player: Player)
+local function openExpeditionBoard(player: Player)
+	local status = ExpeditionSystem.GetStatus(player)
+	if type(status) ~= "table" then
+		status = {}
+	end
+	status.OpenPanel = true
 	local updateEvent = CachedRemotes["ExpeditionUpdate"]
-	local hintEvent = CachedRemotes["ShowHint"]
+	if updateEvent then
+		updateEvent:FireClient(player, status)
+	end
+end
 
-	if updateEvent then updateEvent:FireClient(player, ExpeditionSystem.GetStatus(player)) end
-	if hintEvent then hintEvent:FireClient(player, "Open the Explore menu to send expeditions!") end
-end)
+expPrompt.Triggered:Connect(openExpeditionBoard)
+local expClick = Instance.new("ClickDetector")
+expClick.MaxActivationDistance = 16
+expClick.Parent = expButton
+expClick.MouseClick:Connect(openExpeditionBoard)
 
 -- // Zone portals creation configuration maps ------------------------------------
 local PORTAL_SPACING = 18
@@ -1126,22 +1142,68 @@ end)
 
 -- // Fishing docks creation system module ----------------------------------------
 local fishingSpots = {}
-for i, spotInfo in ipairs({
-	{ X = 100, Z = 120, Name = "Riverside Dock" },
-	{ X = 160, Z = 130, Name = "Lakeside Pier" },
-	}) do
-	local dock = VisualEffects.BuildFishingSpot()
-	local targetY = 16
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Include
-	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
-
-	local castResult = workspace:Raycast(Vector3.new(spotInfo.X, 500, spotInfo.Z), Vector3.new(0, -1000, 0), raycastParams)
-	if castResult then targetY = castResult.Position.Y end
-
-	dock:PivotTo(CFrame.new(Vector3.new(spotInfo.X, targetY, spotInfo.Z)))
-	dock.Parent = workspace
-	table.insert(fishingSpots, { Id = "dock" .. i, Model = dock, Name = spotInfo.Name })
+do
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { workspace.Terrain }
+	local function hitAt(x: number, z: number): RaycastResult?
+		return workspace:Raycast(Vector3.new(x, 500, z), Vector3.new(0, -1000, 0), params)
+	end
+	local shores: { any } = {}
+	-- Search around the plaza / white pad where the river sits in the pretty map.
+	for x = 40, 240, 10 do
+		for z = -20, 160, 10 do
+			local h = hitAt(x, z)
+			if h and h.Material == Enum.Material.Water then
+				for _, d in ipairs({ Vector3.new(12, 0, 0), Vector3.new(-12, 0, 0), Vector3.new(0, 0, 12), Vector3.new(0, 0, -12) }) do
+					local land = hitAt(x + d.X, z + d.Z)
+					if land and land.Material ~= Enum.Material.Water and land.Normal.Y > 0.6 then
+						table.insert(shores, {
+							X = land.Position.X,
+							Z = land.Position.Z,
+							Y = land.Position.Y,
+							Yaw = math.atan2(-d.X, -d.Z),
+							Dist = (x - 127) * (x - 127) + (z - 60) * (z - 60),
+						})
+					end
+				end
+			end
+		end
+	end
+	table.sort(shores, function(a, b)
+		return a.Dist < b.Dist
+	end)
+	local chosen: { any } = {}
+	for _, s in ipairs(shores) do
+		local ok = true
+		for _, c in ipairs(chosen) do
+			local dx, dz = s.X - c.X, s.Z - c.Z
+			if dx * dx + dz * dz < 22 * 22 then
+				ok = false
+				break
+			end
+		end
+		if ok then
+			table.insert(chosen, s)
+		end
+		if #chosen >= 2 then
+			break
+		end
+	end
+	if #chosen == 0 then
+		chosen = {
+			{ X = 110, Z = 48, Y = 14, Yaw = 0 },
+			{ X = 118, Z = 40, Y = 14, Yaw = math.pi / 2 },
+		}
+	end
+	local names = { "Riverside Dock", "Lakeside Pier" }
+	for i, s in ipairs(chosen) do
+		local dock = VisualEffects.BuildFishingSpot()
+		dock:PivotTo(CFrame.new(s.X, s.Y, s.Z) * CFrame.Angles(0, s.Yaw or 0, 0))
+		dock.Parent = workspace
+		table.insert(fishingSpots, { Id = "dock" .. i, Model = dock, Name = names[i] or ("Dock " .. i) })
+		print("[GameServer] Fishing dock " .. tostring(i) .. " at " .. tostring(Vector3.new(s.X, s.Y, s.Z)))
+	end
 end
 
 -- // Fishing System Core Logic Pipeline -------------------------------------------
