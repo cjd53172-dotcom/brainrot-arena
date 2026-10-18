@@ -4,7 +4,7 @@
 	(Whiskeandgaming's Place / Laser Tag — not the Brainrot Arena hub).
 
 	Does two jobs:
-	1. Orange return gate back to the arena.
+	1. Orange return gate at every spawn pad (one per spawn room).
 	2. Records kills into OrderedDataStore "LaserTagKills_v1" so the plaza
 	   board next to the Laser Tag portal can show them.
 
@@ -128,26 +128,6 @@ for _, player in ipairs(Players:GetPlayers()) do
 	end
 end
 
-local gate = Instance.new("Part")
-gate.Name = "ReturnToArena"
-gate.Size = Vector3.new(8, 12, 2)
-gate.Anchored = true
-gate.CanCollide = false
-gate.Color = Color3.fromRGB(255, 180, 40)
-gate.Material = Enum.Material.Neon
-gate.Position = Vector3.new(0, 8, 0)
-gate.Parent = workspace
-
-local prompt = Instance.new("ProximityPrompt")
-prompt.ActionText = "Return"
-prompt.ObjectText = "Brainrot Arena"
-prompt.HoldDuration = 0
-prompt.MaxActivationDistance = 16
-prompt.RequiresLineOfSight = false
-prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
-prompt.KeyboardKeyCode = Enum.KeyCode.E
-prompt.Parent = gate
-
 local function goHome(player: Player)
 	local placeId = hubIdFor(player)
 	if placeId <= 0 then
@@ -158,11 +138,113 @@ local function goHome(player: Player)
 	end)
 end
 
-prompt.Triggered:Connect(goHome)
-gate.Touched:Connect(function(hit: BasePart)
-	local char = hit and hit.Parent
-	local player = char and Players:GetPlayerFromCharacter(char)
-	if player then
-		goHome(player)
+local placedCenters: { Vector3 } = {}
+
+local function tooClose(pos: Vector3): boolean
+	for _, other in ipairs(placedCenters) do
+		if (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(other.X, 0, other.Z)).Magnitude < 16 then
+			return true
+		end
+	end
+	return false
+end
+
+local function groundAt(x: number, yHint: number, z: number): number
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {}
+	local hit = workspace:Raycast(Vector3.new(x, yHint + 40, z), Vector3.new(0, -120, 0), params)
+	if hit then
+		return hit.Position.Y
+	end
+	return yHint
+end
+
+local function placeReturnGate(at: Vector3, look: Vector3?)
+	if tooClose(at) then
+		return
+	end
+	table.insert(placedCenters, at)
+	local flat = look and Vector3.new(look.X, 0, look.Z) or Vector3.new(0, 0, -1)
+	if flat.Magnitude < 0.05 then
+		flat = Vector3.new(0, 0, -1)
+	else
+		flat = flat.Unit
+	end
+	local x = at.X + flat.X * 8
+	local z = at.Z + flat.Z * 8
+	local y = groundAt(x, at.Y, z) + 6
+
+	local gate = Instance.new("Part")
+	gate.Name = "ReturnToArena"
+	gate.Size = Vector3.new(6, 10, 1.2)
+	gate.Anchored = true
+	gate.CanCollide = false
+	gate.Color = Color3.fromRGB(255, 180, 40)
+	gate.Material = Enum.Material.Neon
+	gate.CFrame = CFrame.new(Vector3.new(x, y, z), Vector3.new(x, y, z) + flat)
+	gate.Parent = workspace
+
+	local sign = Instance.new("BillboardGui")
+	sign.Size = UDim2.new(0, 180, 0, 40)
+	sign.StudsOffset = Vector3.new(0, 6.2, 0)
+	sign.AlwaysOnTop = false
+	sign.Parent = gate
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextSize = 18
+	label.TextColor3 = Color3.fromRGB(255, 220, 80)
+	label.TextStrokeTransparency = 0.3
+	label.Text = "RETURN TO ARENA"
+	label.Parent = sign
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Return"
+	prompt.ObjectText = "Brainrot Arena"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 18
+	prompt.RequiresLineOfSight = false
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.Parent = gate
+
+	prompt.Triggered:Connect(goHome)
+	gate.Touched:Connect(function(hit: BasePart)
+		local char = hit and hit.Parent
+		local player = char and Players:GetPlayerFromCharacter(char)
+		if player then
+			goHome(player)
+		end
+	end)
+end
+
+local function collectSpawns(): { BasePart }
+	local found: { BasePart } = {}
+	for _, d in ipairs(workspace:GetDescendants()) do
+		if d:IsA("SpawnLocation") then
+			table.insert(found, d)
+		end
+	end
+	return found
+end
+
+local function placeAtAllSpawns()
+	local spawns = collectSpawns()
+	if #spawns == 0 then
+		placeReturnGate(Vector3.new(0, 8, 0), Vector3.new(0, 0, -1))
+		return
+	end
+	for _, spawn in ipairs(spawns) do
+		placeReturnGate(spawn.Position, spawn.CFrame.LookVector)
+	end
+end
+
+task.defer(placeAtAllSpawns)
+task.delay(4, function()
+	-- Template maps sometimes add spawns after load.
+	for _, spawn in ipairs(collectSpawns()) do
+		placeReturnGate(spawn.Position, spawn.CFrame.LookVector)
 	end
 end)
