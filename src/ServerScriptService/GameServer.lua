@@ -266,8 +266,7 @@ local function makeBat(): Tool
 	tool.RequiresHandle = true
 	tool.ManualActivationOnly = false
 	-- Handle Y is the bat's length (Roblox tools expect that).
-	-- Slight roll so the barrel sits on the right shoulder, not in the face.
-	local baseGrip = CFrame.new(0.12, -0.2, 0.12) * CFrame.Angles(math.rad(12), math.rad(8), math.rad(-25))
+	local baseGrip = CFrame.new(0, -0.15, 0.1)
 	tool.Grip = baseGrip
 
 	local wood = Color3.fromRGB(196, 142, 78)
@@ -344,17 +343,16 @@ local function makeBat(): Tool
 		end
 		swinging = true
 		task.spawn(function()
-			-- Right-handed cut: barrel comes from the back-right, through the
-			-- zone in front, instead of chopping backward/down the old X axis.
+			-- Forward/back swing (pitch), opposite the old chop, not a sideways slash.
 			for i = 1, 8 do
 				local t = i / 8
-				tool.Grip = baseGrip * CFrame.Angles(math.rad(18 * t), math.rad(-55 * t), math.rad(-95 * t))
-				task.wait(0.02)
+				tool.Grip = baseGrip * CFrame.Angles(math.rad(115 * t), math.rad(-6 * t), 0)
+				task.wait(0.018)
 			end
 			for i = 7, 0, -1 do
 				local t = i / 8
-				tool.Grip = baseGrip * CFrame.Angles(math.rad(18 * t), math.rad(-55 * t), math.rad(-95 * t))
-				task.wait(0.016)
+				tool.Grip = baseGrip * CFrame.Angles(math.rad(115 * t), math.rad(-6 * t), 0)
+				task.wait(0.015)
 			end
 			tool.Grip = baseGrip
 			swinging = false
