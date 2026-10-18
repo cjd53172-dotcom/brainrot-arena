@@ -454,7 +454,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 27-pvp")
+print("[PlotSystem] source 28-signs")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -472,7 +472,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v27-pvp")
+	print("[PlotSystem] Loaded placement v28-signs")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -912,14 +912,24 @@ function PlotSystem.Setup()
 			Material = Enum.Material.SmoothPlastic,
 		}, arena)
 	end
+	arena.Parent = plaza
+	liftModel(arena, arenaTopY + 0.4)
+
+	local function sitOnLocalGround(part: BasePart, x: number, z: number, extra: number)
+		local gy = math.max(groundY(x, z), arenaTopY)
+		part.Position = Vector3.new(x, gy + part.Size.Y * 0.5 + extra, z)
+	end
+
+	-- Outside the colosseum, sitting on the hillside (not the arena-center height).
 	local arenaSign = newPart({
 		Name = "Sign",
 		Size = Vector3.new(16, 5.2, 1),
-		Position = Vector3.new(ARENA_X - 22, 4, ARENA_Z + 30 * s + 14),
+		Position = Vector3.new(ARENA_X - 22, arenaTopY + 8, ARENA_Z + 30 * s + 14),
 		Anchored = true,
 		Color = Color3.fromRGB(90, 70, 50),
 		Material = Enum.Material.Wood,
-	}, arena)
+	}, plaza)
+	sitOnLocalGround(arenaSign, ARENA_X - 22, ARENA_Z + 30 * s + 14, 0.6)
 	local arenaGui = Instance.new("SurfaceGui")
 	arenaGui.Face = Enum.NormalId.Back
 	arenaGui.Parent = arenaSign
@@ -945,8 +955,6 @@ function PlotSystem.Setup()
 	arenaPrompt.MaxActivationDistance = 36
 	arenaPrompt.RequiresLineOfSight = false
 	arenaPrompt.Parent = arenaSign
-	arena.Parent = plaza
-	liftModel(arena, arenaTopY + 0.4)
 	PlotSystem.ArenaPrompt = arenaPrompt
 
 	local arenaCenter = Vector3.new(ARENA_X, arenaTopY + 1, ARENA_Z)
@@ -984,19 +992,19 @@ function PlotSystem.Setup()
 	local wallR = 30 * s
 	local boardX = ARENA_X
 	local boardZ = ARENA_Z + wallR + 18
-	local boardY = arenaSign.Position.Y + 8
 	local frame = newPart({
 		Name = "ChampionBoard",
 		Size = Vector3.new(28, 20, 1.2),
-		Position = Vector3.new(boardX, boardY, boardZ),
+		Position = Vector3.new(boardX, arenaTopY + 12, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(22, 18, 14),
 	}, plaza)
+	sitOnLocalGround(frame, boardX, boardZ, 0.6)
 	local header = newPart({
 		Name = "ChampionHeader",
 		Size = Vector3.new(28, 3.2, 1.2),
-		Position = Vector3.new(boardX, boardY + 12.2, boardZ),
+		Position = Vector3.new(boardX, frame.Position.Y + frame.Size.Y * 0.5 + 1.8, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(40, 28, 12),
