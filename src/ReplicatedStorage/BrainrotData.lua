@@ -2295,7 +2295,7 @@ BrainrotData.PLACE_GATES = {
 	{
 		Id = "laser_tag",
 		Name = "Laser Tag",
-		PlaceId = 0,
+		PlaceId = 84198140833268,
 		Color = Color3.fromRGB(40, 220, 70),
 		X = 44,
 		Z = 28,

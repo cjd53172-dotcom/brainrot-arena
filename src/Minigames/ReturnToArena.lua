@@ -10,10 +10,12 @@
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 
+local HUB_PLACE_ID = 92909397469421 -- Brainrot Arena start place
 local returnPlaceByUser: { [number]: number } = {}
 
 local function hubIdFor(player: Player): number
-	return returnPlaceByUser[player.UserId] or 0
+	local id = returnPlaceByUser[player.UserId] or HUB_PLACE_ID
+	return id
 end
 
 Players.PlayerAdded:Connect(function(player: Player)
