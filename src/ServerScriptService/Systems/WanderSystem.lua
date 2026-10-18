@@ -145,6 +145,8 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 		Model = nil, -- set by GameServer after building visual
 		Announced = false,
 		EventRush = eventRush == true,
+		Variant = BrainrotData.RollVariant(),
+		Shiny = math.random() < BrainrotData.SHINY_CHANCE,
 	}
 
 	return wanderId
@@ -165,9 +167,8 @@ function WanderSystem.Catch(player: Player, wanderId: string): any?
 	-- Remove from active
 	list[wanderId] = nil
 
-	-- Grant the brainrot
-	local shiny = math.random() < BrainrotData.SHINY_CHANCE
-	local variant = BrainrotData.RollVariant()
+	local shiny = wander.Shiny == true
+	local variant = wander.Variant
 	local inst, err = PlayerData.TryAddBrainrot(player, wander.BrainrotId, shiny, variant)
 
 	local def = BrainrotData.GetBrainrot(wander.BrainrotId)
@@ -179,7 +180,7 @@ function WanderSystem.Catch(player: Player, wanderId: string): any?
 		return {
 			Success = true,
 			BrainrotId = wander.BrainrotId,
-			BrainrotName = def and def.Name or "?",
+			BrainrotName = def and BrainrotData.GetDisplayName(def, variant, shiny) or "?",
 			Rarity = wander.Rarity,
 			RarityColor = BrainrotData.RARITY_COLORS[wander.Rarity],
 			Shiny = shiny,

@@ -2069,18 +2069,33 @@ function VisualEffects.AddWildAura(model: Model, rarity: string, displayName: st
 		particles.Parent = primary
 	end
 
-	-- Name tag, Steal-a-Brainrot style: compact and tidy at any zoom.
-	-- (Billboards render at fixed pixel size while the 3D model shrinks
-	-- with distance, so the tag itself must start small -- otherwise it
-	-- dwarfs the brainrot as you zoom out.)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "WildTag"
-	billboard.Size = UDim2.new(0, 96, 0, 32)
-	billboard.StudsOffset = Vector3.new(0, 2.4, 0)
-	billboard.AlwaysOnTop = false
-	-- Fade tags at long range; the legendary beam is the far indicator.
-	billboard.MaxDistance = 200
-	billboard.Parent = primary
+	billboard.Size = UDim2.new(0, 110, 0, 36)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 220
+	billboard.Adornee = primary
+	billboard.Parent = model
+
+	local function sitWildTag()
+		if not (model.Parent and primary.Parent) then
+			return
+		end
+		local ok, bbCF, bbSize = pcall(function()
+			return model:GetBoundingBox()
+		end)
+		if ok and bbCF and bbSize and bbSize.Y >= 8 then
+			local topY = (bbCF :: CFrame).Position.Y + (bbSize :: Vector3).Y * 0.5
+			billboard.StudsOffsetWorldSpace = Vector3.new(0, (topY - primary.Position.Y) + 3, 0)
+		else
+			billboard.StudsOffsetWorldSpace = Vector3.new()
+			billboard.StudsOffset = Vector3.new(0, 16, 0)
+		end
+	end
+	sitWildTag()
+	task.defer(sitWildTag)
+	task.delay(0.4, sitWildTag)
+	task.delay(1.5, sitWildTag)
 
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Size = UDim2.new(1, 0, 0, 16)

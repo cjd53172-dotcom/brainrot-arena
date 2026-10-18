@@ -2326,7 +2326,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	local def = BrainrotData.GetBrainrot(wander.BrainrotId)
 	if not def then return end
 
-	local model = PlotSystem.BuildDisplayModel(def, false, nil)
+	local model = PlotSystem.BuildDisplayModel(def, wander.Shiny == true, wander.Variant)
 	-- Plots stay at display size (~4 studs). Wilds are 6× that.
 	local WILD_SIZE_MULT = 6
 	pcall(function()
@@ -2338,7 +2338,14 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			d:Destroy()
 		end
 	end
-	VisualEffects.AddWildAura(model, wander.Rarity, BrainrotData.GetDisplayName(def, nil, false))
+	model:SetAttribute("BrainrotId", def.Id)
+	if wander.Variant then
+		model:SetAttribute("Variant", wander.Variant)
+	end
+	if wander.Shiny then
+		model:SetAttribute("Shiny", true)
+	end
+	VisualEffects.AddWildAura(model, wander.Rarity, BrainrotData.GetDisplayName(def, wander.Variant, wander.Shiny == true))
 	PlotSystem.UprightModel(model)
 
 	-- How far the model's pivot sits above its lowest point, so feet land on the ground

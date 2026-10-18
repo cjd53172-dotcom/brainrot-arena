@@ -126,15 +126,27 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 		local ok, bbCF, bbSize = pcall(function()
 			return model:GetBoundingBox()
 		end)
+		local wild = model:GetAttribute("WildOwner") ~= nil
+		if wild then
+			billboard.AlwaysOnTop = true
+		end
 		if ok and bbCF and bbSize then
 			local topY = (bbCF :: CFrame).Position.Y + (bbSize :: Vector3).Y / 2
-			billboard.StudsOffsetWorldSpace = Vector3.new(0, (topY - part.Position.Y) + 1.5, 0)
+			local pad = if wild then 3 else 1.5
+			if wild and (bbSize :: Vector3).Y < 10 then
+				billboard.StudsOffsetWorldSpace = Vector3.new()
+				billboard.StudsOffset = Vector3.new(0, 16, 0)
+			else
+				billboard.StudsOffsetWorldSpace = Vector3.new(0, (topY - part.Position.Y) + pad, 0)
+			end
 		else
-			billboard.StudsOffset = Vector3.new(0, 3, 0)
+			billboard.StudsOffset = Vector3.new(0, if wild then 16 else 3, 0)
 		end
 	end
 	sitTagOnTop()
 	task.defer(sitTagOnTop)
+	task.delay(0.5, sitTagOnTop)
+	task.delay(1.5, sitTagOnTop)
 
 	local layout = Instance.new("UIListLayout")
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -220,7 +232,9 @@ workspace.DescendantAdded:Connect(function(descendant)
 	if descendant:IsA("Model") and descendant:GetAttribute("BrainrotId") then
 		local def = BrainrotData.GetById(descendant:GetAttribute("BrainrotId") :: string)
 		if def then
-			applyBrainrotNametag(descendant, def.Name, def.Rarity)
+			local variantId = descendant:GetAttribute("Variant")
+			local shiny = descendant:GetAttribute("Shiny") == true
+			applyBrainrotNametag(descendant, BrainrotData.GetDisplayName(def, variantId :: any, shiny), def.Rarity)
 
 			-- Server already sits and orients these. Client PivotTo was flattening pack meshes.
 		end
