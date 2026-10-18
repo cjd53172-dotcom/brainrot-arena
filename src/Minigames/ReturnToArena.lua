@@ -3,12 +3,14 @@
 	Paste this Script into ServerScriptService of the Laser Tag PLACE
 	(Whiskeandgaming's Place / Laser Tag — not the Brainrot Arena hub).
 
-	Does three jobs:
+	Does four jobs:
 	1. Orange return gate at every spawn pad (one per spawn room).
 	2. Records kills into OrderedDataStore "LaserTagKills_v1" so the plaza
 	   board next to the Laser Tag portal can show them.
 	3. Opens one-way spawn glass so people in base cannot camp: shots go
 	   out AND in.
+	4. After 10 seconds in spawn you are pushed into the arena and cannot
+	   walk back into spawn.
 
 	After pasting: File → Publish to Roblox → overwrite THIS laser tag place only.
 ]]
@@ -353,3 +355,80 @@ task.delay(3, function()
 	placeAtAllSpawns()
 	makeShotsFair()
 end)
+
+do
+	local GRACE_SECS = 10
+	local SPAWN_RADIUS = 40
+	local PUSH_STUDS = 48
+
+	local function nearestPad(pos: Vector3): BasePart?
+		local best: BasePart? = nil
+		local bestD = SPAWN_RADIUS
+		for _, spawn in ipairs(collectSpawns()) do
+			if spawn:IsDescendantOf(workspace) then
+				local dx = pos.X - spawn.Position.X
+				local dz = pos.Z - spawn.Position.Z
+				local d = math.sqrt(dx * dx + dz * dz)
+				if d <= bestD then
+					bestD = d
+					best = spawn
+				end
+			end
+		end
+		return best
+	end
+
+	local function ejectToArena(player: Player, pad: BasePart)
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if not (hrp and hrp:IsA("BasePart")) then
+			return
+		end
+		local look = Vector3.new(pad.CFrame.LookVector.X, 0, pad.CFrame.LookVector.Z)
+		if look.Magnitude < 0.05 then
+			look = Vector3.new(0, 0, -1)
+		else
+			look = look.Unit
+		end
+		local dest = pad.Position + look * PUSH_STUDS
+		local params = RaycastParams.new()
+		params.FilterDescendantsInstances = { char }
+		local hit = workspace:Raycast(Vector3.new(dest.X, dest.Y + 40, dest.Z), Vector3.new(0, -120, 0), params)
+		local y = if hit then hit.Position.Y + 4 else dest.Y + 4
+		local destPos = Vector3.new(dest.X, y, dest.Z)
+		;(hrp :: BasePart).CFrame = CFrame.lookAt(destPos, destPos + look)
+	end
+
+	local function watchSpawn(player: Player, char: Model)
+		local born = os.clock()
+		while char.Parent and player.Parent do
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if hrp and hrp:IsA("BasePart") then
+				local pad = nearestPad((hrp :: BasePart).Position)
+				if pad and os.clock() - born >= GRACE_SECS then
+					ejectToArena(player, pad)
+				end
+			end
+			task.wait(0.2)
+		end
+	end
+
+	local function hook(player: Player)
+		player.CharacterAdded:Connect(function(char)
+			task.spawn(function()
+				watchSpawn(player, char)
+			end)
+		end)
+		if player.Character then
+			task.spawn(function()
+				watchSpawn(player, player.Character :: Model)
+			end)
+		end
+	end
+
+	Players.PlayerAdded:Connect(hook)
+	for _, p in ipairs(Players:GetPlayers()) do
+		hook(p)
+	end
+	print("[ReturnToArena] spawn eject after " .. tostring(GRACE_SECS) .. "s")
+end
