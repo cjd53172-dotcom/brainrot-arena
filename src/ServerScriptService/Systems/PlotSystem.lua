@@ -38,17 +38,28 @@ local FUSION_Z = WORLD_DZ + 12
 local plotsFolder: Folder? = nil
 local playerPlots: { [number]: Model } = {} -- [userId] -> plot
 
-function PlotSystem.PickClearSpot(preferX: number, preferZ: number): (number, number)
+-- Stay just off the 52-stud plot slabs, and do not wander 200 studs into the hills.
+function PlotSystem.PickClearSpot(preferX: number, preferZ: number, extras: { Vector2 }?): (number, number)
+	local plotClear = 34
+	local extraClear = 24
 	local function blocked(x: number, z: number): boolean
-		if not plotsFolder then
-			return false
+		if plotsFolder then
+			for _, plot in ipairs(plotsFolder:GetChildren()) do
+				local base = plot:FindFirstChild("Base")
+				if base and base:IsA("BasePart") then
+					local dx = x - (base :: BasePart).Position.X
+					local dz = z - (base :: BasePart).Position.Z
+					if math.abs(dx) < plotClear and math.abs(dz) < plotClear then
+						return true
+					end
+				end
+			end
 		end
-		for _, plot in ipairs(plotsFolder:GetChildren()) do
-			local base = plot:FindFirstChild("Base")
-			if base and base:IsA("BasePart") then
-				local dx = x - (base :: BasePart).Position.X
-				local dz = z - (base :: BasePart).Position.Z
-				if math.abs(dx) < 72 and math.abs(dz) < 72 then
+		if extras then
+			for _, p in ipairs(extras) do
+				local dx = x - p.X
+				local dz = z - p.Y
+				if dx * dx + dz * dz < extraClear * extraClear then
 					return true
 				end
 			end
@@ -58,10 +69,10 @@ function PlotSystem.PickClearSpot(preferX: number, preferZ: number): (number, nu
 	if not blocked(preferX, preferZ) then
 		return preferX, preferZ
 	end
-	for r = 24, 240, 24 do
-		for a = 0, 11 do
-			local x = preferX + math.cos(a * math.pi / 6) * r
-			local z = preferZ + math.sin(a * math.pi / 6) * r
+	for r = 8, 56, 8 do
+		for a = 0, 15 do
+			local x = preferX + math.cos(a * math.pi / 8) * r
+			local z = preferZ + math.sin(a * math.pi / 8) * r
 			if not blocked(x, z) then
 				return x, z
 			end
@@ -420,7 +431,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 17-fusion")
+print("[PlotSystem] source 18-plaza")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local label = PlotSystem.ArenaBoardLabel
@@ -430,7 +441,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v17-fusion")
+	print("[PlotSystem] Loaded placement v18-plaza")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -798,7 +809,9 @@ function PlotSystem.Setup()
 	plaza.Name = "Plaza"
 	plaza.Parent = workspace
 
-	local FUSION_PLACE_X, FUSION_PLACE_Z = PlotSystem.PickClearSpot(WORLD_DX - 90, WORLD_DZ - 60)
+	-- Quest board sits at (127, 60). Keep the reactor on that plaza, not in the rocks.
+	local FUSION_PLACE_X, FUSION_PLACE_Z = PlotSystem.PickClearSpot(127, 38)
+	PlotSystem.FusionXZ = Vector2.new(FUSION_PLACE_X, FUSION_PLACE_Z)
 
 	local lab: Model
 	local customFusion = ReplicatedStorage:FindFirstChild("FusionMachine") or ReplicatedStorage:FindFirstChild("FusionLabModel")
@@ -808,9 +821,11 @@ function PlotSystem.Setup()
 	else
 		lab = VisualEffects.BuildFusionMachine()
 	end
+	local fusionGround = groundY(FUSION_PLACE_X, FUSION_PLACE_Z)
+	flattenPad(FUSION_PLACE_X, FUSION_PLACE_Z, fusionGround, 22)
 	lab:PivotTo(CFrame.new(FUSION_PLACE_X, 0, FUSION_PLACE_Z))
 	lab.Parent = plaza
-	liftModel(lab, groundY(FUSION_PLACE_X, FUSION_PLACE_Z))
+	liftModel(lab, fusionGround)
 	local labPromptInst = lab:FindFirstChild("FusionPrompt", true)
 	if not (labPromptInst and labPromptInst:IsA("ProximityPrompt")) then
 		local attach = lab.PrimaryPart or lab:FindFirstChildWhichIsA("BasePart")

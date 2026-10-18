@@ -825,7 +825,12 @@ do
 	local stall = Instance.new("Model")
 	stall.Name = "StatTrainerStall"
 
-	local cx, cz = PlotSystem.PickClearSpot(40, 40)
+	local extras: { Vector2 } = {}
+	if PlotSystem.FusionXZ then
+		table.insert(extras, PlotSystem.FusionXZ)
+	end
+	-- Beside the quest board (127, 60), not on top of the fusion reactor.
+	local cx, cz = PlotSystem.PickClearSpot(100, 78, extras)
 	local groundY = 16
 	local upParams = RaycastParams.new()
 	upParams.FilterType = Enum.RaycastFilterType.Include
