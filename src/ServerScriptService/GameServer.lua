@@ -1393,6 +1393,8 @@ end
 local playerFishingGear: { [number]: any } = {}
 
 local function startFishing(player: Player, spotId: string, openPanel: boolean)
+		VisualEffects.ClearFishingGear(playerFishingGear[player.UserId])
+		playerFishingGear[player.UserId] = nil
 		local biteDelay = FishingSystem.Cast(player, spotId)
 		if biteDelay then
 			local char = player.Character
@@ -1432,12 +1434,7 @@ local function startFishing(player: Player, spotId: string, openPanel: boolean)
 				local state = FishingSystem.GetState(player)
 				if state == "Missed" then
 					pushFishingState(player, "Missed")
-					local gear = playerFishingGear[player.UserId]
-					if gear then
-						if gear.Bobber and gear.Bobber.Parent then gear.Bobber:Destroy() end
-						if gear.Stripe and gear.Stripe.Parent then gear.Stripe:Destroy() end
-						if gear.Rod and gear.Rod.Parent then gear.Rod:Destroy() end
-					end
+					VisualEffects.ClearFishingGear(playerFishingGear[player.UserId])
 					playerFishingGear[player.UserId] = nil
 					FishingSystem.Cancel(player)
 				end
@@ -1474,33 +1471,29 @@ if reelInRemote then
 		local q = tonumber(quality) or 0.5
 		local reward = FishingSystem.Reel(player, q)
 
-		if gear and gear.Bobber and gear.Bobber.Parent then
-			local bobberPos = gear.Bobber.Position
-			if reward and reward.Kind ~= "Miss" then
-				VisualEffects.PlayCatch(bobberPos, reward.Kind)
-				if reward.Kind == "Fish" or reward.Kind == "Brainrot" then
-					local fish = VisualEffects.BuildFish(reward.Kind == "Brainrot")
-					fish:PivotTo(CFrame.new(bobberPos + Vector3.new(0, 1, 0)))
-					fish.Parent = workspace
+		local bobberPos = if gear and gear.Bobber then gear.Bobber.Position else nil
+		if bobberPos and reward and reward.Kind ~= "Miss" then
+			VisualEffects.PlayCatch(bobberPos, reward.Kind)
+			if reward.Kind == "Fish" or reward.Kind == "Brainrot" then
+				local fish = VisualEffects.BuildFish(reward.Kind == "Brainrot")
+				fish:PivotTo(CFrame.new(bobberPos + Vector3.new(0, 1, 0)))
+				fish.Parent = workspace
 
-					task.spawn(function()
-						for i = 1, 15 do
-							if not fish or not fish.Parent then break end
-							local t = i / 15
-							fish:PivotTo(CFrame.new(
-								bobberPos + Vector3.new(0, 1 + math.sin(t * math.pi) * 4, 0)
-								) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
-							task.wait(0.05)
-						end
-						task.wait(1)
-						if fish and fish.Parent then fish:Destroy() end
-					end)
-				end
+				task.spawn(function()
+					for i = 1, 15 do
+						if not fish or not fish.Parent then break end
+						local t = i / 15
+						fish:PivotTo(CFrame.new(
+							bobberPos + Vector3.new(0, 1 + math.sin(t * math.pi) * 4, 0)
+							) * CFrame.Angles(0, 0, math.sin(t * 20) * 0.5))
+						task.wait(0.05)
+					end
+					task.wait(1)
+					if fish and fish.Parent then fish:Destroy() end
+				end)
 			end
-			gear.Bobber:Destroy()
-			if gear.Stripe and gear.Stripe.Parent then gear.Stripe:Destroy() end
-			if gear.Rod and gear.Rod.Parent then gear.Rod:Destroy() end
 		end
+		VisualEffects.ClearFishingGear(gear)
 
 		if reward then
 			pushFishingState(player, "None", reward)
@@ -2153,14 +2146,14 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		local hintEvent = CachedRemotes["ShowHint"]
 		if hintEvent then
 			if wander.EventRush then
-				hintEvent:FireClient(player, "⚡ RUSH LEGENDARY — it's extremely fast! Follow the beam!")
+				hintEvent:FireClient(player, "⚡ LEGENDARY RUSH — a Legendary spawned nearby! Follow the beam!")
 			else
 				hintEvent:FireClient(player, "🌟 LEGENDARY BRAINROT SPOTTED! Follow the golden beam! (3 min)")
 			end
 		end
 	end
 
-	if wander.Rarity == "Rare" or wander.Rarity == "Epic" then
+	if (wander.Rarity == "Rare" or wander.Rarity == "Epic") and not wander.EventRush then
 		local hintEvent = CachedRemotes["ShowHint"]
 		local pc = player.Character
 		local phrp = pc and pc:FindFirstChild("HumanoidRootPart")
@@ -2197,12 +2190,12 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				local dist = (currentPos - playerPos).Magnitude
 				if dist < cfg.FleeRadius then
 					local fleeDir = (currentPos - playerPos).Unit
-					targetPos = currentPos + fleeDir * 20
+					local hop = if wander.EventRush then 7 else 20
+					targetPos = currentPos + fleeDir * hop
 					fleeing = true
 					fleeTime += 0.2
-					if fleeTime > 3.5 then
-						-- worn out: stops running for a few seconds so it can be caught
-						tiredTime = 3
+					if fleeTime > (if wander.EventRush then 1.6 else 3.5) then
+						tiredTime = if wander.EventRush then 4 else 3
 						fleeTime = 0
 						fleeing = false
 					end
@@ -2228,11 +2221,17 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			if dir.Magnitude > 0.5 then
 				dir = dir.Unit
 				local rush = wander.EventRush == true
-				local speed = if fleeing then cfg.WalkSpeed * (if rush then 1.8 else 1.5) elseif tiredTime > 0 then cfg.WalkSpeed * 0.5 else cfg.WalkSpeed
-				if not rush then
-					speed = math.min(speed, 13)
-				end
+				local speed = if fleeing then cfg.WalkSpeed * (if rush then 1.25 else 1.5) elseif tiredTime > 0 then cfg.WalkSpeed * 0.45 else cfg.WalkSpeed
+				speed = math.min(speed, if rush then 14 else 13)
 				currentPos += dir * speed * 0.2
+				local home = Vector3.new(127, 0, 98)
+				local fromHome = Vector3.new(currentPos.X - home.X, 0, currentPos.Z - home.Z)
+				if fromHome.Magnitude > 170 then
+					local n = fromHome.Unit * 170
+					currentPos = Vector3.new(home.X + n.X, currentPos.Y, home.Z + n.Z)
+					targetPos = currentPos
+					fleeing = false
+				end
 				-- Re-snap to the ground every step so slopes don't swallow the creature
 				local gy = wildGroundY(currentPos.X, currentPos.Z, model)
 				if gy then
@@ -2318,11 +2317,20 @@ task.spawn(function()
 				end
 
 				if WanderSystem.EventActive then
-					for _ = 1, 2 do
+					for _ = 1, 5 do
 						if not player.Parent then
 							break
 						end
 						local rushId = WanderSystem.SpawnWild(player, PlotSystem, 1, "Legendary", true)
+						if rushId then
+							spawnWildVisual(player, rushId)
+						end
+					end
+					for _ = 1, 4 do
+						if not player.Parent then
+							break
+						end
+						local rushId = WanderSystem.SpawnWild(player, PlotSystem, 1, "Epic", true)
 						if rushId then
 							spawnWildVisual(player, rushId)
 						end
@@ -2534,7 +2542,7 @@ local function broadcastEvent(active: boolean, endsAt: number?)
 	local hintEvent = CachedRemotes["ShowHint"]
 	if hintEvent then
 		if active then
-			hintEvent:FireAllClients("⚡ LEGENDARY RUSH! Super-fast legendaries for 10 minutes!")
+			hintEvent:FireAllClients("⚡ LEGENDARY RUSH! Legendaries and epics are spawning for 10 minutes!")
 		else
 			hintEvent:FireAllClients("Legendary Rush ended. The world settles down.")
 		end

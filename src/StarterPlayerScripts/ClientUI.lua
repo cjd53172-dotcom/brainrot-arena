@@ -417,6 +417,7 @@ arenaBtn.Font = Enum.Font.GothamBold
 arenaBtn.TextSize = 14
 arenaBtn.TextColor3 = Color3.fromRGB(255, 170, 170)
 arenaBtn.Parent = gui
+arenaBtn.Visible = false
 corner(arenaBtn, 12)
 styleFrame(arenaBtn, false)
 
@@ -3122,7 +3123,6 @@ local function buildMobileBar()
 		{ Icon = "🧠", Label = "Pets", Panel = collectionPanel, Refresh = refreshCollectionPanel },
 		{ Icon = "⚒️", Label = "Work", Panel = workPanel, Refresh = refreshWorkPanel },
 		{ Icon = "⚗️", Label = "Fuse", Panel = fusionPanel, Refresh = refreshFusionPanel },
-		{ Icon = "⚔️", Label = "Arena", Panel = arenaPanel, Refresh = refreshArenaPanel },
 		{ Icon = "⭐", Label = "Show", Panel = editorPanel, Refresh = refreshEditorPanel },
 		{ Icon = "📅", Label = "Daily", Panel = dailyPanel, Refresh = refreshDailyPanel },
 		{ Icon = "🥚", Label = "Eggs", Panel = eggPanel, Refresh = refreshEggPanel },
@@ -3278,7 +3278,7 @@ do
 			end
 			if info.Active then
 				banner.Visible = true
-				banner.Text = "⚡ LEGENDARY RUSH — super-fast legendaries"
+				banner.Text = "⚡ LEGENDARY RUSH — legendaries and epics nearby"
 				setPlaylist(eventTracks, true)
 			else
 				banner.Visible = false

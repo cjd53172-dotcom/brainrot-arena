@@ -57,7 +57,7 @@ function WanderSystem.SetEventActive(active: boolean)
 end
 
 function WanderSystem.GetMaxWanderers(): number
-	return if WanderSystem.EventActive then 28 else WanderSystem.MAX_WANDERERS
+	return if WanderSystem.EventActive then 52 else WanderSystem.MAX_WANDERERS
 end
 
 -- Roll a rarity by weight. luckMult boosts Rare+ weights.
@@ -113,18 +113,27 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 	local cfg = {
 		Weight = baseCfg.Weight,
 		RespawnSecs = baseCfg.RespawnSecs,
-		DespawnSecs = if eventRush then 80 else baseCfg.DespawnSecs,
-		WalkSpeed = if eventRush then 34 else baseCfg.WalkSpeed,
-		FleeRadius = if eventRush then 26 else baseCfg.FleeRadius,
+		DespawnSecs = if eventRush then 90 else baseCfg.DespawnSecs,
+		WalkSpeed = if eventRush then (if rarity == "Legendary" then 11 else 8) else baseCfg.WalkSpeed,
+		FleeRadius = if eventRush then (if rarity == "Legendary" then 8 else 6) else baseCfg.FleeRadius,
 		Announce = eventRush or baseCfg.Announce,
 	}
 
 	-- Spawn position: ring OUTSIDE the plot cluster (plots span ~±50).
 	-- Ring: 70-130 studs from gameplay center, so wilds roam the world, not the plots.
+	-- Event rush: spawn near the player so they can actually catch them.
 	local angle = math.random() * math.pi * 2
 	local dist = 70 + math.random() * 60
 	local cx = 127 + math.cos(angle) * dist
 	local cz = 98 + math.sin(angle) * dist
+	if eventRush then
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if hrp and hrp:IsA("BasePart") then
+			dist = 16 + math.random() * 22
+			cx = hrp.Position.X + math.cos(angle) * dist
+			cz = hrp.Position.Z + math.sin(angle) * dist
+		end
+	end
 
 	list[wanderId] = {
 		BrainrotId = brainrotId,

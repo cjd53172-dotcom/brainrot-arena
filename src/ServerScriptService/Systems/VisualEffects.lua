@@ -1799,6 +1799,18 @@ function VisualEffects.CastBobber(player: Player, fromPos: Vector3, toPos: Vecto
 	return { Bobber = bobber, Rod = rod, Line = line, Stripe = stripe }
 end
 
+function VisualEffects.ClearFishingGear(gear: any)
+	if type(gear) ~= "table" then
+		return
+	end
+	for _, key in ipairs({ "Rod", "Bobber", "Stripe", "Line" }) do
+		local inst = gear[key]
+		if inst and inst.Parent then
+			inst:Destroy()
+		end
+	end
+end
+
 -- Bite animation: bobber dips and shakes.
 function VisualEffects.PlayBite(bobber: BasePart)
 	task.spawn(function()
