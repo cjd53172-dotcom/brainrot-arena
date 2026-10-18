@@ -2242,7 +2242,7 @@ BrainrotData.ZONES = {
 		Color = Color3.fromRGB(45, 130, 70),
 		FavoredType = "Wood",
 		Materials = { "Timber", "Ancient Bark", "Glowcap" },
-		UnlockHint = "Walk into the forest east of the plots",
+		UnlockHint = "Use the green Expedition Gate",
 	},
 	sunken_ruins = {
 		Name = "Sunken Ruins",
@@ -2250,7 +2250,7 @@ BrainrotData.ZONES = {
 		Color = Color3.fromRGB(40, 110, 160),
 		FavoredType = "Water",
 		Materials = { "Fish", "Pearl Shard", "Sunken Gold" },
-		UnlockHint = "Follow the river downstream",
+		UnlockHint = "Use the blue Expedition Gate",
 	},
 	ember_peaks = {
 		Name = "Ember Peaks",
@@ -2258,7 +2258,7 @@ BrainrotData.ZONES = {
 		Color = Color3.fromRGB(200, 70, 30),
 		FavoredType = "Fire",
 		Materials = { "Ingots", "Ember Crystal", "Obsidian" },
-		UnlockHint = "Climb toward the smoking mountains",
+		UnlockHint = "Use the red Expedition Gate",
 	},
 	crystal_caves = {
 		Name = "Crystal Caves",
@@ -2266,7 +2266,7 @@ BrainrotData.ZONES = {
 		Color = Color3.fromRGB(130, 180, 230),
 		FavoredType = "Sky",
 		Materials = { "Cloud Cotton", "Prism Shard", "Echo Stone" },
-		UnlockHint = "Find the cave mouth in the cliffs",
+		UnlockHint = "Use the crystal Expedition Gate",
 	},
 	storm_summit = {
 		Name = "Storm Summit",
@@ -2274,7 +2274,7 @@ BrainrotData.ZONES = {
 		Color = Color3.fromRGB(70, 70, 100),
 		FavoredType = "Shadow",
 		Materials = { "Dark Stone", "Storm Core", "Void Essence" },
-		UnlockHint = "Reach the very top of the world",
+		UnlockHint = "Use the storm Expedition Gate",
 	},
 }
 BrainrotData.ZONE_ORDER = { "whispering_woods", "sunken_ruins", "ember_peaks", "crystal_caves", "storm_summit" }

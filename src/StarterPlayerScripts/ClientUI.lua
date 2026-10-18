@@ -2465,7 +2465,7 @@ refreshExpeditionPanel = function()
 			makeLabel(row, status, 12, Color3.fromRGB(170, 255, 170), 2).Position = UDim2.new(0, 8, 0, 28)
 		end
 	end
-	makeLabel(expeditionPanel, "Zones (walk there to discover):", 15, Color3.fromRGB(255, 255, 255), order)
+	makeLabel(expeditionPanel, "Zones (use an Expedition Gate portal to discover):", 15, Color3.fromRGB(255, 255, 255), order)
 	order += 1
 	for _, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 		local zone = BrainrotData.ZONES[zoneId]
@@ -2841,6 +2841,9 @@ end
 
 expeditionUpdateRemote.OnClientEvent:Connect(function(payload: any)
 	expeditionData = payload
+	if payload and type(payload.SelectZone) == "string" then
+		selectedZone = payload.SelectZone
+	end
 	if payload and payload.OpenPanel then
 		hideAllPanels()
 		refreshExpeditionPanel()

@@ -999,12 +999,15 @@ pushExpeditionState = function(player: Player)
 	end
 end
 
-local function openExpeditionBoard(player: Player)
+local function openExpeditionBoard(player: Player, selectZone: string?)
 	local status = ExpeditionSystem.GetStatus(player)
 	if type(status) ~= "table" then
 		status = {}
 	end
 	status.OpenPanel = true
+	if type(selectZone) == "string" then
+		status.SelectZone = selectZone
+	end
 	local updateEvent = CachedRemotes["ExpeditionUpdate"]
 	if updateEvent then
 		updateEvent:FireClient(player, status)
@@ -1083,35 +1086,44 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	trigger.Transparency = 1
 	trigger.Anchored = true
 	trigger.CanCollide = false
-	trigger.CanQuery = false
+	trigger.CanTouch = true
 	trigger.CFrame = portal:GetPivot()
 	trigger.Parent = portal
 
-	local lastTouch: { [number]: number } = {}
-	local isLockActive = false
-
-	trigger.Touched:Connect(function(hit: BasePart)
-		if isLockActive then return end
-
-		local char = hit and hit.Parent
-		local p = char and Players:GetPlayerFromCharacter(char)
-		if not p then return end
-
+	local lastUse: { [number]: number } = {}
+	local function usePortal(p: Player)
 		local now = os.clock()
-		if lastTouch[p.UserId] and now - lastTouch[p.UserId] < 3 then return end
-
-		isLockActive = true
-		lastTouch[p.UserId] = now
-
-		if ExpeditionSystem.UnlockZone(p, zoneId) then
-			pushExpeditionState(p)
+		if lastUse[p.UserId] and now - lastUse[p.UserId] < 1.5 then
+			return
+		end
+		lastUse[p.UserId] = now
+		local discovered = ExpeditionSystem.UnlockZone(p, zoneId)
+		if discovered then
+			VisualEffects.PlayZoneDiscover(trigger.Position + Vector3.new(0, 4, 0), zoneColor)
 			local hintEvent = CachedRemotes["ShowHint"]
 			if hintEvent then
-				hintEvent:FireClient(p, "✨ Discovered: " .. zoneName .. "! Send brainrots there from 🗺 Explore.")
+				hintEvent:FireClient(p, "Discovered " .. zoneName .. "! Send a team from this panel.")
 			end
-			VisualEffects.PlayZoneDiscover(trigger.Position + Vector3.new(0, 4, 0), zoneColor)
 		end
-		isLockActive = false
+		openExpeditionBoard(p, zoneId)
+	end
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "PortalPrompt"
+	prompt.ActionText = "Open Expeditions"
+	prompt.ObjectText = zoneName
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 16
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = portal:FindFirstChild("PortalSurface") or trigger
+	prompt.Triggered:Connect(usePortal)
+
+	trigger.Touched:Connect(function(hit: BasePart)
+		local char = hit and hit.Parent
+		local p = char and Players:GetPlayerFromCharacter(char)
+		if p then
+			usePortal(p)
+		end
 	end)
 end
 
@@ -1481,20 +1493,7 @@ if startExpeditionRemote then
 	end)
 end
 
-local unlockZoneRemote = CachedRemotes["UnlockZone"]
-if unlockZoneRemote then
-	unlockZoneRemote.OnServerEvent:Connect(function(player: Player, zoneId: any)
-		if type(zoneId) ~= "string" then return end
-		if ExpeditionSystem.UnlockZone(player, zoneId) then
-			pushExpeditionState(player)
-			local hintEvent = CachedRemotes["ShowHint"]
-			if hintEvent then
-				local nameString = BrainrotData.ZONES[zoneId] and BrainrotData.ZONES[zoneId].Name or zoneId
-				hintEvent:FireClient(player, "Discovered: " .. tostring(nameString))
-			end
-		end
-	end)
-end
+-- Zones only unlock from walking up to a portal, not a client remote.
 
 -- // Daily Quests & Eggs -----------------------------------------------------------
 pushEggState = function(player: Player)

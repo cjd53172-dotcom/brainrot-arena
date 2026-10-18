@@ -274,7 +274,7 @@ function VisualEffects.BuildZonePortal(zoneId: string): Model
 	local signLabel = Instance.new("TextLabel")
 	signLabel.Size = UDim2.new(1, 0, 1, 0)
 	signLabel.BackgroundTransparency = 1
-	signLabel.Text = zone and zone.Name or "???"
+	signLabel.Text = "EXPEDITION GATE\n" .. (zone and zone.Name or "???")
 	signLabel.Font = Enum.Font.GothamBold
 	signLabel.TextScaled = true -- auto-fit, always readable
 	signLabel.TextColor3 = Color3.new(1, 0.9, 0.3) -- gold text
