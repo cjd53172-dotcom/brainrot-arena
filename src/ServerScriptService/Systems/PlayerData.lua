@@ -42,6 +42,8 @@ if not ok then
 end
 
 local session: { [number]: any } = {} -- [userId] -> data table
+-- False when GetAsync failed. Never write defaults over a real save.
+local canSave: { [number]: boolean } = {}
 
 local function defaultData()
 	return {
@@ -167,14 +169,19 @@ end
 
 function PlayerData.Load(player: Player)
 	local data = defaultData()
+	canSave[player.UserId] = true
 	if store then
 		local success, saved = pcall(function()
 			return (store :: DataStore):GetAsync("player_" .. player.UserId)
 		end)
 		if success and type(saved) == "table" then
 			data = mergeDefaults(saved)
-		elseif not success then
-			warn("[PlayerData] Load failed for " .. player.Name .. ", using defaults.")
+			print("[PlayerData] Loaded " .. player.Name .. " brainrots=" .. tostring(#(data.Brainrots or {})) .. " coins=" .. tostring(data.Coins))
+		elseif success then
+			print("[PlayerData] No save yet for " .. player.Name)
+		else
+			canSave[player.UserId] = false
+			warn("[PlayerData] Load failed for " .. player.Name .. ", using defaults and WILL NOT SAVE over the store.")
 		end
 	end
 	session[player.UserId] = data
@@ -190,6 +197,10 @@ function PlayerData.Save(player: Player)
 	if not data or not store then
 		return
 	end
+	if canSave[player.UserId] == false then
+		warn("[PlayerData] Skip save for " .. player.Name .. " because load failed.")
+		return
+	end
 	local success, errMsg = pcall(function()
 		(store :: DataStore):SetAsync("player_" .. player.UserId, data)
 	end)
@@ -201,6 +212,7 @@ end
 function PlayerData.Release(player: Player)
 	PlayerData.Save(player)
 	session[player.UserId] = nil
+	canSave[player.UserId] = nil
 end
 
 function PlayerData.CountBrainrots(player: Player): number

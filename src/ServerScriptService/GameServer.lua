@@ -1223,6 +1223,7 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 end
 
 -- Minigame gates: teleport to another Place in this Experience (Laser Tag, etc.).
+local placeGatesOk, placeGatesErr = pcall(function()
 do
 	local lastHop: { [number]: number } = {}
 	for _, gate in ipairs(BrainrotData.PLACE_GATES or {}) do
@@ -1360,6 +1361,10 @@ do
 			end)
 		end
 	end
+end
+end)
+if not placeGatesOk then
+	warn("[GameServer] Place gates failed (continuing): " .. tostring(placeGatesErr))
 end
 
 -- // Shared gold mine placement system setup -------------------------------------
@@ -1693,6 +1698,7 @@ JanitorConnections.PlayerRemovingFishing = Players.PlayerRemoving:Connect(functi
 end)
 
 -- Lucky blocks and hidden secrets (controller-friendly ProximityPrompts).
+local luckOk, luckErr = pcall(function()
 do
 	local function hint(player: Player, text: string)
 		local ev = CachedRemotes["ShowHint"]
@@ -1875,6 +1881,10 @@ do
 		end)
 	end
 	print("[GameServer] Lucky blocks " .. tostring(#luckSpots) .. " secrets " .. tostring(secretCount))
+end
+end)
+if not luckOk then
+	warn("[GameServer] Lucky/secrets failed (continuing): " .. tostring(luckErr))
 end
 
 -- // Expeditions system module ---------------------------------------------------
@@ -2681,7 +2691,10 @@ task.spawn(function()
 							local overdue = (now - last) / interval
 
 							if roll < weight * overdue then
-								local luckMult = PlayerData.GetLuckMultiplier(player)
+								local luckMult = 1
+								pcall(function()
+									luckMult = PlayerData.GetLuckMultiplier(player)
+								end)
 
 								for attempt = 1, 5 do
 									if not player.Parent then break end

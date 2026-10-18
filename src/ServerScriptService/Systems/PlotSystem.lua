@@ -1090,6 +1090,7 @@ function PlotSystem.Setup()
 			CanCollide = false,
 			Color = Color3.fromRGB(255, 200, 40),
 			Material = Enum.Material.Neon,
+			CanTouch = true,
 		}, parent)
 		coin:SetAttribute("Value", value)
 		coin:SetAttribute("Collected", false)
