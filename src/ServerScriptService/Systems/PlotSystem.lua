@@ -24,6 +24,10 @@ local PLOT_GAP = 80 -- lots of lawn between plots so bases do not crowd
 -- flat ground. Tune these if content is buried or floating on your terrain.
 local WORLD_DX = 127
 local WORLD_DZ = 98
+-- Arena used to sit at (WORLD_DX, WORLD_DZ - 70), right against the plots.
+-- Shifted south onto the open hill (camera looking -Z: further back, slightly left).
+local ARENA_X = WORLD_DX + 50
+local ARENA_Z = WORLD_DZ - 260
 -- Plots are lined up side-by-side along X, all facing +Z (front = +Z).
 
 local plotsFolder: Folder? = nil
@@ -346,10 +350,10 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 7-flatslab")
+print("[PlotSystem] source 8-movearena")
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v7-flatslab")
+	print("[PlotSystem] Loaded placement v8-movearena")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -750,7 +754,7 @@ function PlotSystem.Setup()
 		Name = "Floor",
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(44, 2, 44),
-		Position = Vector3.new(0 + WORLD_DX, 1, -70 + WORLD_DZ),
+		Position = Vector3.new(ARENA_X, 1, ARENA_Z),
 		Anchored = true,
 		Color = Color3.fromRGB(200, 170, 120),
 		Material = Enum.Material.Sand,
@@ -759,7 +763,7 @@ function PlotSystem.Setup()
 		Name = "Center",
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(12, 2.4, 12),
-		Position = Vector3.new(0 + WORLD_DX, 1.2, -70 + WORLD_DZ),
+		Position = Vector3.new(ARENA_X, 1.2, ARENA_Z),
 		Anchored = true,
 		Color = Color3.fromRGB(180, 60, 60),
 		Material = Enum.Material.SmoothPlastic,
@@ -768,7 +772,7 @@ function PlotSystem.Setup()
 		newPart({
 			Name = "Gate" .. if side < 0 then "Blue" else "Red",
 			Size = Vector3.new(6, 8, 1),
-			Position = Vector3.new(side * 16 + WORLD_DX, 5, -70 + WORLD_DZ),
+			Position = Vector3.new(ARENA_X + side * 16, 5, ARENA_Z),
 			Anchored = true,
 			Color = if side < 0 then Color3.fromRGB(60, 120, 220) else Color3.fromRGB(220, 60, 60),
 			Material = Enum.Material.SmoothPlastic,
@@ -777,7 +781,7 @@ function PlotSystem.Setup()
 	local arenaSign = newPart({
 		Name = "Sign",
 		Size = Vector3.new(14, 4, 0.8),
-		Position = Vector3.new(0 + WORLD_DX, 9, -70 + 22 + WORLD_DZ),
+		Position = Vector3.new(ARENA_X, 9, ARENA_Z + 22),
 		Anchored = true,
 		Color = Color3.fromRGB(90, 70, 50),
 		Material = Enum.Material.Wood,
@@ -802,17 +806,17 @@ function PlotSystem.Setup()
 	arenaPrompt.MaxActivationDistance = 16
 	arenaPrompt.Parent = arenaSign
 	arena.Parent = plaza
-	liftModel(arena, groundY(0 + WORLD_DX, -70 + WORLD_DZ))
+	liftModel(arena, groundY(ARENA_X, ARENA_Z))
 	PlotSystem.ArenaPrompt = arenaPrompt
 
-	local arenaCenter = Vector3.new(0 + WORLD_DX, 2, -70 + WORLD_DZ)
+	local arenaCenter = Vector3.new(ARENA_X, 2, ARENA_Z)
 	pcall(function()
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Include
 		params.FilterDescendantsInstances = { workspace.Terrain }
-		local r = workspace:Raycast(Vector3.new(0 + WORLD_DX, 500, -70 + WORLD_DZ), Vector3.new(0, -1000, 0), params)
+		local r = workspace:Raycast(Vector3.new(ARENA_X, 500, ARENA_Z), Vector3.new(0, -1000, 0), params)
 		if r then
-			arenaCenter = Vector3.new(0 + WORLD_DX, r.Position.Y + 1, -70 + WORLD_DZ)
+			arenaCenter = Vector3.new(ARENA_X, r.Position.Y + 1, ARENA_Z)
 		end
 	end)
 	local colosseum = VisualEffects.BuildColosseum(arenaCenter)
@@ -1702,7 +1706,7 @@ local function arenaFloorTop(): number
 end
 
 local function arenaCenterXZ(): (number, number)
-	return WORLD_DX, -70 + WORLD_DZ
+	return ARENA_X, ARENA_Z
 end
 
 local function battleBaseCF(x: number, z: number, sizeY: number, faceAngle: number): CFrame
