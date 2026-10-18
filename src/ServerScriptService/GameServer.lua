@@ -532,24 +532,27 @@ local fuseBrainrotsRemote = CachedRemotes["FuseBrainrots"]
 if fuseBrainrotsRemote then
 	fuseBrainrotsRemote.OnServerEvent:Connect(function(player: Player, instanceIds: any)
 		local data = PlayerData.Get(player)
-		if not data or type(instanceIds) ~= "table" or #instanceIds ~= 3 then return end
-
-		-- Anti-Duplication Security Array Match Validation Check
-		if instanceIds[1] == instanceIds[2] or instanceIds[1] == instanceIds[3] or instanceIds[2] == instanceIds[3] then
-			warn("Exploit Blocked: Duplicated unique instance index array passed from player: " .. player.Name)
+		if not data or type(instanceIds) ~= "table" then
+			return
+		end
+		if #instanceIds < 3 or #instanceIds > 8 then
 			return
 		end
 
 		local seen: { [string]: boolean } = {}
 		local firstId: string? = nil
 		for _, id in ipairs(instanceIds) do
-			if type(id) ~= "string" or seen[id] then return end
+			if type(id) ~= "string" or seen[id] then
+				return
+			end
 			seen[id] = true
-
 			local inst = PlayerData.GetInstance(player, id)
-			if not inst or inst.Shiny then return end
-			if data.Jobs[id] then return end
-
+			if not inst or inst.Shiny then
+				return
+			end
+			if data.Jobs[id] then
+				return
+			end
 			if not firstId then
 				firstId = inst.BrainrotId
 			elseif inst.BrainrotId ~= firstId then
@@ -558,108 +561,79 @@ if fuseBrainrotsRemote then
 		end
 
 		local def = BrainrotData.GetById(firstId :: string) or BrainrotData.GetBrainrot(firstId :: string)
-		if not def then return end
-		local rarity = def.Rarity
-
-		if rarity == "Legendary" then
-			local coinFee = BrainrotData.FUSION_COIN_COST.Legendary or 1000
-			if not PlayerData.SpendCoins(player, coinFee) then
-				local hintEvent = CachedRemotes["ShowHint"]
-				if hintEvent then
-					hintEvent:FireClient(player, "Not enough coins! Need " .. tostring(coinFee) .. ".")
-				end
-				return
-			end
-
-			local resultId = BrainrotData.GetRandomIdOfRarity(BrainrotData.RollRewardRarity())
-			if not resultId then return end
-
-			-- Instantly fetch character position coordinates prior to operational yielding loops
-			local char = player.Character
-			local hrp = char and char:FindFirstChild("HumanoidRootPart")
-			local staticPosition = hrp and (hrp :: BasePart).Position or Vector3.new(0, 0, 0)
-
-			PlayerData.RemoveBrainrotInstances(player, instanceIds)
-			local instance, err = PlayerData.TryAddBrainrot(player, resultId, true, BrainrotData.RollVariant())
-
-			data.Fusions = (data.Fusions or 0) + 1
-			DailyQuestSystem.RecordProgress(player, "fuse", 1)
-			pushDailyState(player)
-			autoShowcase(player)
-			PlotSystem.RefreshPlot(player)
-
-			local fusionResultEvent = CachedRemotes["FusionResult"]
-			if fusionResultEvent then
-				fusionResultEvent:FireClient(player, {
-					Kind = "Fusion",
-					BrainrotId = instance and instance.BrainrotId or nil,
-					Variant = instance and instance.Variant or nil,
-					Shiny = true,
-					InventoryFull = err == "full",
-					Coins = 0,
-				})
-			end
-
-			task.spawn(function()
-				if instance and staticPosition.Magnitude > 0 then
-					local displayDef = BrainrotData.GetBrainrot(instance.BrainrotId)
-					if displayDef then
-						local resultModel = PlotSystem.BuildDisplayModel(displayDef, true, instance.Variant)
-						local fusionPos = staticPosition + Vector3.new(0, 5, 0)
-						local dummies = {}
-						VisualEffects.PlayFusion(dummies, fusionPos, resultModel, function() end)
-					end
-				end
-			end)
-		else
-			local resultRarity = BrainrotData.GetFusionResultRarity(rarity)
-			local resultId = resultRarity and BrainrotData.GetRandomIdOfRarity(resultRarity) or nil
-			if not resultId then return end
-
-			local firstInst = PlayerData.GetInstance(player, instanceIds[1])
-			local workId, matName, cost, coinFee = BrainrotData.GetFusionMaterialInfo(def, firstInst and firstInst.Variant)
-
-			if not PlayerData.SpendCoins(player, coinFee) then
-				local hintEvent = CachedRemotes["ShowHint"]
-				if hintEvent then
-					hintEvent:FireClient(player, "Need " .. tostring(coinFee) .. " coins to fuse.")
-				end
-				return
-			end
-
-			if not PlayerData.SpendMaterials(player, { [workId] = cost }) then
-				PlayerData.AddCoins(player, coinFee)
-				local have = (data.Materials[workId] or 0)
-				local hintEvent = CachedRemotes["ShowHint"]
-				if hintEvent then
-					hintEvent:FireClient(player, ("Need %d %s from plot Work (you have %d). Assign matching workers, then Collect."):format(cost, matName, have))
-				end
-				return
-			end
-
-			PlayerData.RemoveBrainrotInstances(player, instanceIds)
-			local shiny = math.random() < BrainrotData.SHINY_CHANCE
-			local variant = BrainrotData.RollVariant()
-			local instance, err = PlayerData.TryAddBrainrot(player, resultId, shiny, variant)
-
-			data.Fusions = (data.Fusions or 0) + 1
-			DailyQuestSystem.RecordProgress(player, "fuse", 1)
-			pushDailyState(player)
-			autoShowcase(player)
-			PlotSystem.RefreshPlot(player)
-
-			local fusionResultEvent = CachedRemotes["FusionResult"]
-			if fusionResultEvent then
-				fusionResultEvent:FireClient(player, {
-					Kind = "Fusion",
-					BrainrotId = instance and instance.BrainrotId or nil,
-					Variant = instance and instance.Variant or nil,
-					Shiny = instance and instance.Shiny or false,
-					InventoryFull = err == "full",
-					Coins = 0,
-				})
-			end
+		if not def then
+			return
 		end
+		local rarity = def.Rarity
+		local need = BrainrotData.GetFusionCopies(rarity)
+		if #instanceIds ~= need then
+			return
+		end
+		local resultRarity = BrainrotData.GetFusionResultRarity(rarity)
+		local resultId = resultRarity and BrainrotData.GetRandomIdOfRarity(resultRarity) or nil
+		if not resultId then
+			return
+		end
+
+		local firstInst = PlayerData.GetInstance(player, instanceIds[1])
+		local workId, matName, cost, coinFee = BrainrotData.GetFusionMaterialInfo(def, firstInst and firstInst.Variant)
+
+		if not PlayerData.SpendCoins(player, coinFee) then
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(player, "Need " .. tostring(coinFee) .. " coins to fuse.")
+			end
+			return
+		end
+
+		if not PlayerData.SpendMaterials(player, { [workId] = cost }) then
+			PlayerData.AddCoins(player, coinFee)
+			local have = (data.Materials[workId] or 0)
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(player, ("Need %d %s from plot Work (you have %d). Assign matching workers, then Collect."):format(cost, matName, have))
+			end
+			return
+		end
+
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local staticPosition = hrp and (hrp :: BasePart).Position or Vector3.new(0, 0, 0)
+
+		PlayerData.RemoveBrainrotInstances(player, instanceIds)
+		local shiny = math.random() < BrainrotData.SHINY_CHANCE
+		local variant = BrainrotData.RollVariant()
+		local instance, err = PlayerData.TryAddBrainrot(player, resultId, shiny, variant)
+
+		data.Fusions = (data.Fusions or 0) + 1
+		DailyQuestSystem.RecordProgress(player, "fuse", 1)
+		pushDailyState(player)
+		autoShowcase(player)
+		PlotSystem.RefreshPlot(player)
+
+		local fusionResultEvent = CachedRemotes["FusionResult"]
+		if fusionResultEvent then
+			fusionResultEvent:FireClient(player, {
+				Kind = "Fusion",
+				BrainrotId = instance and instance.BrainrotId or nil,
+				Variant = instance and instance.Variant or nil,
+				Shiny = instance and instance.Shiny or false,
+				InventoryFull = err == "full",
+				Coins = 0,
+			})
+		end
+
+		task.spawn(function()
+			if instance and staticPosition.Magnitude > 0 then
+				local displayDef = BrainrotData.GetBrainrot(instance.BrainrotId)
+				if displayDef then
+					local resultModel = PlotSystem.BuildDisplayModel(displayDef, instance.Shiny == true, instance.Variant)
+					local fusionPos = staticPosition + Vector3.new(0, 5, 0)
+					VisualEffects.PlayFusion({}, fusionPos, resultModel, function() end)
+				end
+			end
+		end)
+
 		pushCollection(player)
 		pushWorkState(player)
 		QuestSystem.CheckObjective(player, "fusions")

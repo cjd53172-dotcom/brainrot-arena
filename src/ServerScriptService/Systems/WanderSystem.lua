@@ -55,30 +55,6 @@ local RARITY_CONFIG = {
 		FleeRadius = 16,
 		Announce = true,
 	},
-	["Brainrot God"] = {
-		Weight = 0.45,
-		RespawnSecs = { 2400, 3600 },
-		DespawnSecs = 140,
-		WalkSpeed = 20,
-		FleeRadius = 18,
-		Announce = true,
-	},
-	Secret = {
-		Weight = 0.12,
-		RespawnSecs = { 3600, 5400 },
-		DespawnSecs = 120,
-		WalkSpeed = 22,
-		FleeRadius = 20,
-		Announce = true,
-	},
-	OG = {
-		Weight = 0.02,
-		RespawnSecs = { 5400, 9000 },
-		DespawnSecs = 90,
-		WalkSpeed = 24,
-		FleeRadius = 22,
-		Announce = true,
-	},
 }
 
 WanderSystem.MAX_WANDERERS = 16
@@ -137,6 +113,9 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 	end
 
 	local rarity = forceRarity or rollRarity(luckMult)
+	if BrainrotData.IsFusionOnlyRarity(rarity) then
+		rarity = "Mythic"
+	end
 	local brainrotId = BrainrotData.GetRandomIdOfRarity(rarity)
 	if not brainrotId then return nil end
 

@@ -2091,13 +2091,13 @@ end
 BrainrotData.GetBrainrot = BrainrotData.GetById
 
 function BrainrotData.GetStarterId(): string
-	return "tung_sahur"
+	return "lirili"
 end
 
 -- // Milestone 2: fusion, orb rewards, rivals ----------------------------------
 -- Weighted random reward for orb caches: mostly Commons, rarely better.
 BrainrotData.ORB_REWARD_WEIGHTS = {
-	Common = 55, Rare = 24, Epic = 12, Legendary = 6, Mythic = 2, ["Brainrot God"] = 0.8, Secret = 0.18, OG = 0.02,
+	Common = 55, Rare = 24, Epic = 12, Legendary = 7, Mythic = 2,
 }
 
 function BrainrotData.GetRandomIdOfRarity(rarity: string): string?
@@ -2128,11 +2128,20 @@ function BrainrotData.RollRewardRarity(): string
 	return "Common"
 end
 
--- Fusion: 3 duplicates of one brainrot + materials -> next rarity up.
--- Material type follows the sacrificed brainrot's effective type.
--- 3 Legendaries -> a guaranteed SHINY (any brainrot). Shiny sacrifices
--- are blocked to protect lucky pulls.
-BrainrotData.FUSION_MATERIAL_COST = { Common = 15, Rare = 30, Epic = 60 }
+-- Fusion: 3 of the same Common–Legendary -> random of the next rarity.
+-- 5 of the same Mythic -> random Brainrot God.
+-- 5 of the same Brainrot God -> random Secret.
+-- 5 of the same Secret -> random OG.
+-- God / Secret / OG never wild-spawn, fish, egg, or orb.
+BrainrotData.FUSION_MATERIAL_COST = {
+	Common = 15,
+	Rare = 30,
+	Epic = 60,
+	Legendary = 90,
+	Mythic = 140,
+	["Brainrot God"] = 220,
+	Secret = 350,
+}
 BrainrotData.FUSION_COIN_COST = {
 	Common = 100,
 	Rare = 250,
@@ -2141,8 +2150,25 @@ BrainrotData.FUSION_COIN_COST = {
 	Mythic = 2500,
 	["Brainrot God"] = 6000,
 	Secret = 15000,
-	OG = 50000,
 }
+
+BrainrotData.FUSION_COPIES = {
+	Common = 3,
+	Rare = 3,
+	Epic = 3,
+	Legendary = 3,
+	Mythic = 5,
+	["Brainrot God"] = 5,
+	Secret = 5,
+}
+
+function BrainrotData.IsFusionOnlyRarity(rarity: string): boolean
+	return rarity == "Brainrot God" or rarity == "Secret" or rarity == "OG"
+end
+
+function BrainrotData.GetFusionCopies(rarity: string): number
+	return BrainrotData.FUSION_COPIES[rarity] or 3
+end
 
 function BrainrotData.GetFusionResultRarity(rarity: string): string?
 	for i, r in ipairs(BrainrotData.RARITY_ORDER) do
@@ -2368,13 +2394,13 @@ BrainrotData.EGG_TIERS = {
 		Name = "Big Egg",
 		Color = Color3.fromRGB(140, 180, 230),
 		HatchMinutes = 45,
-		Weights = { Common = 38, Rare = 32, Epic = 18, Legendary = 8, Mythic = 3, ["Brainrot God"] = 0.9, Secret = 0.1 },
+		Weights = { Common = 40, Rare = 33, Epic = 18, Legendary = 7, Mythic = 2 },
 	},
 	golden = {
 		Name = "Golden Egg",
 		Color = Color3.fromRGB(255, 200, 60),
 		HatchMinutes = 90,
-		Weights = { Common = 12, Rare = 26, Epic = 30, Legendary = 20, Mythic = 8, ["Brainrot God"] = 3, Secret = 0.9, OG = 0.1 },
+		Weights = { Common = 14, Rare = 28, Epic = 32, Legendary = 18, Mythic = 8 },
 	},
 }
 BrainrotData.EGG_ORDER = { "small", "big", "golden" }

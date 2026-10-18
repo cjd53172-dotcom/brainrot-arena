@@ -29,7 +29,7 @@ local function rollReward(): any
 		-- Water brainrot!
 		local candidates = {}
 		for _, def in ipairs(BrainrotData.ROSTER) do
-			if def.Type == "Water" then
+			if def.Type == "Water" and not BrainrotData.IsFusionOnlyRarity(def.Rarity) then
 				table.insert(candidates, def)
 			end
 		end

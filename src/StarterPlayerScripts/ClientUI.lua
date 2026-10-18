@@ -832,7 +832,7 @@ pad(fusionPanel, 12)
 local fusionTitle = Instance.new("TextLabel")
 fusionTitle.Size = UDim2.new(1, -24, 0, 40)
 fusionTitle.BackgroundTransparency = 1
-fusionTitle.Text = "⚗ Fusion Lab — 3 copies + type materials + coins"
+fusionTitle.Text = "⚗ Fusion Lab — 3 copies up to Mythic, then 5 for God / Secret / OG"
 fusionTitle.Font = Enum.Font.GothamBold
 fusionTitle.TextSize = 15
 fusionTitle.TextColor3 = Color3.fromRGB(220, 170, 255)
@@ -845,7 +845,7 @@ local workState: any = { Materials = {}, Stations = {} }
 local fusionHowTo = Instance.new("TextLabel")
 fusionHowTo.Size = UDim2.new(1, -24, 0, 72)
 fusionHowTo.BackgroundTransparency = 1
-fusionHowTo.Text = "Materials come from Work stations on your plot (assign brainrots, then Collect).\nWood→Timber  Water→Fish  Fire→Ingots  Sky→Cloud Cotton  Shadow→Dark Stone.\nOther types spend Timber. Rare gems come from Expeditions, not fusion."
+fusionHowTo.Text = "3 of the same Common–Legendary → next rarity. 5 of the same Mythic → random God. 5 God → random Secret. 5 Secret → random OG.\nGod, Secret, and OG never spawn in the wild. Materials come from plot Work."
 fusionHowTo.Font = Enum.Font.Gotham
 fusionHowTo.TextSize = 13
 fusionHowTo.TextColor3 = Color3.fromRGB(190, 170, 220)
@@ -870,9 +870,10 @@ local function refreshFusionPanel()
 	local order = 1
 	local anyGroup = false
 	for brainrotId, list in pairs(groups) do
-		if #list >= 3 then
+		local def = lookupDef(brainrotId)
+		local need = if def then BrainrotData.GetFusionCopies(def.Rarity) else 3
+		if #list >= need and def and BrainrotData.GetFusionResultRarity(def.Rarity) then
 			anyGroup = true
-			local def = lookupDef(brainrotId)
 			local row = Instance.new("Frame")
 			row.Size = UDim2.new(1, -24, 0, 92)
 			row.BackgroundColor3 = Color3.fromRGB(35, 28, 48)
@@ -895,18 +896,13 @@ local function refreshFusionPanel()
 
 			local costText: string
 			local costColor = Color3.fromRGB(200, 180, 220)
-			if def and def.Rarity == "Legendary" then
-				local coins = BrainrotData.FUSION_COIN_COST.Legendary or 1000
-				costText = ("Need %d coins → guaranteed SHINY"):format(coins)
-			else
-				local variantId = list[1] and list[1].Variant
-				local workId, matName, matCost, coinFee = BrainrotData.GetFusionMaterialInfo(def, variantId)
-				local have = ((workState.Materials or {})[workId] or 0)
-				local resultRarity = def and BrainrotData.GetFusionResultRarity(def.Rarity) or "?"
-				costText = ("Need %d %s (have %d) + %d coins → %s"):format(matCost, matName, have, coinFee, resultRarity)
-				if have < matCost then
-					costColor = Color3.fromRGB(255, 150, 140)
-				end
+			local variantId = list[1] and list[1].Variant
+			local workId, matName, matCost, coinFee = BrainrotData.GetFusionMaterialInfo(def, variantId)
+			local have = ((workState.Materials or {})[workId] or 0)
+			local resultRarity = BrainrotData.GetFusionResultRarity(def.Rarity) or "?"
+			costText = ("x%d  Need %d %s (have %d) + %d coins → random %s"):format(need, matCost, matName, have, coinFee, resultRarity)
+			if have < matCost then
+				costColor = Color3.fromRGB(255, 150, 140)
 			end
 			local costLabel = Instance.new("TextLabel")
 			costLabel.Size = UDim2.new(1, -120, 0, 48)
@@ -932,7 +928,11 @@ local function refreshFusionPanel()
 			fuseBtn.Parent = row
 			corner(fuseBtn, 8)
 			fuseBtn.MouseButton1Click:Connect(function()
-				fuseRemote:FireServer({ list[1].InstanceId, list[2].InstanceId, list[3].InstanceId })
+				local ids = {}
+				for i = 1, need do
+					table.insert(ids, list[i].InstanceId)
+				end
+				fuseRemote:FireServer(ids)
 			end)
 		end
 	end
@@ -940,7 +940,7 @@ local function refreshFusionPanel()
 		local empty = Instance.new("TextLabel")
 		empty.Size = UDim2.new(1, -24, 0, 60)
 		empty.BackgroundTransparency = 1
-		empty.Text = "No fusable groups yet.\nYou need 3 copies of the same brainrot (non-shiny, not working).\nTip: every 5 orbs earns a Brainrot Cache!"
+		empty.Text = "No fusable groups yet.\nNeed 3 of the same Common–Legendary, or 5 of the same Mythic / God / Secret.\nGod, Secret, and OG only come from fusion."
 		empty.Font = Enum.Font.Gotham
 		empty.TextSize = 14
 		empty.TextColor3 = Color3.fromRGB(170, 150, 190)
