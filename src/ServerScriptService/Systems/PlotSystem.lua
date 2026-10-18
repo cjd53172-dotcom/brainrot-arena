@@ -94,6 +94,10 @@ local function modelMaxDim(model: Model): number
 			maxDim = math.max(maxDim, part.Size.X, part.Size.Y, part.Size.Z)
 		end
 	end
+	pcall(function()
+		local e = model:GetExtentsSize()
+		maxDim = math.max(maxDim, e.X, e.Y, e.Z)
+	end)
 	return maxDim
 end
 
@@ -287,8 +291,10 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
+print("[PlotSystem] source 5-flatpad")
+
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v3")
+	print("[PlotSystem] Loaded placement v5-flatpad")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -314,6 +320,18 @@ function PlotSystem.Setup()
 				(d :: BasePart).Position += Vector3.new(0, dy, 0)
 			end
 		end
+	end
+
+	local function flattenPad(cx: number, cz: number, topY: number)
+		local pad = PLOT_SIZE + 18
+		local thickness = math.max(16, topY + 8)
+		pcall(function()
+			workspace.Terrain:FillBlock(
+				CFrame.new(cx, topY - thickness / 2, cz),
+				Vector3.new(pad, thickness, pad),
+				Enum.Material.Grass
+			)
+		end)
 	end
 
 	local existing = workspace:FindFirstChild("Plots")
@@ -626,7 +644,9 @@ function PlotSystem.Setup()
 		end
 
 		plot.Parent = plotsFolder
-		liftModel(plot, site.Y + 0.6)
+		local topY = maxGroundY(x, z, PLOT_SIZE / 2)
+		flattenPad(x, z, topY)
+		liftModel(plot, topY + 0.4)
 	end
 
 	local plaza = Instance.new("Folder")
