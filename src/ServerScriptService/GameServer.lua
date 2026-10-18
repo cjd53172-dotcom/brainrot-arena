@@ -9,6 +9,14 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
+-- Laser Tag is a different Place. If this script is ever Played there
+-- (BrainrotSync / paste), do not spawn plots, plaza, or wilds on that map.
+local HUB_PLACE_ID = 92909397469421
+if game.PlaceId ~= 0 and game.PlaceId ~= HUB_PLACE_ID then
+	warn("[GameServer] PlaceId " .. tostring(game.PlaceId) .. " is not Brainrot Arena hub. Hub world skipped. Do not Sync GitHub in Laser Tag.")
+	return
+end
+
 -- Toolbox pack Scripts run in Workspace and delete the folder on Play.
 -- Park it in ServerStorage before anything else (Scripts there do not run).
 do
