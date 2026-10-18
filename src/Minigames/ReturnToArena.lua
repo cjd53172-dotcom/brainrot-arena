@@ -15,6 +15,8 @@ local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local DataStoreService = game:GetService("DataStoreService")
 
+print("[ReturnToArena] script running in " .. tostring(script:GetFullName()))
+
 local HUB_PLACE_ID = 92909397469421
 local returnPlaceByUser: { [number]: number } = {}
 
@@ -177,7 +179,7 @@ local function placeReturnGate(at: Vector3, look: Vector3?)
 
 	local gate = Instance.new("Part")
 	gate.Name = "ReturnToArena"
-	gate.Size = Vector3.new(6, 10, 1.2)
+	gate.Size = Vector3.new(8, 14, 1.6)
 	gate.Anchored = true
 	gate.CanCollide = false
 	gate.Color = Color3.fromRGB(255, 180, 40)
@@ -186,9 +188,9 @@ local function placeReturnGate(at: Vector3, look: Vector3?)
 	gate.Parent = workspace
 
 	local sign = Instance.new("BillboardGui")
-	sign.Size = UDim2.new(0, 180, 0, 40)
-	sign.StudsOffset = Vector3.new(0, 6.2, 0)
-	sign.AlwaysOnTop = false
+	sign.Size = UDim2.new(0, 220, 0, 48)
+	sign.StudsOffset = Vector3.new(0, 7, 0)
+	sign.AlwaysOnTop = true
 	sign.Parent = gate
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, 0, 1, 0)
@@ -222,9 +224,12 @@ end
 
 local function collectSpawns(): { BasePart }
 	local found: { BasePart } = {}
-	for _, d in ipairs(workspace:GetDescendants()) do
-		if d:IsA("SpawnLocation") then
-			table.insert(found, d)
+	local roots = { workspace, game:GetService("ServerStorage"), game:GetService("ReplicatedStorage") }
+	for _, root in ipairs(roots) do
+		for _, d in ipairs(root:GetDescendants()) do
+			if d:IsA("SpawnLocation") then
+				table.insert(found, d)
+			end
 		end
 	end
 	return found
@@ -232,8 +237,9 @@ end
 
 local function placeAtAllSpawns()
 	local spawns = collectSpawns()
+	print("[ReturnToArena] spawn pads found: " .. tostring(#spawns))
 	if #spawns == 0 then
-		placeReturnGate(Vector3.new(0, 8, 0), Vector3.new(0, 0, -1))
+		placeReturnGate(Vector3.new(0, 20, 0), Vector3.new(0, 0, -1))
 		return
 	end
 	for _, spawn in ipairs(spawns) do
@@ -241,10 +247,33 @@ local function placeAtAllSpawns()
 	end
 end
 
-task.defer(placeAtAllSpawns)
-task.delay(4, function()
-	-- Template maps sometimes add spawns after load.
-	for _, spawn in ipairs(collectSpawns()) do
-		placeReturnGate(spawn.Position, spawn.CFrame.LookVector)
+local function placeBesidePlayer(player: Player)
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not (hrp and hrp:IsA("BasePart")) then
+		return
 	end
+	local look = (hrp :: BasePart).CFrame.LookVector
+	placeReturnGate((hrp :: BasePart).Position + look * 10, look)
+end
+
+Players.PlayerAdded:Connect(function(player: Player)
+	player.CharacterAdded:Connect(function()
+		task.wait(1.2)
+		placeBesidePlayer(player)
+	end)
 end)
+for _, player in ipairs(Players:GetPlayers()) do
+	player.CharacterAdded:Connect(function()
+		task.wait(1.2)
+		placeBesidePlayer(player)
+	end)
+	if player.Character then
+		task.defer(function()
+			placeBesidePlayer(player)
+		end)
+	end
+end
+
+task.defer(placeAtAllSpawns)
+task.delay(3, placeAtAllSpawns)
