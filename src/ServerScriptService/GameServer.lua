@@ -1292,57 +1292,52 @@ do
 		prompt.Triggered:Connect(hop)
 
 		if gate.Id == "laser_tag" then
-			local boardModel = Instance.new("Model")
-			boardModel.Name = "LaserTagKillBoard"
+			local pivot = portal:GetPivot()
 			local frame = Instance.new("Part")
-			frame.Name = "Board"
-			frame.Size = Vector3.new(14, 10, 0.8)
+			frame.Name = "LaserTagKillBoard"
+			frame.Size = Vector3.new(12, 9, 0.7)
 			frame.Anchored = true
 			frame.CanCollide = true
-			frame.Color = Color3.fromRGB(18, 28, 18)
-			frame.Material = Enum.Material.SmoothPlastic
-			frame.Parent = boardModel
+			frame.Color = Color3.fromRGB(12, 40, 18)
+			frame.Material = Enum.Material.Neon
+			frame.CFrame = pivot * CFrame.new(9, 5, 0)
+			frame.Parent = portal
 			local header = Instance.new("Part")
-			header.Name = "Header"
-			header.Size = Vector3.new(14, 2.2, 0.8)
+			header.Name = "LaserTagKillHeader"
+			header.Size = Vector3.new(12, 2, 0.7)
 			header.Anchored = true
 			header.CanCollide = false
-			header.Color = Color3.fromRGB(20, 70, 30)
-			header.Material = Enum.Material.SmoothPlastic
-			header.Position = Vector3.new(0, 6.1, 0)
-			header.Parent = boardModel
+			header.Color = Color3.fromRGB(30, 90, 40)
+			header.Material = Enum.Material.Neon
+			header.CFrame = pivot * CFrame.new(9, 10.5, 0)
+			header.Parent = portal
 			local function face(part: BasePart, title: boolean): TextLabel
 				local gui = Instance.new("SurfaceGui")
 				gui.Face = Enum.NormalId.Front
-				gui.PixelsPerStud = 25
+				gui.PixelsPerStud = 30
 				gui.LightInfluence = 0
 				gui.Parent = part
 				local label = Instance.new("TextLabel")
-				label.Size = UDim2.new(1, -16, 1, -16)
-				label.Position = UDim2.new(0, 8, 0, 8)
+				label.Size = UDim2.new(1, -12, 1, -12)
+				label.Position = UDim2.new(0, 6, 0, 6)
 				label.BackgroundTransparency = 1
 				label.Text = if title then "LASER TAG KILLS" else "Play Laser Tag to post kills."
 				label.Font = Enum.Font.GothamBold
 				label.TextScaled = title
-				label.TextSize = 22
-				label.TextColor3 = Color3.fromRGB(120, 255, 140)
-				label.TextStrokeTransparency = 0.35
+				label.TextSize = 24
+				label.TextColor3 = Color3.fromRGB(180, 255, 160)
+				label.TextStrokeTransparency = 0.3
 				label.TextWrapped = true
 				label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
 				label.Parent = gui
+				local back = gui:Clone()
+				back.Face = Enum.NormalId.Back
+				back.Parent = part
 				return label
 			end
 			face(header, true)
 			local listLabel = face(frame, false)
-			local backGui = header:FindFirstChildOfClass("SurfaceGui")
-			if backGui then
-				local cloneGui = backGui:Clone()
-				cloneGui.Face = Enum.NormalId.Back
-				cloneGui.Parent = header
-			end
-			PlotSystem.SitOnTerrain(boardModel, gate.X + 12, gate.Z)
-			boardModel.Parent = workspace
-			header.Position = Vector3.new(frame.Position.X, frame.Position.Y + 6.1, frame.Position.Z)
+			print("[GameServer] Laser kill board next to portal")
 
 			local function paintLaserBoard()
 				local top = LeaderboardSystem.GetLaserTagTop(8)
@@ -1358,7 +1353,7 @@ do
 			end
 			paintLaserBoard()
 			task.spawn(function()
-				while boardModel.Parent do
+				while frame.Parent do
 					task.wait(15)
 					paintLaserBoard()
 				end
