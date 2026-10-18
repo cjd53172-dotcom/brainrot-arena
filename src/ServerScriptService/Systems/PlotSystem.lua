@@ -350,27 +350,108 @@ function PlotSystem.Setup()
 	local limit = BrainrotData.SHOWCASE_LIMIT
 	local perRow = 5
 
-	local PLOT_COLS = 3
-	local rowsTotal = math.ceil(PLOT_COUNT / PLOT_COLS)
-	local function plotXZ(i: number): (number, number)
-		local col = (i - 1) % PLOT_COLS
-		local row = math.floor((i - 1) / PLOT_COLS)
-		local x = (col - (PLOT_COLS - 1) / 2) * (PLOT_SIZE + PLOT_GAP) + WORLD_DX
-		local z = (row - (rowsTotal - 1) / 2) * (PLOT_SIZE + PLOT_GAP) + WORLD_DZ
-		return x, z
+	local function measurePatch(cx: number, cz: number): any
+		local half = PLOT_SIZE / 2
+		local minY, maxY = math.huge, -math.huge
+		local waterHits = 0
+		local samples = 0
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		for ox = -half, half, 10 do
+			for oz = -half, half, 10 do
+				local r = workspace:Raycast(Vector3.new(cx + ox, 800, cz + oz), Vector3.new(0, -1600, 0), params)
+				if not r then
+					return nil
+				end
+				samples += 1
+				if r.Material == Enum.Material.Water then
+					waterHits += 1
+				end
+				if r.Position.Y < minY then
+					minY = r.Position.Y
+				end
+				if r.Position.Y > maxY then
+					maxY = r.Position.Y
+				end
+			end
+		end
+		if samples < 8 or waterHits > samples * 0.12 then
+			return nil
+		end
+		return {
+			X = cx,
+			Z = cz,
+			Y = maxY,
+			Range = maxY - minY,
+		}
 	end
-	local uniformPlotY = 0
-	for i = 1, PLOT_COUNT do
-		local px, pz = plotXZ(i)
-		local h = maxGroundY(px, pz, PLOT_SIZE / 2)
-		if h > uniformPlotY then
-			uniformPlotY = h
+
+	local function farEnough(x: number, z: number, chosen: { any }): boolean
+		local minSep = PLOT_SIZE + PLOT_GAP * 0.75
+		for _, site in ipairs(chosen) do
+			local dx = x - site.X
+			local dz = z - site.Z
+			if (dx * dx + dz * dz) < (minSep * minSep) then
+				return false
+			end
+		end
+		return true
+	end
+
+	local candidates: { any } = {}
+	local searchHalf = 400
+	local step = 28
+	for cx = WORLD_DX - searchHalf, WORLD_DX + searchHalf, step do
+		for cz = WORLD_DZ - searchHalf, WORLD_DZ + searchHalf, step do
+			local dx = cx - WORLD_DX
+			local dz = cz - WORLD_DZ
+			if (dx * dx + dz * dz) >= (55 * 55) then
+				local patch = measurePatch(cx, cz)
+				if patch and patch.Range <= 3.5 then
+					table.insert(candidates, patch)
+				end
+			end
 		end
 	end
-	uniformPlotY += 1
+	table.sort(candidates, function(a, b)
+		if math.abs(a.Range - b.Range) > 0.4 then
+			return a.Range < b.Range
+		end
+		local da = (a.X - WORLD_DX) * (a.X - WORLD_DX) + (a.Z - WORLD_DZ) * (a.Z - WORLD_DZ)
+		local db = (b.X - WORLD_DX) * (b.X - WORLD_DX) + (b.Z - WORLD_DZ) * (b.Z - WORLD_DZ)
+		return da < db
+	end)
+
+	local sites: { any } = {}
+	for _, patch in ipairs(candidates) do
+		if #sites >= PLOT_COUNT then
+			break
+		end
+		if farEnough(patch.X, patch.Z, sites) then
+			table.insert(sites, patch)
+		end
+	end
+	-- Fallback: original grid, each plot still sits on its own ground height.
+	if #sites < PLOT_COUNT then
+		local PLOT_COLS = 3
+		local rowsTotal = math.ceil(PLOT_COUNT / PLOT_COLS)
+		for i = 1, PLOT_COUNT do
+			if not sites[i] then
+				local col = (i - 1) % PLOT_COLS
+				local row = math.floor((i - 1) / PLOT_COLS)
+				local x = (col - (PLOT_COLS - 1) / 2) * (PLOT_SIZE + PLOT_GAP) + WORLD_DX
+				local z = (row - (rowsTotal - 1) / 2) * (PLOT_SIZE + PLOT_GAP) + WORLD_DZ
+				local h = maxGroundY(x, z, PLOT_SIZE / 2)
+				sites[i] = { X = x, Z = z, Y = h, Range = 99 }
+			end
+		end
+	end
 
 	for i = 1, PLOT_COUNT do
-		local x, z = plotXZ(i)
+		local site = sites[i]
+		local x, z = site.X, site.Z
+		print("[PlotSystem] Plot " .. tostring(i) .. " on terrain at " .. tostring(Vector3.new(x, site.Y, z)) .. " (uneven " .. string.format("%.1f", site.Range) .. ")")
 
 		local plot = Instance.new("Model")
 		plot.Name = "Plot" .. i
@@ -545,7 +626,7 @@ function PlotSystem.Setup()
 		end
 
 		plot.Parent = plotsFolder
-		liftModel(plot, uniformPlotY)
+		liftModel(plot, site.Y + 0.6)
 	end
 
 	local plaza = Instance.new("Folder")
