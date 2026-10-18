@@ -28,8 +28,8 @@ local WORLD_DZ = 98
 -- +X is toward the river/mountain; left of the plots is -X, on the open grass.
 local ARENA_X = WORLD_DX - 300
 local ARENA_Z = WORLD_DZ - 260
-local ARENA_SCALE = 2
-local ARENA_PAD = 140
+local ARENA_SCALE = 4
+local ARENA_PAD = 280
 -- Fusion lab sits near the plaza boards, not on a player pad.
 local FUSION_X = WORLD_DX
 local FUSION_Z = WORLD_DZ + 12
@@ -431,7 +431,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 18-plaza")
+print("[PlotSystem] source 19-arena")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local label = PlotSystem.ArenaBoardLabel
@@ -441,7 +441,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v18-plaza")
+	print("[PlotSystem] Loaded placement v19-arena")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -909,7 +909,7 @@ function PlotSystem.Setup()
 	arenaPrompt.ActionText = "Enter Arena"
 	arenaPrompt.ObjectText = "Arena"
 	arenaPrompt.HoldDuration = 0
-	arenaPrompt.MaxActivationDistance = 16
+	arenaPrompt.MaxActivationDistance = 28
 	arenaPrompt.Parent = arenaSign
 	arena.Parent = plaza
 	liftModel(arena, arenaTopY + 0.4)
@@ -922,7 +922,7 @@ function PlotSystem.Setup()
 	local board = newPart({
 		Name = "ChampionBoard",
 		Size = Vector3.new(16, 11, 1.2),
-		Position = Vector3.new(ARENA_X + 78, arenaTopY + 7, ARENA_Z + 78),
+		Position = Vector3.new(ARENA_X + ARENA_PAD / 2 - 18, arenaTopY + 7, ARENA_Z + ARENA_PAD / 2 - 18),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(40, 32, 22),
