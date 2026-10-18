@@ -61,16 +61,48 @@ end
 -- // Precise Platform Surface Alignment Helper ----------------------------------
 -- Measures the exact bounding box of any model and places its lowest point
 -- precisely on top of the target base/pedestal surface, preventing clipping.
+local function modelAabb(model: Model): (Vector3, Vector3)?
+	local minX, minY, minZ = math.huge, math.huge, math.huge
+	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+	local found = false
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") and d.Name ~= "RarityPlate" then
+			local part = d :: BasePart
+			local cf = part.CFrame
+			local h = part.Size * 0.5
+			for _, sx in ipairs({ -1, 1 }) do
+				for _, sy in ipairs({ -1, 1 }) do
+					for _, sz in ipairs({ -1, 1 }) do
+						local p = (cf * CFrame.new(h.X * sx, h.Y * sy, h.Z * sz)).Position
+						minX = math.min(minX, p.X)
+						minY = math.min(minY, p.Y)
+						minZ = math.min(minZ, p.Z)
+						maxX = math.max(maxX, p.X)
+						maxY = math.max(maxY, p.Y)
+						maxZ = math.max(maxZ, p.Z)
+						found = true
+					end
+				end
+			end
+		end
+	end
+	if not found then
+		return nil
+	end
+	return Vector3.new(minX, minY, minZ), Vector3.new(maxX, maxY, maxZ)
+end
+
 local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: number?)
-	local cf, size = model:GetBoundingBox()
-	-- Pack models are built at the world origin. Snap the bounding-box
-	-- bottom-center onto the target's top-center (X, Y, and Z).
+	local minV, maxV = modelAabb(model)
+	if not minV or not maxV then
+		return
+	end
 	local target = Vector3.new(
 		targetPart.Position.X,
 		targetPart.Position.Y + targetPart.Size.Y / 2 + (extraOffset or 0),
 		targetPart.Position.Z
 	)
-	local currentBottom = Vector3.new(cf.Position.X, cf.Position.Y - size.Y / 2, cf.Position.Z)
+	local currentBottom = Vector3.new((minV.X + maxV.X) * 0.5, minV.Y, (minV.Z + maxV.Z) * 0.5)
 	model:PivotTo(model:GetPivot() + (target - currentBottom))
 end
 
@@ -369,7 +401,6 @@ function PlotSystem.Setup()
 			local pz = z - 4 + row * 8
 			newPart({
 				Name = "Pedestal_" .. slot,
-				Shape = Enum.PartType.Cylinder,
 				Size = Vector3.new(3, 1.2, 3),
 				Position = Vector3.new(px, 1.6, pz),
 				Anchored = true,
@@ -945,15 +976,16 @@ local function addDressing(model: Model, height: number, def: any, variantId: st
 		accentColor = Color3.fromRGB(255, 215, 0)
 	end
 
-	newPart({
+	local plate = newPart({
 		Name = "RarityPlate",
 		Size = Vector3.new(3.6, 0.25, 3.6),
-		Position = Vector3.new(0, -height / 2 - 0.15, 0),
 		Color = accentColor,
 		Material = Enum.Material.Neon,
 		Anchored = true,
 		CanCollide = false,
 	}, model)
+	local bbCF, bbSize = model:GetBoundingBox()
+	plate.CFrame = CFrame.new(bbCF.Position.X, bbCF.Position.Y - bbSize.Y / 2 - 0.15, bbCF.Position.Z)
 
 	if isShiny and host then
 		local sparkles = Instance.new("ParticleEmitter")
@@ -1237,9 +1269,15 @@ function PlotSystem.RefreshPlot(player: Player)
 		local ped = pedestals:FindFirstChild("Pedestal_" .. slot)
 		if def and ped and ped:IsA("BasePart") then
 			local display = PlotSystem.BuildDisplayModel(def, inst.Shiny == true, inst.Variant)
+			display:SetAttribute("BrainrotId", def.Id)
 			display.Parent = displays
-			-- Align precisely on top of pedestal using robust bounding box placement
 			placeModelOnTop(display, ped, 0.1)
+			local pedRef = ped
+			task.defer(function()
+				if display.Parent and pedRef.Parent then
+					placeModelOnTop(display, pedRef, 0.1)
+				end
+			end)
 		end
 	end
 

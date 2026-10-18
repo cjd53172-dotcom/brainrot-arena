@@ -194,21 +194,25 @@ workspace.DescendantAdded:Connect(function(descendant)
 			applyBrainrotNametag(descendant, def.Name, def.Rarity)
 
 			task.defer(function()
-				if descendant and descendant.Parent then
-					local part = descendant.PrimaryPart or descendant:FindFirstChildWhichIsA("BasePart")
-					if part then
-						local regionPart = workspace:GetPartsInPart(part)
-						for _, p in ipairs(regionPart) do
-							-- Only real stand parts. Size.Y < 1.5 also matched the plot
-							-- grass (Base), which pulled models underground into the floor.
-							local n = p.Name
-							if n == "Platform" or n == "Pedestal" or string.sub(n, 1, 9) == "Pedestal_" then
-								local platformHeight = p.Size.Y
-								local brainrotSize = descendant:GetExtentsSize()
-								local targetCFrame = p.CFrame * CFrame.new(0, (platformHeight / 2) + (brainrotSize.Y / 2), 0)
-								descendant:PivotTo(targetCFrame)
-								break
-							end
+				if not (descendant and descendant.Parent) then
+					return
+				end
+				-- Plot showcase/worker models are already placed by the server.
+				local ancestor = descendant.Parent
+				if ancestor and (ancestor.Name == "Displays" or ancestor.Name == "Workers") then
+					return
+				end
+				local part = descendant.PrimaryPart or descendant:FindFirstChildWhichIsA("BasePart")
+				if part then
+					local regionPart = workspace:GetPartsInPart(part)
+					for _, p in ipairs(regionPart) do
+						local n = p.Name
+						if n == "Platform" or n == "Pedestal" or string.sub(n, 1, 9) == "Pedestal_" then
+							local platformHeight = p.Size.Y
+							local brainrotSize = descendant:GetExtentsSize()
+							local targetCFrame = p.CFrame * CFrame.new(0, (platformHeight / 2) + (brainrotSize.Y / 2), 0)
+							descendant:PivotTo(targetCFrame)
+							break
 						end
 					end
 				end
