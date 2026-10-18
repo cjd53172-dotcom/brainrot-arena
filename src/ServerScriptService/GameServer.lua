@@ -52,7 +52,8 @@ local REMOTE_LIST = {
 	"StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", 
 	"EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", 
 	"CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", 
-	"BuyUpgrade", "PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate", "OpenStats", "SellBrainrots" 
+	"BuyUpgrade", "PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate", "OpenStats", "SellBrainrots",
+	"WorldEvent", "MusicUpdate" 
 }
 
 local CachedRemotes: { [string]: RemoteEvent } = {}
@@ -65,6 +66,19 @@ for _, name in ipairs(REMOTE_LIST) do
 		r.Parent = remotes
 	end
 	CachedRemotes[name] = r :: RemoteEvent
+end
+
+local function paintArenaBoard()
+	local top = LeaderboardSystem.GetTop(10)
+	local lines = { "ARENA CHAMPIONS" }
+	if #top == 0 then
+		table.insert(lines, "Win battles to claim a name.")
+	else
+		for i, row in ipairs(top) do
+			table.insert(lines, string.format("%d.  %s   %d wins", i, tostring(row.Name), tonumber(row.Wins) or 0))
+		end
+	end
+	PlotSystem.SetArenaBoardText(table.concat(lines, "\n"))
 end
 
 local JanitorConnections: { [string]: RBXScriptConnection } = {}
@@ -640,18 +654,7 @@ if submitMovesRemote then
 		if result.winner == "player" then
 			LeaderboardSystem.RecordWin(player)
 			SoundSystem.PlayForPlayer(player, "BattleWin")
-			task.defer(function()
-				local top = LeaderboardSystem.GetTop(10)
-				local lines = { "ARENA CHAMPIONS" }
-				if #top == 0 then
-					table.insert(lines, "Win a battle to take the throne.")
-				else
-					for i, entry in ipairs(top) do
-						table.insert(lines, tostring(i) .. ". " .. tostring(entry.Name) .. "  —  " .. tostring(entry.Wins))
-					end
-				end
-				PlotSystem.SetArenaBoardText(table.concat(lines, "\n"))
-			end)
+			task.defer(paintArenaBoard)
 
 			local newAch = AchievementSystem.RecordProgress(player, "battles_won", 1)
 			for _, achId in ipairs(newAch) do
@@ -739,18 +742,11 @@ if PlotSystem.ArenaPrompt then
 		end
 	end)
 end
+task.defer(paintArenaBoard)
+
 if PlotSystem.ArenaBoardPrompt then
 	PlotSystem.ArenaBoardPrompt.Triggered:Connect(function(player: Player)
-		local top = LeaderboardSystem.GetTop(10)
-		local lines = { "ARENA CHAMPIONS" }
-		if #top == 0 then
-			table.insert(lines, "Win a battle to take the throne.")
-		else
-			for i, entry in ipairs(top) do
-				table.insert(lines, tostring(i) .. ". " .. tostring(entry.Name) .. "  —  " .. tostring(entry.Wins))
-			end
-		end
-		PlotSystem.SetArenaBoardText(table.concat(lines, "\n"))
+		paintArenaBoard()
 		local hintEvent = CachedRemotes["ShowHint"]
 		if hintEvent then
 			hintEvent:FireClient(player, "Champions are listed on this board.")
@@ -758,61 +754,43 @@ if PlotSystem.ArenaBoardPrompt then
 	end)
 end
 
--- // Quest board setup module ----------------------------------------------------
-local board = Instance.new("Part")
-board.Name = "QuestBoard"
-board.Size = Vector3.new(6, 5, 0.6)
-board.Anchored = true
-board.Color = Color3.fromRGB(150, 110, 70)
-board.Material = Enum.Material.Wood
-
-do
-	local targetY = 16
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Include
-	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
-
-	-- Robust initialization step: Fallback structural looping checks for terrain data sync
-	for attempt = 1, 3 do
-		local castResult = workspace:Raycast(Vector3.new(127, 500, 60), Vector3.new(0, -1000, 0), raycastParams)
-		if castResult then
-			targetY = castResult.Position.Y + 3.5
-			break
-		end
-		if not game:IsLoaded() then task.wait(0.1) end
-	end
-	board.Position = Vector3.new(127, targetY, 60)
+-- // Plaza kiosks: quests + expeditions ------------------------------------------
+local plazaFolder = workspace:FindFirstChild("Plaza") or workspace
+local oldQuest = workspace:FindFirstChild("QuestBoard")
+if oldQuest then
+	oldQuest:Destroy()
 end
-board.Parent = workspace
-print("[GameServer] Quest board placed at " .. tostring(board.Position))
+local oldExp = workspace:FindFirstChild("ExpeditionBoard")
+if oldExp then
+	oldExp:Destroy()
+end
+local oldExpBtn = workspace:FindFirstChild("ExpeditionButton")
+if oldExpBtn then
+	oldExpBtn:Destroy()
+end
 
-local boardGui = Instance.new("SurfaceGui")
-boardGui.Face = Enum.NormalId.Front
-boardGui.Parent = board
+local function attachKioskPrompt(model: Model, action: string, object: string, parentName: string?): ProximityPrompt
+	local attach = (parentName and model:FindFirstChild(parentName, true)) or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = action
+	prompt.ObjectText = object
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 18
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = attach
+	return prompt
+end
 
-local boardLabel = Instance.new("TextLabel")
-boardLabel.Size = UDim2.new(1, 0, 1, 0)
-boardLabel.BackgroundTransparency = 1
-boardLabel.Text = "QUEST BOARD\nTouch the glowing orbs!"
-boardLabel.TextScaled = true
-boardLabel.Font = Enum.Font.GothamBold
-boardLabel.TextColor3 = Color3.new(1, 1, 1)
-boardLabel.TextStrokeTransparency = 0.6
-boardLabel.Parent = boardGui
-
-local prompt = Instance.new("ProximityPrompt")
-prompt.ActionText = "Read Board"
-prompt.ObjectText = "Quest Board"
-prompt.HoldDuration = 0
-prompt.MaxActivationDistance = 12
-prompt.RequiresLineOfSight = false
-prompt.Parent = board
-
+local questKiosk = VisualEffects.BuildQuestKiosk()
+questKiosk.Parent = plazaFolder
+local questSpot = PlotSystem.PlazaSpots.Quest
+PlotSystem.SitOnTerrain(questKiosk, questSpot.X, questSpot.Y)
+print("[GameServer] Quest kiosk at " .. tostring(questKiosk:GetPivot().Position))
+local prompt = attachKioskPrompt(questKiosk, "Read Quests", "Quest Board", "Board")
 prompt.Triggered:Connect(function(player: Player)
 	local quest, questId = QuestSystem.GetActiveQuest(player)
 	local hintEvent = CachedRemotes["ShowHint"]
 	if not hintEvent then return end
-
 	if quest then
 		hintEvent:FireClient(player, tostring(quest.Name) .. ": " .. tostring(quest.Description))
 	else
@@ -934,62 +912,13 @@ do
 	end)
 end
 
--- // Expedition board system module ----------------------------------------------
-local expBoard = Instance.new("Part")
-expBoard.Name = "ExpeditionBoard"
-expBoard.Size = Vector3.new(6, 5, 0.6)
-expBoard.Anchored = true
-expBoard.Color = Color3.fromRGB(60, 120, 60)
-expBoard.Material = Enum.Material.Wood
-
-local expButton = Instance.new("Part")
-expButton.Name = "ExpeditionButton"
-expButton.Size = Vector3.new(1.8, 1.8, 0.6)
-expButton.Anchored = true
-expButton.Material = Enum.Material.Neon
-expButton.Color = Color3.fromRGB(80, 220, 90)
-
-do
-	local targetY = 16
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Include
-	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
-
-	for attempt = 1, 3 do
-		local castResult = workspace:Raycast(Vector3.new(135, 500, 60), Vector3.new(0, -1000, 0), raycastParams)
-		if castResult then
-			targetY = castResult.Position.Y + 3.5
-			break
-		end
-		if not game:IsLoaded() then task.wait(0.1) end
-	end
-	expBoard.Position = Vector3.new(135, targetY, 60)
-	expButton.Position = expBoard.Position + Vector3.new(0, -1.6, 1.1)
-end
-expBoard.Parent = workspace
-expButton.Parent = workspace
-
-local expGui = Instance.new("SurfaceGui")
-expGui.Face = Enum.NormalId.Front
-expGui.Parent = expBoard
-
-local expLabel = Instance.new("TextLabel")
-expLabel.Size = UDim2.new(1, 0, 1, 0)
-expLabel.BackgroundTransparency = 1
-expLabel.Text = "EXPEDITION BOARD\nPress the green button!"
-expLabel.TextScaled = true
-expLabel.Font = Enum.Font.GothamBold
-expLabel.TextColor3 = Color3.new(1, 1, 1)
-expLabel.TextStrokeTransparency = 0.6
-expLabel.Parent = expGui
-
-local expPrompt = Instance.new("ProximityPrompt")
-expPrompt.ActionText = "Send Expeditions"
-expPrompt.ObjectText = "Expedition Board"
-expPrompt.HoldDuration = 0
-expPrompt.MaxActivationDistance = 14
-expPrompt.RequiresLineOfSight = false
-expPrompt.Parent = expButton
+-- // Expedition kiosk ------------------------------------------------------------
+local expKiosk = VisualEffects.BuildExpeditionKiosk()
+expKiosk.Parent = plazaFolder
+local expSpot = PlotSystem.PlazaSpots.Expedition
+PlotSystem.SitOnTerrain(expKiosk, expSpot.X, expSpot.Y)
+print("[GameServer] Expedition kiosk at " .. tostring(expKiosk:GetPivot().Position))
+local expPrompt = attachKioskPrompt(expKiosk, "Send Expeditions", "Expedition Board", "ExpeditionButton")
 
 pushExpeditionState = function(player: Player)
 	local status = ExpeditionSystem.GetStatus(player)
@@ -1017,7 +946,8 @@ end
 expPrompt.Triggered:Connect(openExpeditionBoard)
 local expClick = Instance.new("ClickDetector")
 expClick.MaxActivationDistance = 16
-expClick.Parent = expButton
+local expClickPart = expKiosk:FindFirstChild("ExpeditionButton", true) or expKiosk.PrimaryPart
+expClick.Parent = expClickPart
 expClick.MouseClick:Connect(openExpeditionBoard)
 
 -- // Zone portals creation configuration maps ------------------------------------
@@ -2072,7 +2002,11 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 		local hintEvent = CachedRemotes["ShowHint"]
 		if hintEvent then
-			hintEvent:FireClient(player, "🌟 LEGENDARY BRAINROT SPOTTED! Follow the golden beam! (3 min)")
+			if wander.EventRush then
+				hintEvent:FireClient(player, "⚡ RUSH LEGENDARY — it's extremely fast! Follow the beam!")
+			else
+				hintEvent:FireClient(player, "🌟 LEGENDARY BRAINROT SPOTTED! Follow the golden beam! (3 min)")
+			end
 		end
 	end
 
@@ -2143,7 +2077,11 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 			if dir.Magnitude > 0.5 then
 				dir = dir.Unit
-				local speed = if fleeing then math.min(cfg.WalkSpeed * 1.5, 13) elseif tiredTime > 0 then cfg.WalkSpeed * 0.5 else cfg.WalkSpeed
+				local rush = wander.EventRush == true
+				local speed = if fleeing then cfg.WalkSpeed * (if rush then 1.8 else 1.5) elseif tiredTime > 0 then cfg.WalkSpeed * 0.5 else cfg.WalkSpeed
+				if not rush then
+					speed = math.min(speed, 13)
+				end
 				currentPos += dir * speed * 0.2
 				-- Re-snap to the ground every step so slopes don't swallow the creature
 				local gy = wildGroundY(currentPos.X, currentPos.Z, model)
@@ -2225,6 +2163,18 @@ task.spawn(function()
 									end
 								end
 							end
+						end
+					end
+				end
+
+				if WanderSystem.EventActive then
+					for _ = 1, 2 do
+						if not player.Parent then
+							break
+						end
+						local rushId = WanderSystem.SpawnWild(player, PlotSystem, 1, "Legendary", true)
+						if rushId then
+							spawnWildVisual(player, rushId)
 						end
 					end
 				end
@@ -2358,9 +2308,110 @@ end
 task.spawn(function()
 	while true do
 		local weatherInfo = WeatherSystem.GetInfo()
-		if weatherInfo and weatherInfo.CurrentWeather then
-			applyWeatherVisuals(weatherInfo.CurrentWeather)
+		if weatherInfo and not WanderSystem.EventActive then
+			applyWeatherVisuals(weatherInfo.Current or weatherInfo.CurrentWeather or "Clear")
 		end
-		task.wait(60) -- Checks and syncs weather state every 60 seconds cleanly
+		task.wait(60)
+	end
+end)
+
+local function applyEventScenery(active: boolean)
+	local lighting = game:GetService("Lighting")
+	local existing = workspace:FindFirstChild("LegendaryRushFX")
+	if existing then
+		existing:Destroy()
+	end
+	if active then
+		lighting.ClockTime = 21.2
+		lighting.Brightness = 1.15
+		lighting.Ambient = Color3.fromRGB(70, 30, 90)
+		lighting.OutdoorAmbient = Color3.fromRGB(90, 40, 30)
+		lighting.ColorShift_Top = Color3.fromRGB(255, 140, 40)
+		lighting.ColorShift_Bottom = Color3.fromRGB(80, 20, 120)
+		lighting.FogColor = Color3.fromRGB(80, 20, 50)
+		lighting.FogStart = 40
+		lighting.FogEnd = 420
+		local atmo = lighting:FindFirstChildOfClass("Atmosphere")
+		if not atmo then
+			atmo = Instance.new("Atmosphere")
+			atmo.Parent = lighting
+		end
+		atmo.Density = 0.48
+		atmo.Color = Color3.fromRGB(255, 120, 40)
+		atmo.Decay = Color3.fromRGB(90, 20, 80)
+		atmo.Haze = 4
+		atmo.Glare = 0.6
+		local cc = lighting:FindFirstChildOfClass("ColorCorrectionEffect")
+		if not cc then
+			cc = Instance.new("ColorCorrectionEffect")
+			cc.Parent = lighting
+		end
+		cc.Saturation = 0.45
+		cc.Contrast = 0.18
+		cc.TintColor = Color3.fromRGB(255, 170, 90)
+		local bloom = lighting:FindFirstChildOfClass("BloomEffect")
+		if not bloom then
+			bloom = Instance.new("BloomEffect")
+			bloom.Parent = lighting
+		end
+		bloom.Intensity = 1.1
+		bloom.Threshold = 0.6
+		local fx = VisualEffects.BuildLegendaryRushFX()
+		fx.Parent = workspace
+	else
+		pcall(function()
+			WorldDesign.ApplyLighting()
+		end)
+		applyWeatherVisuals(WeatherSystem.GetInfo().Current or "Clear")
+	end
+end
+
+local function broadcastEvent(active: boolean, endsAt: number?)
+	local payload = {
+		Active = active,
+		Name = "Legendary Rush",
+		EndsAt = endsAt or 0,
+		MusicMode = if active then "Event" else "Normal",
+	}
+	local worldEvent = CachedRemotes["WorldEvent"]
+	if worldEvent then
+		worldEvent:FireAllClients(payload)
+	end
+	local musicUpdate = CachedRemotes["MusicUpdate"]
+	if musicUpdate then
+		musicUpdate:FireAllClients(payload.MusicMode)
+	end
+	local hintEvent = CachedRemotes["ShowHint"]
+	if hintEvent then
+		if active then
+			hintEvent:FireAllClients("⚡ LEGENDARY RUSH! Super-fast legendaries for 10 minutes!")
+		else
+			hintEvent:FireAllClients("Legendary Rush ended. The world settles down.")
+		end
+	end
+end
+
+task.spawn(function()
+	local function nextHourUnix(): number
+		local t = os.time()
+		return t - (t % 3600) + 3600
+	end
+	local nextAt = os.time() + 480
+	print("[GameServer] First Legendary Rush in 8 min, then hourly. unix " .. tostring(nextAt))
+	while true do
+		if os.time() >= nextAt then
+			WanderSystem.SetEventActive(true)
+			applyEventScenery(true)
+			local endsAt = os.time() + 600
+			broadcastEvent(true, endsAt)
+			print("[GameServer] Legendary Rush started")
+			task.wait(600)
+			WanderSystem.SetEventActive(false)
+			applyEventScenery(false)
+			broadcastEvent(false)
+			print("[GameServer] Legendary Rush ended")
+			nextAt = nextHourUnix()
+		end
+		task.wait(5)
 	end
 end)

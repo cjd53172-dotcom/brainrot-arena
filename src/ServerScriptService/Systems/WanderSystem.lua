@@ -50,6 +50,15 @@ local RARITY_CONFIG = {
 }
 
 WanderSystem.MAX_WANDERERS = 16
+WanderSystem.EventActive = false
+
+function WanderSystem.SetEventActive(active: boolean)
+	WanderSystem.EventActive = active
+end
+
+function WanderSystem.GetMaxWanderers(): number
+	return if WanderSystem.EventActive then 28 else WanderSystem.MAX_WANDERERS
+end
 
 -- Roll a rarity by weight. luckMult boosts Rare+ weights.
 local function rollRarity(luckMult: number?): string
@@ -86,21 +95,29 @@ end
 
 -- Spawn a wild brainrot for a player. Returns wanderId or nil.
 -- luckMult: from Lucky Charm upgrade (boosts Rare+ odds).
-function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: number?): string?
+function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: number?, forceRarity: string?, eventRush: boolean?): string?
 	local list = getWanderers(player)
 	-- Count active
 	local count = 0
 	for _ in pairs(list) do count += 1 end
-	if count >= WanderSystem.MAX_WANDERERS then
+	if count >= WanderSystem.GetMaxWanderers() then
 		return nil
 	end
 
-	local rarity = rollRarity(luckMult)
+	local rarity = forceRarity or rollRarity(luckMult)
 	local brainrotId = BrainrotData.GetRandomIdOfRarity(rarity)
 	if not brainrotId then return nil end
 
 	local wanderId = "wild_" .. tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
-	local cfg = RARITY_CONFIG[rarity]
+	local baseCfg = RARITY_CONFIG[rarity]
+	local cfg = {
+		Weight = baseCfg.Weight,
+		RespawnSecs = baseCfg.RespawnSecs,
+		DespawnSecs = if eventRush then 80 else baseCfg.DespawnSecs,
+		WalkSpeed = if eventRush then 34 else baseCfg.WalkSpeed,
+		FleeRadius = if eventRush then 26 else baseCfg.FleeRadius,
+		Announce = eventRush or baseCfg.Announce,
+	}
 
 	-- Spawn position: ring OUTSIDE the plot cluster (plots span ~±50).
 	-- Ring: 70-130 studs from gameplay center, so wilds roam the world, not the plots.
@@ -118,6 +135,7 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 		SpawnPos = Vector3.new(cx, 20, cz),
 		Model = nil, -- set by GameServer after building visual
 		Announced = false,
+		EventRush = eventRush == true,
 	}
 
 	return wanderId

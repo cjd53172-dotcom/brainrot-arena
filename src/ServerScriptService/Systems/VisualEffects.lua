@@ -1341,6 +1341,88 @@ function VisualEffects.BuildFishingLandmark(): Model
 	return model
 end
 
+function VisualEffects.BuildChampionMonument(): Model
+	local model = Instance.new("Model")
+	model.Name = "ChampionBoard"
+
+	local function add(name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, shape: Enum.PartType?): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Material = mat
+		p.Anchored = true
+		if shape then
+			p.Shape = shape
+		end
+		p.Parent = model
+		return p
+	end
+
+	local stone = Color3.fromRGB(55, 48, 42)
+	local gold = Color3.fromRGB(255, 200, 70)
+	local dark = Color3.fromRGB(28, 22, 16)
+
+	local base = add("Base", Vector3.new(22, 2.2, 10), CFrame.new(0, 1.1, 0), stone, Enum.Material.Slate)
+	add("Step", Vector3.new(18, 0.8, 8), CFrame.new(0, 2.4, 0), Color3.fromRGB(80, 70, 55), Enum.Material.Cobblestone)
+	add("PillarL", Vector3.new(2.4, 28, 2.4), CFrame.new(-16, 16.4, 0), stone, Enum.Material.Marble)
+	add("PillarR", Vector3.new(2.4, 28, 2.4), CFrame.new(16, 16.4, 0), stone, Enum.Material.Marble)
+	add("CapL", Vector3.new(3.4, 1.4, 3.4), CFrame.new(-16, 31, 0), gold, Enum.Material.Metal)
+	add("CapR", Vector3.new(3.4, 1.4, 3.4), CFrame.new(16, 31, 0), gold, Enum.Material.Metal)
+	add("Lintel", Vector3.new(36, 2.2, 3.2), CFrame.new(0, 31.2, 0), stone, Enum.Material.Marble)
+	local title = add("Title", Vector3.new(28, 4.2, 1.2), CFrame.new(0, 34.2, 0), dark, Enum.Material.SmoothPlastic)
+	local screen = add("Board", Vector3.new(32, 22, 1.4), CFrame.new(0, 17, 0), dark, Enum.Material.SmoothPlastic)
+	add("Trim", Vector3.new(33.2, 23.2, 0.6), CFrame.new(0, 17, -0.6), gold, Enum.Material.Metal)
+	add("TrimBack", Vector3.new(33.2, 23.2, 0.6), CFrame.new(0, 17, 0.6), gold, Enum.Material.Metal)
+	local lamp = add("Lamp", Vector3.new(1.6, 1.6, 1.6), CFrame.new(0, 37.2, 0), gold, Enum.Material.Neon, Enum.PartType.Ball)
+	local light = Instance.new("PointLight")
+	light.Color = gold
+	light.Brightness = 3
+	light.Range = 40
+	light.Parent = lamp
+
+	local function face(part: BasePart, side: Enum.NormalId, name: string, text: string, size: number): TextLabel
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = name
+		gui.Face = side
+		gui.PixelsPerStud = 22
+		gui.Parent = part
+		local label = Instance.new("TextLabel")
+		label.Name = "RankText"
+		label.Size = UDim2.new(1, -24, 1, -24)
+		label.Position = UDim2.new(0, 12, 0, 12)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = size
+		label.TextColor3 = Color3.fromRGB(255, 220, 120)
+		label.TextStrokeTransparency = 0.35
+		label.TextWrapped = true
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.Parent = gui
+		return label
+	end
+	face(title, Enum.NormalId.Front, "TitleFront", "ARENA CHAMPIONS", 48)
+	face(title, Enum.NormalId.Back, "TitleBack", "ARENA CHAMPIONS", 48)
+	local front = face(screen, Enum.NormalId.Front, "BoardFront", "Win battles to claim a name.", 32)
+	local back = face(screen, Enum.NormalId.Back, "BoardBack", "Win battles to claim a name.", 32)
+	front:SetAttribute("ChampionText", true)
+	back:SetAttribute("ChampionText", true)
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "BoardPrompt"
+	prompt.ActionText = "Read Champions"
+	prompt.ObjectText = "Leaderboard"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 32
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = screen
+
+	model.PrimaryPart = base
+	return model
+end
+
 function VisualEffects.BuildFusionMachine(): Model
 	local model = Instance.new("Model")
 	model.Name = "FusionLab"
@@ -1439,6 +1521,171 @@ function VisualEffects.BuildFusionMachine(): Model
 
 	model.PrimaryPart = base
 	return model
+end
+
+local function kioskPart(model: Model, name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, shape: Enum.PartType?): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = mat
+	p.Anchored = true
+	if shape then
+		p.Shape = shape
+	end
+	p.Parent = model
+	return p
+end
+
+local function kioskLabel(part: BasePart, face: Enum.NormalId, text: string, color: Color3?)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.Parent = part
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = color or Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.4
+	label.Parent = gui
+end
+
+local function kioskBeacon(parent: BasePart, text: string, color: Color3)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "KioskBeacon"
+	billboard.Size = UDim2.new(0, 380, 0, 72)
+	billboard.StudsOffset = Vector3.new(0, 4, 0)
+	billboard.MaxDistance = 280
+	billboard.AlwaysOnTop = true
+	billboard.Parent = parent
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = color
+	label.TextStrokeTransparency = 0.2
+	label.Parent = billboard
+end
+
+function VisualEffects.BuildQuestKiosk(): Model
+	local model = Instance.new("Model")
+	model.Name = "QuestBoard"
+
+	local wood = Color3.fromRGB(128, 88, 48)
+	local dark = Color3.fromRGB(62, 40, 22)
+	local cork = Color3.fromRGB(196, 148, 86)
+	local paper = Color3.fromRGB(245, 235, 210)
+	local gold = Color3.fromRGB(255, 200, 80)
+
+	local base = kioskPart(model, "Base", Vector3.new(12, 0.7, 8), CFrame.new(0, 0.35, 0), dark, Enum.Material.WoodPlanks)
+	kioskPart(model, "Step", Vector3.new(8, 0.4, 3.2), CFrame.new(0, 0.85, 3.2), Color3.fromRGB(90, 65, 40), Enum.Material.Cobblestone)
+	kioskPart(model, "PostL", Vector3.new(1.1, 11, 1.1), CFrame.new(-4.6, 6.1, -2.2), wood, Enum.Material.Wood)
+	kioskPart(model, "PostR", Vector3.new(1.1, 11, 1.1), CFrame.new(4.6, 6.1, -2.2), wood, Enum.Material.Wood)
+	kioskPart(model, "CapL", Vector3.new(1.6, 0.7, 1.6), CFrame.new(-4.6, 11.8, -2.2), gold, Enum.Material.Metal)
+	kioskPart(model, "CapR", Vector3.new(1.6, 0.7, 1.6), CFrame.new(4.6, 11.8, -2.2), gold, Enum.Material.Metal)
+	kioskPart(model, "Roof", Vector3.new(13, 0.7, 8), CFrame.new(0, 12.2, -0.4) * CFrame.Angles(-0.16, 0, 0), Color3.fromRGB(150, 55, 45), Enum.Material.Wood)
+	kioskPart(model, "RoofTrim", Vector3.new(13.6, 0.25, 8.4), CFrame.new(0, 12.55, -0.4) * CFrame.Angles(-0.16, 0, 0), gold, Enum.Material.Metal)
+	local board = kioskPart(model, "Board", Vector3.new(9.4, 6.4, 0.6), CFrame.new(0, 6.4, -2.2), cork, Enum.Material.Wood)
+	kioskPart(model, "Frame", Vector3.new(10.2, 7.2, 0.35), CFrame.new(0, 6.4, -2.5), wood, Enum.Material.Wood)
+	for i = 0, 3 do
+		kioskPart(model, "Note" .. i, Vector3.new(1.8, 2.3, 0.1), CFrame.new(-3.2 + i * 2.15, 6.8, -1.85), paper, Enum.Material.Cardboard)
+	end
+	kioskPart(model, "Ribbon", Vector3.new(9, 0.35, 0.12), CFrame.new(0, 9.2, -1.85), Color3.fromRGB(200, 50, 50), Enum.Material.Fabric)
+	local lamp = kioskPart(model, "Lantern", Vector3.new(1.2, 1.2, 1.2), CFrame.new(0, 13.4, 0), gold, Enum.Material.Neon, Enum.PartType.Ball)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 190, 80)
+	light.Brightness = 2.2
+	light.Range = 22
+	light.Parent = lamp
+	kioskPart(model, "Chest", Vector3.new(2.8, 1.8, 2), CFrame.new(-3.4, 1.55, 2.2), Color3.fromRGB(150, 110, 40), Enum.Material.Wood)
+	kioskPart(model, "Scroll", Vector3.new(1.6, 0.2, 2.4), CFrame.new(3.2, 1.15, 2), paper, Enum.Material.Cardboard)
+	local sign = kioskPart(model, "Sign", Vector3.new(10, 2.4, 0.5), CFrame.new(0, 11.1, -1.4), Color3.fromRGB(40, 24, 14), Enum.Material.Wood)
+	kioskLabel(sign, Enum.NormalId.Front, "QUEST BOARD")
+	kioskLabel(sign, Enum.NormalId.Back, "QUEST BOARD")
+	kioskLabel(board, Enum.NormalId.Front, "DAILY TASKS\nTOUCH THE ORBS", Color3.fromRGB(70, 42, 18))
+	kioskBeacon(sign, "QUESTS", Color3.fromRGB(255, 220, 120))
+
+	model.PrimaryPart = base
+	return model
+end
+
+function VisualEffects.BuildExpeditionKiosk(): Model
+	local model = Instance.new("Model")
+	model.Name = "ExpeditionBoard"
+
+	local wood = Color3.fromRGB(108, 74, 40)
+	local canvas = Color3.fromRGB(28, 130, 78)
+	local map = Color3.fromRGB(214, 188, 128)
+	local gold = Color3.fromRGB(255, 210, 80)
+
+	local base = kioskPart(model, "Base", Vector3.new(12, 0.7, 9), CFrame.new(0, 0.35, 0), Color3.fromRGB(70, 55, 35), Enum.Material.WoodPlanks)
+	kioskPart(model, "Rug", Vector3.new(7, 0.12, 5), CFrame.new(0, 0.76, 2), Color3.fromRGB(40, 90, 55), Enum.Material.Fabric)
+	kioskPart(model, "Desk", Vector3.new(8, 1.6, 3.6), CFrame.new(0, 1.5, 1.6), wood, Enum.Material.Wood)
+	kioskPart(model, "Map", Vector3.new(5.4, 0.1, 2.8), CFrame.new(0, 2.35, 1.5), map, Enum.Material.Cardboard)
+	kioskPart(model, "PoleL", Vector3.new(0.7, 11, 0.7), CFrame.new(-5, 5.9, -2.6), wood, Enum.Material.Wood)
+	kioskPart(model, "PoleR", Vector3.new(0.7, 11, 0.7), CFrame.new(5, 5.9, -2.6), wood, Enum.Material.Wood)
+	kioskPart(model, "PoleF", Vector3.new(0.55, 9, 0.55), CFrame.new(0, 5, 3.4), wood, Enum.Material.Wood)
+	kioskPart(model, "Canopy", Vector3.new(12.4, 0.35, 9), CFrame.new(0, 11.4, 0.2) * CFrame.Angles(-0.1, 0, 0), canvas, Enum.Material.Fabric)
+	kioskPart(model, "CanopyTrim", Vector3.new(12.8, 0.2, 9.4), CFrame.new(0, 11.65, 0.2) * CFrame.Angles(-0.1, 0, 0), gold, Enum.Material.Metal)
+	kioskPart(model, "Pack", Vector3.new(2.2, 2.6, 1.7), CFrame.new(-3.6, 2.5, -1.4), Color3.fromRGB(90, 70, 40), Enum.Material.Fabric)
+	kioskPart(model, "Crate", Vector3.new(2.4, 1.8, 2.2), CFrame.new(3.8, 1.6, -1.2), Color3.fromRGB(130, 95, 55), Enum.Material.WoodPlanks)
+	kioskPart(model, "Compass", Vector3.new(1.3, 0.28, 1.3), CFrame.new(2.2, 2.5, 1.8), gold, Enum.Material.Metal, Enum.PartType.Cylinder)
+	kioskPart(model, "Scope", Vector3.new(2.1, 0.4, 0.4), CFrame.new(2.8, 2.8, 0.7), Color3.fromRGB(50, 50, 55), Enum.Material.Metal, Enum.PartType.Cylinder)
+	local button = kioskPart(model, "ExpeditionButton", Vector3.new(2, 2, 2), CFrame.new(0, 3.5, 1.7), Color3.fromRGB(70, 255, 110), Enum.Material.Neon, Enum.PartType.Ball)
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(80, 255, 120)
+	glow.Brightness = 3
+	glow.Range = 16
+	glow.Parent = button
+	local board = kioskPart(model, "Board", Vector3.new(8.4, 4.4, 0.5), CFrame.new(0, 6.6, -2.6), Color3.fromRGB(28, 78, 42), Enum.Material.Wood)
+	kioskLabel(board, Enum.NormalId.Front, "EXPEDITIONS\nSEND A TEAM")
+	kioskLabel(board, Enum.NormalId.Back, "EXPEDITIONS")
+	local sign = kioskPart(model, "Sign", Vector3.new(10, 2.2, 0.45), CFrame.new(0, 10.2, -1.6), Color3.fromRGB(18, 48, 28), Enum.Material.Wood)
+	kioskLabel(sign, Enum.NormalId.Front, "ADVENTURE")
+	kioskLabel(sign, Enum.NormalId.Back, "ADVENTURE")
+	kioskBeacon(sign, "EXPEDITIONS", Color3.fromRGB(120, 255, 150))
+
+	model.PrimaryPart = base
+	return model
+end
+
+function VisualEffects.BuildLegendaryRushFX(): Folder
+	local folder = Instance.new("Folder")
+	folder.Name = "LegendaryRushFX"
+	local center = Vector3.new(127, 80, 98)
+	for i = 1, 6 do
+		local angle = (i / 6) * math.pi * 2
+		local ring = Instance.new("Part")
+		ring.Name = "Aurora" .. i
+		ring.Shape = Enum.PartType.Ball
+		ring.Size = Vector3.new(18, 18, 18)
+		ring.CFrame = CFrame.new(center + Vector3.new(math.cos(angle) * 90, 20 + (i % 2) * 12, math.sin(angle) * 90))
+		ring.Anchored = true
+		ring.CanCollide = false
+		ring.Material = Enum.Material.Neon
+		ring.Color = if i % 2 == 0 then Color3.fromRGB(255, 160, 40) else Color3.fromRGB(180, 70, 255)
+		ring.Transparency = 0.25
+		ring.Parent = folder
+		local light = Instance.new("PointLight")
+		light.Color = ring.Color
+		light.Brightness = 4
+		light.Range = 70
+		light.Parent = ring
+		local pe = Instance.new("ParticleEmitter")
+		pe.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		pe.Rate = 12
+		pe.Lifetime = NumberRange.new(1.4, 2.4)
+		pe.Speed = NumberRange.new(2, 6)
+		pe.SpreadAngle = Vector2.new(40, 40)
+		pe.Color = ColorSequence.new(ring.Color)
+		pe.Parent = ring
+	end
+	return folder
 end
 
 -- Cast animation: rod appears in hand, bobber flies out with a visible line.

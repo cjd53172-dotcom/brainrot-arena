@@ -40,9 +40,16 @@ SoundSystem.SOUNDS = {
 
 -- Background music tracks (cycles through these)
 SoundSystem.MUSIC_TRACKS = {
-	"rbxassetid://1837879082", -- calm adventure
-	"rbxassetid://1837464237", -- upbeat
-	"rbxassetid://1837425213", -- exploration
+	"rbxassetid://1848354536",
+	"rbxassetid://1837879082",
+	"rbxassetid://1837464237",
+	"rbxassetid://1837425213",
+	"rbxassetid://1837849285",
+}
+SoundSystem.EVENT_MUSIC_TRACKS = {
+	"rbxassetid://1837768517",
+	"rbxassetid://1841647093",
+	"rbxassetid://1838457437",
 }
 
 SoundSystem.MUSIC_VOLUME = 0.3

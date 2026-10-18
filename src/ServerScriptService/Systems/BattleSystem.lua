@@ -265,6 +265,10 @@ local function runUntilPlayer(battle: any): { any }
 			battle.waitingFor = { side = "player", idx = act.idx, name = act.fighter.Name }
 			return events
 		end
+		if battle.pvp then
+			battle.waitingFor = { side = "enemy", idx = act.idx, name = act.fighter.Name }
+			return events
+		end
 		local mi = pickAiMove(act.fighter, battle.pTeam)
 		table.insert(events, resolveAction(battle, act, mi))
 		battle.queuePos += 1
@@ -280,21 +284,7 @@ local function runUntilPlayer(battle: any): { any }
 	return events
 end
 
-function BattleSystem.StartBattle(player: Player, rivalId: string, teamIds: any): (any?, string?)
-	if battles[player.UserId] then
-		return nil, "already"
-	end
-	local rival = BrainrotData.GetRival(rivalId)
-	if not rival then
-		return nil, "badrival"
-	end
-	local idx = BrainrotData.GetRivalIndex(rivalId)
-	if idx > 1 then
-		local prev = BrainrotData.RIVALS[idx - 1]
-		if not PlayerData.HasBeatenRival(player, prev.Id) then
-			return nil, "locked"
-		end
-	end
+local function makePlayerTeam(player: Player, teamIds: any): (any?, string?)
 	if type(teamIds) ~= "table" or #teamIds ~= 3 then
 		return nil, "badteam"
 	end
@@ -320,6 +310,28 @@ function BattleSystem.StartBattle(player: Player, rivalId: string, teamIds: any)
 		local f = buildFighter(def, inst.Variant, inst.InstanceId, 1)
 		f.Shiny = inst.Shiny == true
 		table.insert(pTeam, f)
+	end
+	return pTeam, nil
+end
+
+function BattleSystem.StartBattle(player: Player, rivalId: string, teamIds: any): (any?, string?)
+	if battles[player.UserId] then
+		return nil, "already"
+	end
+	local rival = BrainrotData.GetRival(rivalId)
+	if not rival then
+		return nil, "badrival"
+	end
+	local idx = BrainrotData.GetRivalIndex(rivalId)
+	if idx > 1 then
+		local prev = BrainrotData.RIVALS[idx - 1]
+		if not PlayerData.HasBeatenRival(player, prev.Id) then
+			return nil, "locked"
+		end
+	end
+	local pTeam, teamErr = makePlayerTeam(player, teamIds)
+	if not pTeam then
+		return nil, teamErr
 	end
 	local eTeam = {}
 	local powerScale = rival.PowerScale or 1
@@ -351,11 +363,65 @@ function BattleSystem.StartBattle(player: Player, rivalId: string, teamIds: any)
 	return battle, nil
 end
 
+function BattleSystem.StartPvpBattle(host: Player, hostTeam: any, guest: Player, guestTeam: any): (any?, string?)
+	if host == guest then
+		return nil, "self"
+	end
+	if battles[host.UserId] or battles[guest.UserId] then
+		return nil, "already"
+	end
+	local pTeam, errA = makePlayerTeam(host, hostTeam)
+	if not pTeam then
+		return nil, errA
+	end
+	local eTeam, errB = makePlayerTeam(guest, guestTeam)
+	if not eTeam then
+		return nil, errB
+	end
+	local battle = {
+		pvp = true,
+		player = host,
+		guest = guest,
+		rivalId = "pvp",
+		rivalName = guest.DisplayName,
+		gate = 0,
+		pTeam = pTeam,
+		eTeam = eTeam,
+		turn = 1,
+		over = false,
+		winner = nil,
+		waitingFor = nil,
+		openingEvents = {},
+	}
+	battles[host.UserId] = battle
+	battles[guest.UserId] = battle
+	rebuildQueue(battle)
+	battle.openingEvents = runUntilPlayer(battle)
+	return battle, nil
+end
+
 function BattleSystem.GetBattle(player: Player): any
 	return battles[player.UserId]
 end
 
+function BattleSystem.GetViewers(battle: any): { Player }
+	local out = { battle.player }
+	if battle.pvp and battle.guest then
+		table.insert(out, battle.guest)
+	end
+	return out
+end
+
 function BattleSystem.ClearBattle(player: Player)
+	local battle = battles[player.UserId]
+	if battle then
+		if battle.player then
+			battles[battle.player.UserId] = nil
+		end
+		if battle.guest then
+			battles[battle.guest.UserId] = nil
+		end
+	end
 	battles[player.UserId] = nil
 end
 
@@ -365,7 +431,11 @@ function BattleSystem.Forfeit(player: Player): any?
 		return nil
 	end
 	battle.over = true
-	battle.winner = "enemy"
+	if battle.pvp and battle.guest and player == battle.guest then
+		battle.winner = "player"
+	else
+		battle.winner = "enemy"
+	end
 	battle.waitingFor = nil
 	return battle
 end
@@ -386,11 +456,14 @@ function BattleSystem.SubmitSingleMove(player: Player, slot: number, moveIdx: nu
 	if battle.over then
 		return nil, "over"
 	end
+	local isGuest = battle.pvp and battle.guest ~= nil and player == battle.guest
+	local expectSide = if isGuest then "enemy" else "player"
 	local waiting = battle.waitingFor
-	if not waiting or waiting.side ~= "player" or waiting.idx ~= slot then
+	if not waiting or waiting.side ~= expectSide or waiting.idx ~= slot then
 		return nil, "notyourturn"
 	end
-	local fighter = battle.pTeam[slot]
+	local team = if expectSide == "player" then battle.pTeam else battle.eTeam
+	local fighter = team[slot]
 	if not fighter or fighter.HP <= 0 then
 		return nil, "fainted"
 	end
@@ -398,7 +471,7 @@ function BattleSystem.SubmitSingleMove(player: Player, slot: number, moveIdx: nu
 		return nil, "badmoves"
 	end
 	local act = battle.queue[battle.queuePos]
-	if not act or act.side ~= "player" or act.idx ~= slot then
+	if not act or act.side ~= expectSide or act.idx ~= slot then
 		return nil, "notyourturn"
 	end
 	local events = { resolveAction(battle, act, math.floor(moveIdx)) }
@@ -461,16 +534,37 @@ function BattleSystem.GetClientState(player: Player): any?
 	for _, f in ipairs(battle.eTeam) do
 		table.insert(eTeam, pubFighter(f))
 	end
+	local waiting = battle.waitingFor
+	local winner = battle.winner
+	local rivalName = battle.rivalName
+	local swap = battle.pvp and battle.guest ~= nil and player == battle.guest
+	if swap then
+		pTeam, eTeam = eTeam, pTeam
+		if waiting then
+			waiting = {
+				side = if waiting.side == "player" then "enemy" else "player",
+				idx = waiting.idx,
+				name = waiting.name,
+			}
+		end
+		if winner == "player" then
+			winner = "enemy"
+		elseif winner == "enemy" then
+			winner = "player"
+		end
+		rivalName = battle.player and battle.player.DisplayName or "Rival"
+	end
 	return {
 		rivalId = battle.rivalId,
-		rivalName = battle.rivalName,
+		rivalName = rivalName,
 		gate = battle.gate,
+		pvp = battle.pvp == true,
 		pTeam = pTeam,
 		eTeam = eTeam,
 		turn = battle.turn,
 		over = battle.over,
-		winner = battle.winner,
-		waitingFor = battle.waitingFor,
+		winner = winner,
+		waitingFor = waiting,
 	}
 end
 

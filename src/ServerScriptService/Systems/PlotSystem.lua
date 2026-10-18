@@ -455,17 +455,25 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 22-skygold")
+print("[PlotSystem] source 25-board")
 
 function PlotSystem.SetArenaBoardText(text: string)
-	local label = PlotSystem.ArenaBoardLabel
-	if label and label:IsA("TextLabel") then
-		(label :: TextLabel).Text = text
+	local labels = PlotSystem.ArenaBoardLabels
+	if type(labels) == "table" then
+		for _, label in ipairs(labels) do
+			if label and label:IsA("TextLabel") then
+				(label :: TextLabel).Text = text
+			end
+		end
+	end
+	local one = PlotSystem.ArenaBoardLabel
+	if one and one:IsA("TextLabel") then
+		(one :: TextLabel).Text = text
 	end
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v22-skygold")
+	print("[PlotSystem] Loaded placement v25-board")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -940,38 +948,128 @@ function PlotSystem.Setup()
 	local colosseum = VisualEffects.BuildColosseum(arenaCenter, ARENA_SCALE)
 	colosseum.Parent = plaza
 
-	local board = newPart({
+	local labels: { TextLabel } = {}
+	local function addBoardFace(part: BasePart, face: Enum.NormalId, title: boolean): TextLabel
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.PixelsPerStud = 20
+		gui.LightInfluence = 0
+		gui.Parent = part
+		local label = Instance.new("TextLabel")
+		label.Name = if title then "TitleText" else "RankText"
+		label.Size = UDim2.new(1, -20, 1, -20)
+		label.Position = UDim2.new(0, 10, 0, 10)
+		label.BackgroundTransparency = 1
+		label.Text = if title then "ARENA CHAMPIONS" else "Win battles to claim a name."
+		label.Font = Enum.Font.GothamBold
+		label.TextScaled = true
+		label.TextColor3 = Color3.fromRGB(255, 220, 120)
+		label.TextStrokeTransparency = 0.3
+		label.TextWrapped = true
+		label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
+		label.Parent = gui
+		if not title then
+			table.insert(labels, label)
+		end
+		return label
+	end
+
+	-- Outside the colosseum on the same face as the ARENA sign (player approach).
+	local wallR = 30 * s
+	local boardX = ARENA_X
+	local boardZ = ARENA_Z + wallR + 18
+	local boardY = arenaSign.Position.Y + 10
+	local frame = newPart({
 		Name = "ChampionBoard",
-		Size = Vector3.new(16, 11, 1.2),
-		Position = Vector3.new(ARENA_X + ARENA_PAD / 2 - 18, arenaTopY + 7, ARENA_Z + ARENA_PAD / 2 - 18),
+		Size = Vector3.new(48, 32, 2.4),
+		Position = Vector3.new(boardX, boardY, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(40, 32, 22),
+		Color = Color3.fromRGB(28, 22, 16),
 	}, plaza)
-	local boardGui = Instance.new("SurfaceGui")
-	boardGui.Face = Enum.NormalId.Front
-	boardGui.Parent = board
-	local boardLabel = Instance.new("TextLabel")
-	boardLabel.Name = "RankText"
-	boardLabel.Size = UDim2.new(1, -16, 1, -16)
-	boardLabel.Position = UDim2.new(0, 8, 0, 8)
-	boardLabel.BackgroundTransparency = 1
-	boardLabel.Text = "ARENA CHAMPIONS\nWin battles to claim a name."
-	boardLabel.Font = Enum.Font.GothamBold
-	boardLabel.TextSize = 22
-	boardLabel.TextColor3 = Color3.fromRGB(255, 220, 120)
-	boardLabel.TextStrokeTransparency = 0.4
-	boardLabel.TextWrapped = true
-	boardLabel.TextYAlignment = Enum.TextYAlignment.Top
-	boardLabel.Parent = boardGui
-	PlotSystem.ArenaBoardLabel = boardLabel
+	newPart({
+		Name = "ChampionTrim",
+		Size = Vector3.new(50, 34, 1.2),
+		Position = Vector3.new(boardX, boardY, boardZ - 1.5),
+		Anchored = true,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(255, 200, 70),
+	}, plaza)
+	newPart({
+		Name = "ChampionTrimBack",
+		Size = Vector3.new(50, 34, 1.2),
+		Position = Vector3.new(boardX, boardY, boardZ + 1.5),
+		Anchored = true,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(255, 200, 70),
+	}, plaza)
+	local header = newPart({
+		Name = "ChampionHeader",
+		Size = Vector3.new(48, 6, 2.2),
+		Position = Vector3.new(boardX, boardY + 20, boardZ),
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(40, 28, 12),
+	}, plaza)
+	addBoardFace(header, Enum.NormalId.Front, true)
+	addBoardFace(header, Enum.NormalId.Back, true)
+	addBoardFace(frame, Enum.NormalId.Front, false)
+	addBoardFace(frame, Enum.NormalId.Back, false)
+
+	local beacon = newPart({
+		Name = "ChampionBeacon",
+		Size = Vector3.new(12, 4, 12),
+		Position = Vector3.new(boardX, boardY + 28, boardZ),
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 210, 80),
+	}, plaza)
+	local signBeacon = Instance.new("BillboardGui")
+	signBeacon.Name = "LeaderboardBeacon"
+	signBeacon.Size = UDim2.new(0, 420, 0, 80)
+	signBeacon.StudsOffset = Vector3.new(0, 8, 0)
+	signBeacon.MaxDistance = 600
+	signBeacon.AlwaysOnTop = true
+	signBeacon.Parent = arenaSign
+	local signBeaconText = Instance.new("TextLabel")
+	signBeaconText.Size = UDim2.new(1, 0, 1, 0)
+	signBeaconText.BackgroundTransparency = 1
+	signBeaconText.Text = "LEADERBOARD"
+	signBeaconText.Font = Enum.Font.GothamBlack
+	signBeaconText.TextScaled = true
+	signBeaconText.TextColor3 = Color3.fromRGB(255, 230, 120)
+	signBeaconText.TextStrokeTransparency = 0.2
+	signBeaconText.Parent = signBeacon
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "LeaderboardBeacon"
+	billboard.Size = UDim2.new(0, 420, 0, 90)
+	billboard.StudsOffset = Vector3.new(0, 6, 0)
+	billboard.MaxDistance = 500
+	billboard.AlwaysOnTop = true
+	billboard.Parent = beacon
+	local beaconText = Instance.new("TextLabel")
+	beaconText.Size = UDim2.new(1, 0, 1, 0)
+	beaconText.BackgroundTransparency = 1
+	beaconText.Text = "LEADERBOARD"
+	beaconText.Font = Enum.Font.GothamBlack
+	beaconText.TextScaled = true
+	beaconText.TextColor3 = Color3.fromRGB(255, 230, 120)
+	beaconText.TextStrokeTransparency = 0.2
+	beaconText.Parent = billboard
+
+	PlotSystem.ArenaBoardLabels = labels
+	PlotSystem.ArenaBoardLabel = labels[1]
 	local boardPrompt = Instance.new("ProximityPrompt")
+	boardPrompt.Name = "BoardPrompt"
 	boardPrompt.ActionText = "Read Champions"
 	boardPrompt.ObjectText = "Leaderboard"
 	boardPrompt.HoldDuration = 0
-	boardPrompt.MaxActivationDistance = 18
-	boardPrompt.Parent = board
+	boardPrompt.MaxActivationDistance = 40
+	boardPrompt.RequiresLineOfSight = false
+	boardPrompt.Parent = frame
 	PlotSystem.ArenaBoardPrompt = boardPrompt
+	print("[PlotSystem] ChampionBoard at", frame.Position)
 
 	local function makeCoin(parent: Instance, pos: Vector3, value: number)
 		local coin = newPart({

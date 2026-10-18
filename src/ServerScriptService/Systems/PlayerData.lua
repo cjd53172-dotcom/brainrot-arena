@@ -215,29 +215,29 @@ PlayerData.UPGRADE_DEFS = {
 		Name = "🏃 Speed",
 		MaxTier = 5,
 		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 24, 32, 40, 48, 56 }, -- WalkSpeed (default is 16; +8 per tier)
-		Desc = "+8 movement speed per tier",
+		Values = { 20, 24, 28, 32, 36 }, -- WalkSpeed (default 16; +4 per tier)
+		Desc = "+4 movement speed per tier",
 	},
 	Jump = {
 		Name = "🦘 Jump",
 		MaxTier = 5,
 		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 70, 90, 110, 130, 150 }, -- JumpPower (default is 50; +20 per tier)
-		Desc = "+20 jump power per tier",
+		Values = { 60, 70, 80, 90, 100 }, -- JumpPower (default 50; +10 per tier)
+		Desc = "+10 jump power per tier",
 	},
 	Reach = {
 		Name = "🧲 Catcher\'s Reach",
 		MaxTier = 3,
 		Costs = { 4000, 12000, 32000 },
-		Values = { 14, 22, 30 }, -- wild catch hitbox size (default is 6)
-		Desc = "Much bigger catch radius for wild brainrots",
+		Values = { 10, 14, 18 }, -- wild catch hitbox size (default is 6)
+		Desc = "Bigger catch radius for wild brainrots",
 	},
 	Luck = {
 		Name = "🍀 Lucky Charm",
 		MaxTier = 3,
 		Costs = { 8000, 24000, 60000 },
-		Values = { 1.4, 1.8, 2.2 }, -- rare weight multiplier
-		Desc = "Much better odds for Rare+ wild spawns",
+		Values = { 1.2, 1.4, 1.6 }, -- rare weight multiplier
+		Desc = "Better odds for Rare+ wild spawns",
 	},
 }
 
@@ -652,29 +652,29 @@ PlayerData.UPGRADE_DEFS = {
 		Name = "🏃 Speed",
 		MaxTier = 5,
 		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 24, 32, 40, 48, 56 }, -- WalkSpeed (default is 16; +8 per tier)
-		Desc = "+8 movement speed per tier",
+		Values = { 20, 24, 28, 32, 36 }, -- WalkSpeed (default 16; +4 per tier)
+		Desc = "+4 movement speed per tier",
 	},
 	Jump = {
 		Name = "🦘 Jump",
 		MaxTier = 5,
 		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 70, 90, 110, 130, 150 }, -- JumpPower (default is 50; +20 per tier)
-		Desc = "+20 jump power per tier",
+		Values = { 60, 70, 80, 90, 100 }, -- JumpPower (default 50; +10 per tier)
+		Desc = "+10 jump power per tier",
 	},
 	Reach = {
 		Name = "🧲 Catcher\'s Reach",
 		MaxTier = 3,
 		Costs = { 4000, 12000, 32000 },
-		Values = { 14, 22, 30 }, -- wild catch hitbox size (default is 6)
-		Desc = "Much bigger catch radius for wild brainrots",
+		Values = { 10, 14, 18 }, -- wild catch hitbox size (default is 6)
+		Desc = "Bigger catch radius for wild brainrots",
 	},
 	Luck = {
 		Name = "🍀 Lucky Charm",
 		MaxTier = 3,
 		Costs = { 8000, 24000, 60000 },
-		Values = { 1.4, 1.8, 2.2 }, -- rare weight multiplier
-		Desc = "Much better odds for Rare+ wild spawns",
+		Values = { 1.2, 1.4, 1.6 }, -- rare weight multiplier
+		Desc = "Better odds for Rare+ wild spawns",
 	},
 }
 
@@ -845,29 +845,29 @@ PlayerData.UPGRADE_DEFS = {
 		Name = "🏃 Speed",
 		MaxTier = 5,
 		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 24, 32, 40, 48, 56 }, -- WalkSpeed (default is 16; +8 per tier)
-		Desc = "+8 movement speed per tier",
+		Values = { 20, 24, 28, 32, 36 }, -- WalkSpeed (default 16; +4 per tier)
+		Desc = "+4 movement speed per tier",
 	},
 	Jump = {
 		Name = "🦘 Jump",
 		MaxTier = 5,
 		Costs = { 2000, 6000, 16000, 40000, 100000 },
-		Values = { 70, 90, 110, 130, 150 }, -- JumpPower (default is 50; +20 per tier)
-		Desc = "+20 jump power per tier",
+		Values = { 60, 70, 80, 90, 100 }, -- JumpPower (default 50; +10 per tier)
+		Desc = "+10 jump power per tier",
 	},
 	Reach = {
 		Name = "🧲 Catcher\'s Reach",
 		MaxTier = 3,
 		Costs = { 4000, 12000, 32000 },
-		Values = { 14, 22, 30 }, -- wild catch hitbox size (default is 6)
-		Desc = "Much bigger catch radius for wild brainrots",
+		Values = { 10, 14, 18 }, -- wild catch hitbox size (default is 6)
+		Desc = "Bigger catch radius for wild brainrots",
 	},
 	Luck = {
 		Name = "🍀 Lucky Charm",
 		MaxTier = 3,
 		Costs = { 8000, 24000, 60000 },
-		Values = { 1.4, 1.8, 2.2 }, -- rare weight multiplier
-		Desc = "Much better odds for Rare+ wild spawns",
+		Values = { 1.2, 1.4, 1.6 }, -- rare weight multiplier
+		Desc = "Better odds for Rare+ wild spawns",
 	},
 }
 

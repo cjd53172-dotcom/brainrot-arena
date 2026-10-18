@@ -2765,8 +2765,8 @@ end
 
 do
 	local STAT_DEFS = {
-		Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 2000, 6000, 16000, 40000, 100000 }, Desc = "+8 movement speed per tier" },
-		Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 2000, 6000, 16000, 40000, 100000 }, Desc = "+20 jump power per tier" },
+		Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 2000, 6000, 16000, 40000, 100000 }, Desc = "+4 movement speed per tier" },
+		Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 2000, 6000, 16000, 40000, 100000 }, Desc = "+10 jump power per tier" },
 		Reach = { Name = "🧲 Catcher's Reach", MaxTier = 3, Costs = { 4000, 12000, 32000 }, Desc = "Much bigger catch radius for wild brainrots" },
 		Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 8000, 24000, 60000 }, Desc = "Much better odds for Rare+ wild spawns" },
 	}
@@ -3046,27 +3046,103 @@ do
 end
 
 do
-	local musicTracks = {
+	local normalTracks = {
+		"rbxassetid://1848354536",
 		"rbxassetid://1837879082",
 		"rbxassetid://1837464237",
+		"rbxassetid://1837425213",
+		"rbxassetid://1837849285",
 	}
+	local eventTracks = {
+		"rbxassetid://1837768517",
+		"rbxassetid://1841647093",
+		"rbxassetid://1838457437",
+	}
+	local playlist = normalTracks
 	local currentTrack = 1
 	local musicSound = Instance.new("Sound")
 	musicSound.Name = "BackgroundMusic"
-	musicSound.SoundId = musicTracks[1]
-	musicSound.Volume = 0.25
+	musicSound.SoundId = playlist[1]
+	musicSound.Volume = 0.28
 	musicSound.Looped = false
 	musicSound.Parent = gui
 
 	local function playNextTrack()
-		currentTrack = currentTrack % #musicTracks + 1
-		musicSound.SoundId = musicTracks[currentTrack]
-		musicSound:Play()
+		if #playlist == 0 then
+			return
+		end
+		currentTrack = currentTrack % #playlist + 1
+		musicSound.SoundId = playlist[currentTrack]
+		musicSound.Volume = if playlist == eventTracks then 0.42 else 0.28
+		pcall(function()
+			musicSound:Play()
+		end)
+	end
+
+	local function setPlaylist(tracks: { string }, startNow: boolean)
+		playlist = tracks
+		currentTrack = 0
+		if startNow then
+			playNextTrack()
+		end
 	end
 
 	musicSound.Ended:Connect(playNextTrack)
-	task.delay(2, function()
-		pcall(function() musicSound:Play() end)
+	task.spawn(function()
+		task.wait(2)
+		playNextTrack()
+		while true do
+			task.wait(2)
+			if not musicSound.IsPlaying then
+				playNextTrack()
+			end
+		end
+	end)
+
+	task.spawn(function()
+		local musicRemote = remotes:WaitForChild("MusicUpdate", 20)
+		if musicRemote then
+			musicRemote.OnClientEvent:Connect(function(mode: any)
+				if tostring(mode) == "Event" then
+					setPlaylist(eventTracks, true)
+				else
+					setPlaylist(normalTracks, true)
+				end
+			end)
+		end
+	end)
+
+	task.spawn(function()
+		local worldEvent = remotes:WaitForChild("WorldEvent", 20)
+		if not worldEvent then
+			return
+		end
+		local banner = Instance.new("TextLabel")
+		banner.Name = "WorldEventBanner"
+		banner.Size = UDim2.new(0, 520, 0, 48)
+		banner.Position = UDim2.new(0.5, -260, 0, 108)
+		banner.BackgroundColor3 = Color3.fromRGB(80, 20, 40)
+		banner.BackgroundTransparency = 0.15
+		banner.Visible = false
+		banner.Font = Enum.Font.GothamBlack
+		banner.TextSize = 20
+		banner.TextColor3 = Color3.fromRGB(255, 210, 90)
+		banner.Text = "LEGENDARY RUSH"
+		banner.Parent = gui
+		corner(banner, 12)
+		worldEvent.OnClientEvent:Connect(function(info: any)
+			if type(info) ~= "table" then
+				return
+			end
+			if info.Active then
+				banner.Visible = true
+				banner.Text = "⚡ LEGENDARY RUSH — super-fast legendaries"
+				setPlaylist(eventTracks, true)
+			else
+				banner.Visible = false
+				setPlaylist(normalTracks, true)
+			end
+		end)
 	end)
 end
 
