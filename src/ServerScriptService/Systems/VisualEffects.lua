@@ -2380,23 +2380,23 @@ function VisualEffects.SetupRobuxShop()
 		elseif itemId == "airplane" then
 			root = addPart(model, "CabinCore", Vector3.new(1, 1, 1), origin, Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
 			root.Transparency = 1
-			-- Open cockpit: hull wraps the legs, torso and head sit out the top. Nose is +X.
-			addPart(model, "Floor", Vector3.new(8.5, 0.28, 3.4), origin * CFrame.new(0.4, -2.05, 0), Color3.fromRGB(70, 80, 95), Enum.Material.Metal)
-			addPart(model, "Seat", Vector3.new(1.4, 0.9, 1.5), origin * CFrame.new(-0.2, -1.45, 0), Color3.fromRGB(50, 55, 70), Enum.Material.Fabric)
-			addPart(model, "WallL", Vector3.new(8.2, 1.7, 0.18), origin * CFrame.new(0.3, -1.15, -1.7), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
-			addPart(model, "WallR", Vector3.new(8.2, 1.7, 0.18), origin * CFrame.new(0.3, -1.15, 1.7), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
-			addPart(model, "Dash", Vector3.new(0.35, 1.1, 3.2), origin * CFrame.new(2.6, -0.85, 0), Color3.fromRGB(80, 88, 100), Enum.Material.Metal)
-			local wind = addPart(model, "Windshield", Vector3.new(0.12, 1.4, 2.8), origin * CFrame.new(2.85, 0.15, 0), Color3.fromRGB(160, 220, 255), Enum.Material.Glass)
+			-- Open cockpit along character look (-Z): hull around the legs, torso and head out the top.
+			addPart(model, "Floor", Vector3.new(3.4, 0.28, 8.5), origin * CFrame.new(0, -2.05, -0.4), Color3.fromRGB(70, 80, 95), Enum.Material.Metal)
+			addPart(model, "Seat", Vector3.new(1.5, 0.9, 1.4), origin * CFrame.new(0, -1.45, 0.2), Color3.fromRGB(50, 55, 70), Enum.Material.Fabric)
+			addPart(model, "WallL", Vector3.new(0.18, 1.7, 8.2), origin * CFrame.new(-1.7, -1.15, -0.3), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
+			addPart(model, "WallR", Vector3.new(0.18, 1.7, 8.2), origin * CFrame.new(1.7, -1.15, -0.3), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
+			addPart(model, "Dash", Vector3.new(3.2, 1.1, 0.35), origin * CFrame.new(0, -0.85, -2.6), Color3.fromRGB(80, 88, 100), Enum.Material.Metal)
+			local wind = addPart(model, "Windshield", Vector3.new(2.8, 1.4, 0.12), origin * CFrame.new(0, 0.15, -2.85), Color3.fromRGB(160, 220, 255), Enum.Material.Glass)
 			wind.Transparency = 0.4
-			addPart(model, "RearDeck", Vector3.new(3.2, 0.2, 3.2), origin * CFrame.new(-3.4, -0.35, 0), Color3.fromRGB(235, 238, 245), Enum.Material.SmoothPlastic)
-			addPart(model, "Nose", Vector3.new(2.2, 2.2, 2.2), origin * CFrame.new(5.4, -0.7, 0), Color3.fromRGB(230, 70, 70), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
-			addPart(model, "Cowl", Vector3.new(1.8, 1.8, 2.0), origin * CFrame.new(4.2, -0.7, 0), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
-			addPart(model, "TailBoom", Vector3.new(3.4, 1.0, 1.0), origin * CFrame.new(-5.6, -0.5, 0), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
-			addPart(model, "TailFin", Vector3.new(1.5, 2.8, 0.16), origin * CFrame.new(-6.8, 0.9, 0), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
-			addPart(model, "TailWing", Vector3.new(1.2, 0.16, 3.6), origin * CFrame.new(-6.7, -0.35, 0), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
-			addPart(model, "Wing", Vector3.new(2.6, 0.22, 16), origin * CFrame.new(0.2, -1.35, 0), Color3.fromRGB(45, 90, 175), Enum.Material.SmoothPlastic)
-			addPart(model, "Stripe", Vector3.new(8.4, 0.12, 0.35), origin * CFrame.new(0.2, -1.2, 0), Color3.fromRGB(255, 210, 70), Enum.Material.Neon)
-			addPart(model, "Prop", Vector3.new(0.18, 3.4, 0.32), origin * CFrame.new(6.5, -0.7, 0), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
+			addPart(model, "RearDeck", Vector3.new(3.2, 0.2, 3.2), origin * CFrame.new(0, -0.35, 3.4), Color3.fromRGB(235, 238, 245), Enum.Material.SmoothPlastic)
+			addPart(model, "Nose", Vector3.new(2.2, 2.2, 2.2), origin * CFrame.new(0, -0.7, -5.4), Color3.fromRGB(230, 70, 70), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+			addPart(model, "Cowl", Vector3.new(2.0, 1.8, 1.8), origin * CFrame.new(0, -0.7, -4.2), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+			addPart(model, "TailBoom", Vector3.new(1.0, 1.0, 3.4), origin * CFrame.new(0, -0.5, 5.6), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+			addPart(model, "TailFin", Vector3.new(0.16, 2.8, 1.5), origin * CFrame.new(0, 0.9, 6.8), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
+			addPart(model, "TailWing", Vector3.new(3.6, 0.16, 1.2), origin * CFrame.new(0, -0.35, 6.7), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
+			addPart(model, "Wing", Vector3.new(16, 0.22, 2.6), origin * CFrame.new(0, -1.35, -0.2), Color3.fromRGB(45, 90, 175), Enum.Material.SmoothPlastic)
+			addPart(model, "Stripe", Vector3.new(0.35, 0.12, 8.4), origin * CFrame.new(0, -1.2, -0.2), Color3.fromRGB(255, 210, 70), Enum.Material.Neon)
+			addPart(model, "Prop", Vector3.new(0.32, 3.4, 0.18), origin * CFrame.new(0, -0.7, -6.5), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
 		elseif itemId == "sword" then
 			root = addPart(model, "Handle", Vector3.new(0.22, 0.85, 0.22), origin * CFrame.new(0, -0.9, 0), Color3.fromRGB(70, 45, 28), Enum.Material.Wood)
 			addPart(model, "Wrap", Vector3.new(0.24, 0.7, 0.24), origin * CFrame.new(0, -0.85, 0), Color3.fromRGB(120, 40, 40), Enum.Material.Fabric)
@@ -2430,8 +2430,8 @@ function VisualEffects.SetupRobuxShop()
 		elseif itemId == "magic_carpet" then
 			return CFrame.new(0, -3.05, 0)
 		elseif itemId == "airplane" then
-			-- Nose is built on +X; yaw so +X matches character look (-Z). Sit low so the torso sticks out.
-			return CFrame.Angles(0, -math.pi / 2, 0) * CFrame.new(0, -1.35, 0)
+			-- Built with nose on -Z (character look). Sit low so the torso sticks out.
+			return CFrame.new(0, -1.35, 0)
 		end
 		return CFrame.new()
 	end
