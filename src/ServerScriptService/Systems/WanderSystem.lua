@@ -29,30 +29,30 @@ local RARITY_CONFIG = {
 		Weight = 25,
 		RespawnSecs = { 80, 120 },    -- every 1.5-2 min
 		DespawnSecs = 480,            -- 8 min
-		WalkSpeed = 8,
-		FleeRadius = 6,
+		WalkSpeed = 10,
+		FleeRadius = 22,
 	},
 	Epic = {
 		Weight = 12,
 		RespawnSecs = { 300, 500 },   -- every 5-8 min
 		DespawnSecs = 360,            -- 6 min
-		WalkSpeed = 12,
-		FleeRadius = 10,
+		WalkSpeed = 16,
+		FleeRadius = 32,
 	},
 	Legendary = {
 		Weight = 3,
 		RespawnSecs = { 1200, 1800 },
 		DespawnSecs = 180,
-		WalkSpeed = 16,
-		FleeRadius = 15,
+		WalkSpeed = 24,
+		FleeRadius = 48,
 		Announce = true,
 	},
 	Mythic = {
 		Weight = 1.2,
 		RespawnSecs = { 1800, 2800 },
 		DespawnSecs = 150,
-		WalkSpeed = 18,
-		FleeRadius = 16,
+		WalkSpeed = 26,
+		FleeRadius = 52,
 		Announce = true,
 	},
 }
@@ -125,8 +125,8 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 		Weight = baseCfg.Weight,
 		RespawnSecs = baseCfg.RespawnSecs,
 		DespawnSecs = if eventRush then 90 else baseCfg.DespawnSecs,
-		WalkSpeed = if eventRush then (if rarity == "Legendary" then 11 else 8) else baseCfg.WalkSpeed,
-		FleeRadius = if eventRush then (if rarity == "Legendary" then 8 else 6) else baseCfg.FleeRadius,
+		WalkSpeed = if eventRush then (if rarity == "Legendary" then 18 else 12) else baseCfg.WalkSpeed,
+		FleeRadius = if eventRush then (if rarity == "Legendary" then 28 else 16) else baseCfg.FleeRadius,
 		Announce = eventRush or baseCfg.Announce,
 	}
 
@@ -194,8 +194,8 @@ function WanderSystem.ForceSpawn(player: Player, brainrotId: string, spawnPos: V
 			Weight = baseCfg.Weight,
 			RespawnSecs = baseCfg.RespawnSecs,
 			DespawnSecs = despawnSecs or 600,
-			WalkSpeed = 4,
-			FleeRadius = 0,
+			WalkSpeed = baseCfg.WalkSpeed,
+			FleeRadius = baseCfg.FleeRadius,
 			Announce = false,
 		},
 		SpawnTime = os.time(),
@@ -222,15 +222,13 @@ function WanderSystem.Catch(player: Player, wanderId: string): any?
 	local wander = list[wanderId]
 	if not wander then return nil end
 
-	-- Remove from active
-	list[wanderId] = nil
-
 	local shiny = wander.Shiny == true
 	local variant = wander.Variant
 	local inst, err = PlayerData.TryAddBrainrot(player, wander.BrainrotId, shiny, variant)
 
 	local def = BrainrotData.GetBrainrot(wander.BrainrotId)
 	if inst then
+		list[wanderId] = nil
 		-- Daily quest progress (counts as orb-like acquisition)
 		local DailyQuestSystem = require(script.Parent:WaitForChild("DailyQuestSystem"))
 		DailyQuestSystem.RecordProgress(player, "orbs", 1)

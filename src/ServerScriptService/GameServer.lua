@@ -2463,13 +2463,16 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	end
 
 	local reachTier = PlayerData.GetUpgradeTier(player, "Reach")
-	local hitboxSize = 6 * WILD_SIZE_MULT
+	local catchPad = 3
 	if reachTier > 0 then
 		local reachUpgradeDef = PlayerData.UPGRADE_DEFS.Reach
 		if reachUpgradeDef then
-			hitboxSize = (reachUpgradeDef.Values[reachTier] or 6) * WILD_SIZE_MULT
+			catchPad = math.max(3, (reachUpgradeDef.Values[reachTier] or 6) * 0.35)
 		end
 	end
+	-- Visuals are 6× plot size; the catch bubble must stay small or rares
+	-- get scooped before they can flee.
+	local hitboxSize = 10 + catchPad
 
 	local hitbox = Instance.new("Part")
 	hitbox.Name = "WildHitbox"
@@ -2505,7 +2508,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				if failHint then
 					failHint:FireClient(p, "Couldn't catch that one - " .. tostring(result and (result.Reason or result.Error or result.Message) or "try again") .. "!")
 				end
-				task.delay(4, function()
+				task.delay(0.6, function()
 					isCatchRunning = false
 				end)
 				return
@@ -2581,7 +2584,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	catchPrompt.ActionText = "Catch"
 	catchPrompt.ObjectText = BrainrotData.GetDisplayName(def, wander.Variant, wander.Shiny == true)
 	catchPrompt.HoldDuration = 0
-	catchPrompt.MaxActivationDistance = 28
+	catchPrompt.MaxActivationDistance = 14
 	catchPrompt.RequiresLineOfSight = false
 	catchPrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 	catchPrompt.KeyboardKeyCode = Enum.KeyCode.E
@@ -2634,16 +2637,28 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		local fleeing = false
 		local fleeTime = 0
 		local tiredTime = 0
+		local function closeEnough(playerPos: Vector3): boolean
+			local okBB, bbCF, bbSize = pcall(function()
+				return model:GetBoundingBox()
+			end)
+			if okBB and bbCF and bbSize then
+				local localPos = (bbCF :: CFrame):PointToObjectSpace(playerPos)
+				local half = (bbSize :: Vector3) * 0.5 + Vector3.new(catchPad, 6, catchPad)
+				return math.abs(localPos.X) <= half.X
+					and math.abs(localPos.Y) <= half.Y
+					and math.abs(localPos.Z) <= half.Z
+			end
+			local flat = Vector3.new(playerPos.X - currentPos.X, 0, playerPos.Z - currentPos.Z).Magnitude
+			return flat <= 8 + catchPad and math.abs(playerPos.Y - currentPos.Y) < 28
+		end
+
 		while model and model.Parent do
 			local char = player.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			local playerPos = hrp and (hrp :: BasePart).Position
-			if playerPos then
-				-- Distance check as well as Touched: Touched is unreliable against a moving,
-				-- fleeing creature, which is why running right over a Legendary did nothing.
-				local flat = Vector3.new(playerPos.X - currentPos.X, 0, playerPos.Z - currentPos.Z).Magnitude
-				if flat <= hitboxSize / 2 + 5 and math.abs(playerPos.Y - currentPos.Y) < 12 then
-					attemptCatch(player)
+			if playerPos and closeEnough(playerPos) then
+				attemptCatch(player)
+				if not (model and model.Parent) then
 					break
 				end
 			end
@@ -2653,13 +2668,17 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			elseif playerPos and cfg.FleeRadius > 0 then
 				local dist = (currentPos - playerPos).Magnitude
 				if dist < cfg.FleeRadius then
-					local fleeDir = (currentPos - playerPos).Unit
-					local hop = if wander.EventRush then 7 else 20
+					local fleeDir = (currentPos - playerPos)
+					if fleeDir.Magnitude < 0.05 then
+						fleeDir = Vector3.new(1, 0, 0)
+					end
+					fleeDir = fleeDir.Unit
+					local hop = if wander.EventRush then 14 else 36
 					targetPos = currentPos + fleeDir * hop
 					fleeing = true
 					fleeTime += 0.2
-					if fleeTime > (if wander.EventRush then 1.6 else 3.5) then
-						tiredTime = if wander.EventRush then 4 else 3
+					if fleeTime > (if wander.EventRush then 2.2 else 5) then
+						tiredTime = if wander.EventRush then 2.5 else 1.8
 						fleeTime = 0
 						fleeing = false
 					end
@@ -2685,16 +2704,17 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			if dir.Magnitude > 0.5 then
 				dir = dir.Unit
 				local rush = wander.EventRush == true
-				local speed = if fleeing then cfg.WalkSpeed * (if rush then 1.25 else 1.5) elseif tiredTime > 0 then cfg.WalkSpeed * 0.45 else cfg.WalkSpeed
-				speed = math.min(speed, if rush then 14 else 13)
+				local speed = if fleeing then cfg.WalkSpeed * (if rush then 1.35 else 1.7) elseif tiredTime > 0 then cfg.WalkSpeed * 0.55 else cfg.WalkSpeed
+				speed = math.min(speed, if rush then 22 else 38)
 				currentPos += dir * speed * 0.2
-				local home = Vector3.new(127, 0, 98)
-				local fromHome = Vector3.new(currentPos.X - home.X, 0, currentPos.Z - home.Z)
-				if fromHome.Magnitude > 170 then
-					local n = fromHome.Unit * 170
-					currentPos = Vector3.new(home.X + n.X, currentPos.Y, home.Z + n.Z)
-					targetPos = currentPos
-					fleeing = false
+				local fromSpawn = Vector3.new(currentPos.X - spawnPos.X, 0, currentPos.Z - spawnPos.Z)
+				local leash = if fleeing then 160 else 90
+				if fromSpawn.Magnitude > leash then
+					local n = fromSpawn.Unit * leash
+					currentPos = Vector3.new(spawnPos.X + n.X, currentPos.Y, spawnPos.Z + n.Z)
+					if not fleeing then
+						targetPos = currentPos
+					end
 				end
 				-- Re-snap to the ground every step so slopes don't swallow the creature
 				local gy = wildGroundY(currentPos.X, currentPos.Z, model)
