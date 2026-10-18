@@ -431,7 +431,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 19-arena")
+print("[PlotSystem] source 20-fusionground")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local label = PlotSystem.ArenaBoardLabel
@@ -441,7 +441,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v19-arena")
+	print("[PlotSystem] Loaded placement v20-fusionground")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -821,11 +821,12 @@ function PlotSystem.Setup()
 	else
 		lab = VisualEffects.BuildFusionMachine()
 	end
-	local fusionGround = groundY(FUSION_PLACE_X, FUSION_PLACE_Z)
-	flattenPad(FUSION_PLACE_X, FUSION_PLACE_Z, fusionGround, 22)
-	lab:PivotTo(CFrame.new(FUSION_PLACE_X, 0, FUSION_PLACE_Z))
 	lab.Parent = plaza
-	liftModel(lab, fusionGround)
+	lab:PivotTo(CFrame.new(FUSION_PLACE_X, 0, FUSION_PLACE_Z))
+	local fusionGround = groundY(FUSION_PLACE_X, FUSION_PLACE_Z)
+	local boxCF, boxSize = lab:GetBoundingBox()
+	local bottomY = boxCF.Position.Y - boxSize.Y * 0.5
+	lab:TranslateBy(Vector3.new(0, fusionGround - bottomY, 0))
 	local labPromptInst = lab:FindFirstChild("FusionPrompt", true)
 	if not (labPromptInst and labPromptInst:IsA("ProximityPrompt")) then
 		local attach = lab.PrimaryPart or lab:FindFirstChildWhichIsA("BasePart")
