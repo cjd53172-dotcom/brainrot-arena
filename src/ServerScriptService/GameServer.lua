@@ -1843,7 +1843,7 @@ do
 		part.Name = "Cache"
 		part.Size = Vector3.new(2.2, 1.4, 2.2)
 		part.Color = Color3.fromRGB(70, 50, 90)
-		part.Material = Enum.Material.Amethyst
+		part.Material = Enum.Material.Glass
 		part.Anchored = true
 		part.CanCollide = true
 		part.Parent = model
