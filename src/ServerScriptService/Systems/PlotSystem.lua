@@ -2101,30 +2101,63 @@ function PlotSystem.RefreshPlot(player: Player)
 			if inst.Shiny then
 				display:SetAttribute("Shiny", true)
 			end
+			local income = BrainrotData.GetShowcaseGoldPerSec(def.Rarity)
+			display:SetAttribute("ShowcaseOwner", player.UserId)
+			display:SetAttribute("ShowcaseIncome", income)
 			display.Parent = displays
 			placeModelOnTop(display, ped, 0.1)
-			display:SetAttribute("ShowcaseOwner", player.UserId)
-			display:SetAttribute("ShowcaseIncome", BrainrotData.GetShowcaseGoldPerSec(def.Rarity))
-			local hitbox = Instance.new("Part")
-			hitbox.Name = "ShowcaseCollect"
-			hitbox.Size = Vector3.new(6, 8, 6)
-			hitbox.Transparency = 1
-			hitbox.CanCollide = false
-			hitbox.CanTouch = true
-			hitbox.Anchored = true
-			hitbox.Massless = true
-			local pivot = display:GetPivot()
-			hitbox.CFrame = pivot + Vector3.new(0, 2, 0)
-			hitbox.Parent = display
+
+			local host = display.PrimaryPart or display:FindFirstChildWhichIsA("BasePart", true)
+			if host then
+				local tag = Instance.new("BillboardGui")
+				tag.Name = "ShowcaseTag"
+				tag.Size = UDim2.new(0, 90, 0, 46)
+				tag.StudsOffset = Vector3.new(0, 2.6, 0)
+				tag.AlwaysOnTop = true
+				tag.MaxDistance = 70
+				tag.Adornee = host
+				tag.Parent = display
+				local list = Instance.new("UIListLayout")
+				list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+				list.VerticalAlignment = Enum.VerticalAlignment.Center
+				list.Padding = UDim.new(0, 0)
+				list.Parent = tag
+				local function line(text: string, size: number, color: Color3, order: number)
+					local lab = Instance.new("TextLabel")
+					lab.Size = UDim2.new(1, 0, 0, size + 2)
+					lab.BackgroundTransparency = 1
+					lab.Text = text
+					lab.Font = Enum.Font.GothamBlack
+					lab.TextSize = size
+					lab.TextColor3 = color
+					lab.TextStrokeTransparency = 0
+					lab.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+					lab.LayoutOrder = order
+					lab.Parent = tag
+				end
+				line(BrainrotData.GetDisplayName(def, inst.Variant, inst.Shiny == true), 11, Color3.fromRGB(255, 255, 255), 1)
+				local rCol = BrainrotData.RARITY_COLORS[def.Rarity] or Color3.fromRGB(220, 220, 220)
+				line(string.upper(def.Rarity), 8, rCol, 2)
+				line(string.format("+%.2g/s", income), 10, Color3.fromRGB(255, 220, 70), 3)
+			end
+
+			local pad = Instance.new("Part")
+			pad.Name = "ShowcaseCollect"
+			pad.Size = Vector3.new(8, 3.2, 8)
+			pad.Transparency = 1
+			pad.CanCollide = false
+			pad.CanTouch = true
+			pad.Anchored = true
+			pad.Massless = true
+			pad.CFrame = CFrame.new((ped :: BasePart).Position + Vector3.new(0, (ped :: BasePart).Size.Y / 2 + 1.2, 0))
+			pad.Parent = displays
 			local lastCollect = 0
-			hitbox.Touched:Connect(function(hit: BasePart)
-				local now = os.clock()
-				if now - lastCollect < 0.8 then
+			local function tryCollect(who: Player)
+				if who.UserId ~= player.UserId then
 					return
 				end
-				local char = hit and hit.Parent
-				local who = char and game:GetService("Players"):GetPlayerFromCharacter(char)
-				if not who or who.UserId ~= player.UserId then
+				local now = os.clock()
+				if now - lastCollect < 0.6 then
 					return
 				end
 				lastCollect = now
@@ -2135,14 +2168,29 @@ function PlotSystem.RefreshPlot(player: Player)
 						cb(player, got)
 					end
 				end
+			end
+			pad.Touched:Connect(function(hit: BasePart)
+				local char = hit and hit.Parent
+				local who = char and game:GetService("Players"):GetPlayerFromCharacter(char)
+				if who then
+					tryCollect(who)
+				end
 			end)
+			local prompt = Instance.new("ProximityPrompt")
+			prompt.ActionText = "Collect"
+			prompt.ObjectText = "Showcase gold"
+			prompt.HoldDuration = 0
+			prompt.MaxActivationDistance = 9
+			prompt.RequiresLineOfSight = false
+			prompt.KeyboardKeyCode = Enum.KeyCode.E
+			prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+			prompt.Parent = pad
+			prompt.Triggered:Connect(tryCollect)
+
 			local pedRef = ped
 			task.defer(function()
 				if display.Parent and pedRef.Parent then
 					placeModelOnTop(display, pedRef, 0.1)
-					if hitbox.Parent then
-						hitbox.CFrame = display:GetPivot() + Vector3.new(0, 2, 0)
-					end
 				end
 			end)
 		end

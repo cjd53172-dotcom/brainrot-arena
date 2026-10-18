@@ -244,6 +244,9 @@ end
 local taggedNametags: { [Model]: boolean } = {}
 
 local function tryBrainrotNametag(model: Model)
+	if model:FindFirstChild("ShowcaseTag") or model:GetAttribute("ShowcaseOwner") ~= nil then
+		return
+	end
 	if taggedNametags[model] and model:FindFirstChild("NameTagGui") then
 		return
 	end
