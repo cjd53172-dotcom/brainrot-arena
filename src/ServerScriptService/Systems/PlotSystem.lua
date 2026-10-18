@@ -59,50 +59,16 @@ local function newPart(props: { [string]: any }, parent: Instance): Part
 end
 
 -- // Precise Platform Surface Alignment Helper ----------------------------------
--- Measures the exact bounding box of any model and places its lowest point
--- precisely on top of the target base/pedestal surface, preventing clipping.
-local function modelAabb(model: Model)
-	local minX, minY, minZ = math.huge, math.huge, math.huge
-	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
-	local found = false
-	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("BasePart") and d.Name ~= "RarityPlate" then
-			local part = d :: BasePart
-			local cf = part.CFrame
-			local h = part.Size * 0.5
-			for _, sx in ipairs({ -1, 1 }) do
-				for _, sy in ipairs({ -1, 1 }) do
-					for _, sz in ipairs({ -1, 1 }) do
-						local p = (cf * CFrame.new(h.X * sx, h.Y * sy, h.Z * sz)).Position
-						minX = math.min(minX, p.X)
-						minY = math.min(minY, p.Y)
-						minZ = math.min(minZ, p.Z)
-						maxX = math.max(maxX, p.X)
-						maxY = math.max(maxY, p.Y)
-						maxZ = math.max(maxZ, p.Z)
-						found = true
-					end
-				end
-			end
-		end
-	end
-	if not found then
-		return nil
-	end
-	return Vector3.new(minX, minY, minZ), Vector3.new(maxX, maxY, maxZ)
-end
-
+-- Snap a model's bounding-box bottom-center onto the target's top-center.
 local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: number)
-	local minV, maxV = modelAabb(model)
-	if not minV or not maxV then
-		return
-	end
+	local cf, size = model:GetBoundingBox()
+	local lift = extraOffset
 	local target = Vector3.new(
 		targetPart.Position.X,
-		targetPart.Position.Y + targetPart.Size.Y / 2 + (extraOffset or 0),
+		targetPart.Position.Y + targetPart.Size.Y / 2 + lift,
 		targetPart.Position.Z
 	)
-	local currentBottom = Vector3.new((minV.X + maxV.X) * 0.5, minV.Y, (minV.Z + maxV.Z) * 0.5)
+	local currentBottom = Vector3.new(cf.Position.X, cf.Position.Y - size.Y / 2, cf.Position.Z)
 	model:PivotTo(model:GetPivot() + (target - currentBottom))
 end
 
@@ -248,6 +214,7 @@ end
 
 -- // Plot construction ----------------------------------------------------------
 function PlotSystem.Setup()
+	print("[PlotSystem] Loaded placement v3")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
