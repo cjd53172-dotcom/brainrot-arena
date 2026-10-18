@@ -549,6 +549,7 @@ end
 
 local function autoImportPack()
 	local rs = game:GetService("ReplicatedStorage")
+	local ss = game:GetService("ServerStorage")
 	local folder = rs:FindFirstChild("BrainrotModels")
 	if not (folder and folder:IsA("Folder")) then
 		local f = Instance.new("Folder")
@@ -558,14 +559,37 @@ local function autoImportPack()
 	end
 	local modelsFolder = folder :: Folder
 
+	local function looksLikePack(d: Instance): boolean
+		if not (d:IsA("Folder") or d:IsA("Model")) then
+			return false
+		end
+		if d == modelsFolder or d:IsDescendantOf(modelsFolder) then
+			return false
+		end
+		local n = string.lower(d.Name)
+		if n == "brainrotpack" or n == "brainrot pack" or n == "brainrotmodelsource" then
+			return true
+		end
+		return string.find(n, "brainrot", 1, true) ~= nil
+	end
+
 	local pack: Instance? = nil
-	for _, root in ipairs({ workspace, rs }) do
+	local searchRoots: { Instance } = { ss, rs, workspace }
+	local lighting = game:GetService("Lighting")
+	table.insert(searchRoots, lighting)
+	for _, root in ipairs(searchRoots) do
 		for _, d in ipairs(root:GetDescendants()) do
-			if (d:IsA("Folder") or d:IsA("Model"))
-				and d ~= modelsFolder
-				and not d:IsDescendantOf(modelsFolder)
-				and string.find(string.lower(d.Name), "brainrot", 1, true) then
+			if looksLikePack(d) then
 				pack = d
+				break
+			end
+		end
+		if pack then
+			break
+		end
+		for _, child in ipairs(root:GetChildren()) do
+			if looksLikePack(child) then
+				pack = child
 				break
 			end
 		end
@@ -574,6 +598,12 @@ local function autoImportPack()
 		end
 	end
 	if not pack then
+		local kept = #modelsFolder:GetChildren()
+		if kept == 0 then
+			print("[PlotSystem] NO PACK — insert your brainrot pack into ServerStorage, name it BrainrotPack, then Play. Do not Sync over it.")
+		else
+			print("[PlotSystem] using existing BrainrotModels x" .. tostring(kept))
+		end
 		return
 	end
 
@@ -588,8 +618,9 @@ local function autoImportPack()
 		end
 		matched += 1
 		local storeName = if variantId then (id .. "__" .. variantId) else id
-		if modelsFolder:FindFirstChild(storeName) then
-			return
+		local old = modelsFolder:FindFirstChild(storeName)
+		if old then
+			old:Destroy()
 		end
 		local copy = child:Clone()
 		for _, d in ipairs(copy:GetDescendants()) do
@@ -622,15 +653,11 @@ local function autoImportPack()
 		end
 	end
 
-	if matched > 0 then
-		pcall(function()
-			pack:Destroy()
-		end)
-	end
+	print("[PlotSystem] pack kept as " .. pack:GetFullName() .. " imported " .. tostring(matched) .. " into BrainrotModels")
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 32-orca")
+print("[PlotSystem] source 33-pack")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -648,7 +675,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v32-orca")
+	print("[PlotSystem] Loaded placement v33-pack")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
