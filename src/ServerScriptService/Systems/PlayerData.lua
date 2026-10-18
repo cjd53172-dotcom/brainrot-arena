@@ -177,18 +177,55 @@ local function mergeDefaults(saved: any)
 	return data
 end
 
+local function isHollow(data: any): boolean
+	if type(data) ~= "table" then
+		return true
+	end
+	local coins = tonumber(data.Coins) or 0
+	local n = 0
+	if type(data.Brainrots) == "table" then
+		n = #data.Brainrots
+	end
+	return coins <= 0 and n <= 0
+end
+
+local function keyFor(player: Player): string
+	return "player_" .. player.UserId
+end
+
+local function backupKeyFor(player: Player): string
+	return "player_" .. player.UserId .. "_backup"
+end
+
 function PlayerData.Load(player: Player)
 	local data = defaultData()
 	canSave[player.UserId] = true
 	if store then
 		local success, saved = pcall(function()
-			return (store :: DataStore):GetAsync("player_" .. player.UserId)
+			return (store :: DataStore):GetAsync(keyFor(player))
 		end)
 		if success and type(saved) == "table" then
+			if isHollow(saved) then
+				local okB, backup = pcall(function()
+					return (store :: DataStore):GetAsync(backupKeyFor(player))
+				end)
+				if okB and type(backup) == "table" and not isHollow(backup) then
+					saved = backup
+					warn("[PlayerData] Main save was empty for " .. player.Name .. " — restored backup.")
+				end
+			end
 			data = mergeDefaults(saved)
 			print("[PlayerData] Loaded " .. player.Name .. " brainrots=" .. tostring(#(data.Brainrots or {})) .. " coins=" .. tostring(data.Coins))
 		elseif success then
-			print("[PlayerData] No save yet for " .. player.Name)
+			local okB, backup = pcall(function()
+				return (store :: DataStore):GetAsync(backupKeyFor(player))
+			end)
+			if okB and type(backup) == "table" and not isHollow(backup) then
+				data = mergeDefaults(backup)
+				warn("[PlayerData] No main save for " .. player.Name .. " — restored backup.")
+			else
+				print("[PlayerData] No save yet for " .. player.Name)
+			end
 		else
 			canSave[player.UserId] = false
 			warn("[PlayerData] Load failed for " .. player.Name .. ", using defaults and WILL NOT SAVE over the store.")
@@ -212,8 +249,19 @@ function PlayerData.Save(player: Player)
 		return
 	end
 	local success, errMsg = pcall(function()
-		(store :: DataStore):SetAsync("player_" .. player.UserId, data)
+		(store :: DataStore):UpdateAsync(keyFor(player), function(old)
+			if isHollow(data) and type(old) == "table" and not isHollow(old) then
+				warn("[PlayerData] Refused to overwrite " .. player.Name .. "'s save with an empty session.")
+				return old
+			end
+			return data
+		end)
 	end)
+	if success and not isHollow(data) then
+		pcall(function()
+			(store :: DataStore):SetAsync(backupKeyFor(player), data)
+		end)
+	end
 	if not success then
 		warn("[PlayerData] Save failed for " .. player.Name .. ": " .. tostring(errMsg))
 	end

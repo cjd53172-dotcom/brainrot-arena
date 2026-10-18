@@ -910,8 +910,22 @@ end
 -- // World setup ----------------------------------------------------------------
 PlotSystem.Setup()
 do
-	local ShopSystem = require(Systems:WaitForChild("ShopSystem"))
-	ShopSystem.Setup()
+	local shopModule = Systems:FindFirstChild("ShopSystem") or Systems:WaitForChild("ShopSystem", 1)
+	if shopModule then
+		local ok, shopOrErr = pcall(require, shopModule)
+		if ok and type(shopOrErr) == "table" and shopOrErr.Setup then
+			local setupOk, setupErr = pcall(function()
+				shopOrErr.Setup()
+			end)
+			if not setupOk then
+				warn("[GameServer] ShopSystem.Setup failed: " .. tostring(setupErr))
+			end
+		else
+			warn("[GameServer] ShopSystem require failed: " .. tostring(shopOrErr))
+		end
+	else
+		warn("[GameServer] ShopSystem missing. Sync from GitHub, then Play. World continues so saves are not skipped.")
+	end
 end
 
 do
