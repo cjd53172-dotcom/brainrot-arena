@@ -430,8 +430,7 @@ function VisualEffects.ApplyTheme(plot: Model, themeId: string)
 		light.Color = Color3.fromRGB(150, 200, 255)
 		light.Range = 30
 		light.Brightness = 1.5
-		light.Position = bp + Vector3.new(0, 10, 0)
-		light.Parent = fxFolder
+		light.Parent = base
 
 	elseif themeId == "volcanic" then
 		-- Lava cracks + ember particles
@@ -451,8 +450,7 @@ function VisualEffects.ApplyTheme(plot: Model, themeId: string)
 		light.Color = Color3.fromRGB(255, 100, 30)
 		light.Range = 25
 		light.Brightness = 2
-		light.Position = bp + Vector3.new(0, 8, 0)
-		light.Parent = fxFolder
+		light.Parent = base
 
 	elseif themeId == "ocean" then
 		-- Water ripples + blue fog
@@ -462,8 +460,7 @@ function VisualEffects.ApplyTheme(plot: Model, themeId: string)
 		light.Color = Color3.fromRGB(50, 130, 180)
 		light.Range = 25
 		light.Brightness = 1.5
-		light.Position = bp + Vector3.new(0, 8, 0)
-		light.Parent = fxFolder
+		light.Parent = base
 
 	elseif themeId == "shadow" then
 		-- Dark fog + purple wisps
@@ -481,8 +478,7 @@ function VisualEffects.ApplyTheme(plot: Model, themeId: string)
 		light.Color = Color3.fromRGB(100, 60, 150)
 		light.Range = 20
 		light.Brightness = 1
-		light.Position = bp + Vector3.new(0, 8, 0)
-		light.Parent = fxFolder
+		light.Parent = base
 	end
 end
 
