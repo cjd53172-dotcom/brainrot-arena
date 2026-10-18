@@ -151,17 +151,6 @@ local function tooClose(pos: Vector3): boolean
 	return false
 end
 
-local function groundAt(x: number, yHint: number, z: number): number
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = {}
-	local hit = workspace:Raycast(Vector3.new(x, yHint + 40, z), Vector3.new(0, -120, 0), params)
-	if hit then
-		return hit.Position.Y
-	end
-	return yHint
-end
-
 local function placeReturnGate(at: Vector3, look: Vector3?)
 	if tooClose(at) then
 		return
@@ -173,9 +162,10 @@ local function placeReturnGate(at: Vector3, look: Vector3?)
 	else
 		flat = flat.Unit
 	end
-	local x = at.X + flat.X * 8
-	local z = at.Z + flat.Z * 8
-	local y = groundAt(x, at.Y, z) + 6
+	-- Stay at chest height. A long downward ray hits indoor ceilings and hides the slab.
+	local x = at.X + flat.X * 5
+	local z = at.Z + flat.Z * 5
+	local y = at.Y + 2
 
 	local gate = Instance.new("Part")
 	gate.Name = "ReturnToArena"
@@ -189,8 +179,8 @@ local function placeReturnGate(at: Vector3, look: Vector3?)
 
 	local sign = Instance.new("BillboardGui")
 	sign.Size = UDim2.new(0, 220, 0, 48)
-	sign.StudsOffset = Vector3.new(0, 7, 0)
-	sign.AlwaysOnTop = true
+	sign.StudsOffset = Vector3.new(0, 8, 0)
+	sign.AlwaysOnTop = false
 	sign.Parent = gate
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, 0, 1, 0)
