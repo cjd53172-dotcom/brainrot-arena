@@ -3,10 +3,12 @@
 	Paste this Script into ServerScriptService of the Laser Tag PLACE
 	(Whiskeandgaming's Place / Laser Tag — not the Brainrot Arena hub).
 
-	Does two jobs:
+	Does three jobs:
 	1. Orange return gate at every spawn pad (one per spawn room).
 	2. Records kills into OrderedDataStore "LaserTagKills_v1" so the plaza
 	   board next to the Laser Tag portal can show them.
+	3. Opens one-way spawn glass so people in base cannot camp: shots go
+	   out AND in.
 
 	After pasting: File → Publish to Roblox → overwrite THIS laser tag place only.
 ]]
@@ -225,6 +227,112 @@ local function collectSpawns(): { BasePart }
 	return found
 end
 
+local fairPassDone = false
+
+local function looksLikeSpawnWindow(part: BasePart): boolean
+	if part:IsA("SpawnLocation") or part.Name == "ReturnToArena" then
+		return false
+	end
+	local n = string.lower(part.Name)
+	if string.find(n, "window", 1, true)
+		or string.find(n, "glass", 1, true)
+		or string.find(n, "shield", 1, true)
+		or string.find(n, "barrier", 1, true)
+		or string.find(n, "protect", 1, true)
+		or string.find(n, "forcefield", 1, true)
+		or string.find(n, "oneway", 1, true)
+	then
+		return true
+	end
+	if part.Material == Enum.Material.ForceField or part.Material == Enum.Material.Glass then
+		return true
+	end
+	if part.Transparency < 0.15 then
+		return false
+	end
+	local size = part.Size
+	local thin = math.min(size.X, size.Y, size.Z)
+	local long = math.max(size.X, size.Y, size.Z)
+	return thin <= 2.5 and long >= 4
+end
+
+local function openWindow(part: BasePart)
+	part.CanQuery = false
+	pcall(function()
+		part.CollisionGroup = "Default"
+	end)
+end
+
+local function makeShotsFair()
+	local PhysicsService = game:GetService("PhysicsService")
+	local groupNames: { string } = { "Default" }
+	pcall(function()
+		for _, g in ipairs(PhysicsService:GetRegisteredCollisionGroups()) do
+			table.insert(groupNames, g.name)
+		end
+	end)
+	for _, a in ipairs(groupNames) do
+		for _, b in ipairs(groupNames) do
+			pcall(function()
+				PhysicsService:CollisionGroupSetCollidable(a, b, true)
+			end)
+		end
+	end
+
+	local opened = 0
+	local spawns = collectSpawns()
+	for _, d in ipairs(workspace:GetDescendants()) do
+		if d:IsA("BasePart") and looksLikeSpawnWindow(d) then
+			local nearSpawn = #spawns == 0
+			if not nearSpawn then
+				for _, spawn in ipairs(spawns) do
+					local dx = d.Position.X - spawn.Position.X
+					local dz = d.Position.Z - spawn.Position.Z
+					if math.sqrt(dx * dx + dz * dz) < 70 then
+						nearSpawn = true
+						break
+					end
+				end
+			end
+			if nearSpawn then
+				openWindow(d)
+				opened += 1
+			end
+		end
+	end
+
+	if not fairPassDone then
+		local roots = {
+			workspace,
+			game:GetService("ServerScriptService"),
+			game:GetService("ReplicatedStorage"),
+			game:GetService("StarterPlayer"),
+			game:GetService("ServerStorage"),
+		}
+		for _, root in ipairs(roots) do
+			for _, d in ipairs(root:GetDescendants()) do
+				if d:IsA("BaseScript") then
+					local n = string.lower((d.Name :: string))
+					n = string.gsub(n, "[^%w]", "")
+					if string.find(n, "oneway", 1, true)
+						or string.find(n, "spawnprotect", 1, true)
+						or string.find(n, "safewindow", 1, true)
+						or string.find(n, "teamwindow", 1, true)
+						or string.find(n, "spawnshield", 1, true)
+						or string.find(n, "spawnbarrier", 1, true)
+					then
+						d.Disabled = true
+						print("[ReturnToArena] disabled " .. d:GetFullName())
+					end
+				end
+			end
+		end
+	end
+
+	fairPassDone = true
+	print("[ReturnToArena] spawn windows opened for two-way shots: " .. tostring(opened))
+end
+
 local function placeAtAllSpawns()
 	local spawns = collectSpawns()
 	print("[ReturnToArena] spawn pads found: " .. tostring(#spawns))
@@ -237,5 +345,11 @@ local function placeAtAllSpawns()
 	end
 end
 
-task.defer(placeAtAllSpawns)
-task.delay(3, placeAtAllSpawns)
+task.defer(function()
+	placeAtAllSpawns()
+	makeShotsFair()
+end)
+task.delay(3, function()
+	placeAtAllSpawns()
+	makeShotsFair()
+end)
