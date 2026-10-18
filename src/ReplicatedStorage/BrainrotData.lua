@@ -2096,7 +2096,7 @@ end
 BrainrotData.GetBrainrot = BrainrotData.GetById
 
 function BrainrotData.GetStarterId(): string
-	return "lirili"
+	return "tung_sahur"
 end
 
 -- // Milestone 2: fusion, orb rewards, rivals ----------------------------------

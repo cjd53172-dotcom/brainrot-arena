@@ -255,6 +255,13 @@ function PlayerData.Load(player: Player)
 	end
 	session[player.UserId] = data
 	if canSave[player.UserId] ~= false then
+		if #(data.Brainrots or {}) == 0 then
+			local starterId = BrainrotData.GetStarterId()
+			local inst = PlayerData.TryAddBrainrot(player, starterId, false, nil)
+			if inst then
+				print("[PlayerData] Starter " .. starterId .. " granted to " .. player.Name)
+			end
+		end
 		task.defer(function()
 			if session[player.UserId] == data then
 				PlayerData.Save(player)

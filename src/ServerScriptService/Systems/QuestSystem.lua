@@ -55,7 +55,7 @@ QuestSystem.QUESTS = {
 		Description = "Catch 1 wild brainrot roaming the world.",
 		Objective = "brainrots",
 		Goal = 1,
-		Reward = { BrainrotId = "tung_sahur", Coins = 120 },
+		Reward = { Coins = 120 },
 	},
 	growing_team = {
 		Name = "Growing Team",
