@@ -69,21 +69,47 @@ end
 
 -- // Precise Platform Surface Alignment Helper ----------------------------------
 -- Snap a model's bounding-box bottom-center onto the target's top-center.
-local function uprightModel(model: Model)
+local function bboxSizeOf(model: Model): Vector3
 	local ok, _, size = pcall(function()
 		return model:GetBoundingBox()
 	end)
-	if not ok or not size then
-		return
+	if ok and size then
+		return size
 	end
-	-- Pack models sometimes import on their side. If height is the short axis, roll upright.
-	if size.Y >= math.max(size.X, size.Z) * 0.6 then
-		return
-	end
-	if size.X >= size.Z then
-		model:PivotTo(model:GetPivot() * CFrame.Angles(0, 0, math.pi / 2))
-	else
-		model:PivotTo(model:GetPivot() * CFrame.Angles(math.pi / 2, 0, 0))
+	return Vector3.new(1, 1, 1)
+end
+
+-- Stand pack meshes up: make the longest axis vertical (Tung Tung, shovels, etc.).
+local function uprightModel(model: Model)
+	for _ = 1, 3 do
+		local size = bboxSizeOf(model)
+		if size.Y + 0.05 >= math.max(size.X, size.Z) then
+			return
+		end
+		local pivot = model:GetPivot()
+		local options: { CFrame }
+		if size.X >= size.Z then
+			options = {
+				pivot * CFrame.Angles(0, 0, math.pi / 2),
+				pivot * CFrame.Angles(0, 0, -math.pi / 2),
+			}
+		else
+			options = {
+				pivot * CFrame.Angles(math.pi / 2, 0, 0),
+				pivot * CFrame.Angles(-math.pi / 2, 0, 0),
+			}
+		end
+		local bestCF = options[1]
+		local bestY = -1
+		for _, cf in ipairs(options) do
+			model:PivotTo(cf)
+			local s = bboxSizeOf(model)
+			if s.Y > bestY then
+				bestY = s.Y
+				bestCF = cf
+			end
+		end
+		model:PivotTo(bestCF)
 	end
 end
 
@@ -148,6 +174,7 @@ local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: 
 	else
 		shrinkToPedestalSize(model)
 	end
+	uprightModel(model)
 	local cf, size = model:GetBoundingBox()
 	local lift = extraOffset
 	local target = Vector3.new(
@@ -361,7 +388,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 14-plaza2")
+print("[PlotSystem] source 15-upright")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local label = PlotSystem.ArenaBoardLabel
@@ -371,7 +398,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v14-plaza2")
+	print("[PlotSystem] Loaded placement v15-upright")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -1443,6 +1470,7 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 
 	shrinkToPedestalSize(model)
 	fitLyingFileMesh(model, MAX_DISPLAY_SIZE)
+	uprightModel(model)
 	addDressing(model, h, def, variantId, isShiny, host)
 	return model
 end
