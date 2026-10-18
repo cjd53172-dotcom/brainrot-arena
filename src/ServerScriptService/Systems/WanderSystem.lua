@@ -152,7 +152,7 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 	return wanderId
 end
 
-function WanderSystem.ForceSpawn(player: Player, brainrotId: string, spawnPos: Vector3?, despawnSecs: number?): string?
+function WanderSystem.ForceSpawn(player: Player, brainrotId: string, spawnPos: Vector3?, despawnSecs: number?, variantId: string?): string?
 	local def = BrainrotData.GetById(brainrotId)
 	if not def then
 		return nil
@@ -193,7 +193,7 @@ function WanderSystem.ForceSpawn(player: Player, brainrotId: string, spawnPos: V
 		Model = nil,
 		Announced = false,
 		EventRush = true,
-		Variant = nil,
+		Variant = variantId,
 		Shiny = false,
 	}
 	return wanderId

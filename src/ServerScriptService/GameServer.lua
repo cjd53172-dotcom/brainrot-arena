@@ -9,6 +9,28 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
+-- Toolbox pack Scripts run in Workspace and delete the folder on Play.
+-- Park it in ServerStorage before anything else (Scripts there do not run).
+do
+	local ss = game:GetService("ServerStorage")
+	for _, name in ipairs({ "BrainrotPack", "Brainrot Pack", "BrainrotPackSource" }) do
+		local pack = workspace:FindFirstChild(name) or ReplicatedStorage:FindFirstChild(name)
+		if pack then
+			for _, d in ipairs(pack:GetDescendants()) do
+				if d:IsA("Script") or d:IsA("LocalScript") then
+					(d :: Script).Disabled = true
+				end
+			end
+			local existing = ss:FindFirstChild(pack.Name)
+			if existing and existing ~= pack then
+				existing:Destroy()
+			end
+			pack.Parent = ss
+			print("[GameServer] moved " .. pack.Name .. " to ServerStorage so Play cannot eat it")
+		end
+	end
+end
+
 local Systems = script.Parent:WaitForChild("Systems")
 local PlayerData = require(Systems:WaitForChild("PlayerData"))
 local QuestSystem = require(Systems:WaitForChild("QuestSystem"))
@@ -2683,12 +2705,40 @@ do
 		return nil
 	end
 
-	local function spawnOne(player: Player, def: any, spawnPos: Vector3?)
-		local wanderId = WanderSystem.ForceSpawn(player, def.Id, spawnPos, 600)
+	local function spawnOne(player: Player, def: any, spawnPos: Vector3?, variantId: string?)
+		local wanderId = WanderSystem.ForceSpawn(player, def.Id, spawnPos, 600, variantId)
 		if wanderId then
 			spawnWildVisual(player, wanderId)
 		end
 		return wanderId
+	end
+
+	type SpawnJob = { def: any, variant: string? }
+	local function allSpawnJobs(): { SpawnJob }
+		local jobs: { SpawnJob } = {}
+		local models = ReplicatedStorage:FindFirstChild("BrainrotModels")
+		if models then
+			for _, child in ipairs(models:GetChildren()) do
+				local name = child.Name
+				local id: string = name
+				local variant: string? = nil
+				local split = string.find(name, "__")
+				if split then
+					id = string.sub(name, 1, split - 1)
+					variant = string.sub(name, split + 2)
+				end
+				local def = BrainrotData.GetById(id)
+				if def then
+					table.insert(jobs, { def = def, variant = variant })
+				end
+			end
+		end
+		if #jobs == 0 then
+			for _, def in ipairs(playableRoster()) do
+				table.insert(jobs, { def = def, variant = nil })
+			end
+		end
+		return jobs
 	end
 
 	local function hookAdminChat(player: Player)
@@ -2703,19 +2753,20 @@ do
 			token = string.lower((string.gsub(token, "^%s+", "")))
 			token = string.gsub(token, "%s+$", "")
 			if token == "all" then
-				local roster = playableRoster()
+				local jobs = allSpawnJobs()
 				local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 				local origin = if hrp and hrp:IsA("BasePart") then (hrp :: BasePart).Position else Vector3.new(127, 20, 98)
-				print("[Admin] spawning " .. tostring(#roster) .. " brainrots around you")
+				print("[Admin] spawning " .. tostring(#jobs) .. " pack models (normal + variants)")
 				task.spawn(function()
-					for i, def in ipairs(roster) do
+					for i, job in ipairs(jobs) do
 						if not player.Parent then
 							break
 						end
-						local angle = ((i - 1) / math.max(#roster, 1)) * math.pi * 2
-						local dist = 18 + (i % 5) * 6
-						local pos = Vector3.new(origin.X + math.cos(angle) * dist, origin.Y, origin.Z + math.sin(angle) * dist)
-						spawnOne(player, def, pos)
+						local cols = 16
+						local row = math.floor((i - 1) / cols)
+						local col = (i - 1) % cols
+						local pos = Vector3.new(origin.X + (col - cols / 2) * 10, origin.Y, origin.Z + row * 10 + 16)
+						spawnOne(player, job.def, pos, job.variant)
 						if i % 8 == 0 then
 							task.wait()
 						end
@@ -2741,7 +2792,7 @@ do
 	for _, p in ipairs(Players:GetPlayers()) do
 		hookAdminChat(p)
 	end
-	print("[Admin] /spawn all  |  /spawn orcalero")
+	print("[Admin] /spawn all  (every pack skin)  |  /spawn orcalero")
 end
 
 -- // Automated Respawn Configuration Processing Loop -----------------------------

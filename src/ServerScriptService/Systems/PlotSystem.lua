@@ -597,10 +597,25 @@ local function autoImportPack()
 			break
 		end
 	end
+	if pack then
+		for _, d in ipairs(pack:GetDescendants()) do
+			if d:IsA("Script") or d:IsA("LocalScript") then
+				(d :: Script).Disabled = true
+			end
+		end
+		if pack.Parent ~= ss then
+			local existing = ss:FindFirstChild(pack.Name)
+			if existing and existing ~= pack then
+				existing:Destroy()
+			end
+			pack.Parent = ss
+			print("[PlotSystem] parked pack in ServerStorage")
+		end
+	end
 	if not pack then
 		local kept = #modelsFolder:GetChildren()
 		if kept == 0 then
-			print("[PlotSystem] NO PACK — insert your brainrot pack into ServerStorage, name it BrainrotPack, then Play. Do not Sync over it.")
+			print("[PlotSystem] NO PACK — in Explorer, drag BrainrotPack from Workspace into ServerStorage, Save, then Play.")
 		else
 			print("[PlotSystem] using existing BrainrotModels x" .. tostring(kept))
 		end
@@ -657,7 +672,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 33-pack")
+print("[PlotSystem] source 34-pack")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -675,7 +690,7 @@ function PlotSystem.SetArenaBoardText(text: string)
 end
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v33-pack")
+	print("[PlotSystem] Loaded placement v34-pack")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
