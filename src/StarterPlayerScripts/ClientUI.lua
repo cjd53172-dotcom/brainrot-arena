@@ -57,6 +57,7 @@ local workPanel: ScrollingFrame
 local pickerPanel: Frame
 local leaderboardPanel: Frame
 local hideAllPanels: () -> ()
+local refreshCollectionPanel: () -> ()
 local refreshExpeditionPanel: () -> ()
 local refreshDailyPanel: () -> ()
 local refreshEggPanel: () -> ()
@@ -65,6 +66,7 @@ local refreshCustomizePanel: () -> ()
 
 -- Client mirror of server state.
 local ownedInstances: any = {}   -- array of { InstanceId, BrainrotId, Shiny }
+local caughtIndex: { [string]: boolean } = {}
 local showcaseIds: { [string]: boolean } = {}
 local pendingShowcase: { string } = {}
 local workingIds: { [string]: boolean } = {} -- instances at work (M2)
@@ -502,6 +504,41 @@ collectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
 collectionLayout.Parent = collectionPanel
 pad(collectionPanel, 12)
 
+collectionPanel:SetAttribute("View", "bag")
+collectionPanel:SetAttribute("Sort", "rarity")
+
+do
+	local bar = Instance.new("Frame")
+	bar.Name = "CollectionBar"
+	bar.Size = UDim2.new(1, -24, 0, 76)
+	bar.BackgroundTransparency = 1
+	bar.LayoutOrder = 0
+	bar.Parent = collectionPanel
+
+	local function chip(text: string, x: number, y: number, attr: string, value: string)
+		local btn = Instance.new("TextButton")
+		btn.Name = attr .. "_" .. value
+		btn.Size = UDim2.new(0, 86, 0, 30)
+		btn.Position = UDim2.new(0, x, 0, y)
+		btn.Text = text
+		btn.Font = Enum.Font.GothamBold
+		btn.TextSize = 12
+		btn.TextColor3 = Color3.new(1, 1, 1)
+		btn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+		btn.Parent = bar
+		corner(btn, 8)
+		btn.MouseButton1Click:Connect(function()
+			collectionPanel:SetAttribute(attr, value)
+			refreshCollectionPanel()
+		end)
+	end
+	chip("Bag", 0, 0, "View", "bag")
+	chip("Index", 94, 0, "View", "index")
+	chip("Rarity", 0, 38, "Sort", "rarity")
+	chip("Name", 94, 38, "Sort", "name")
+	chip("Newest", 188, 38, "Sort", "newest")
+end
+
 -- // Showcase editor panel --------------------------------------------------------------
 local editorPanel = Instance.new("ScrollingFrame")
 editorPanel.Size = UDim2.new(0, 480, 0, 480)
@@ -597,26 +634,149 @@ local function refreshButtons()
 	showcaseBtn.Text = ("Showcase (%d)"):format(shown)
 end
 
-local function refreshCollectionPanel()
+refreshCollectionPanel = function()
 	for _, child in ipairs(collectionPanel:GetChildren()) do
-		if child:IsA("TextLabel") then
-			child:Destroy()
+		if child.Name ~= "CollectionBar" and (child:IsA("TextLabel") or child:IsA("Frame") or child:IsA("TextButton")) then
+			if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+				child:Destroy()
+			end
 		end
 	end
+
+	local view = collectionPanel:GetAttribute("View") or "bag"
+	local sortBy = collectionPanel:GetAttribute("Sort") or "rarity"
+	local bar = collectionPanel:FindFirstChild("CollectionBar")
+	if bar then
+		for _, btn in ipairs(bar:GetChildren()) do
+			if btn:IsA("TextButton") then
+				local on = (btn.Name == "View_" .. tostring(view)) or (btn.Name == "Sort_" .. tostring(sortBy))
+				btn.BackgroundColor3 = if on then Color3.fromRGB(80, 110, 90) else Color3.fromRGB(50, 50, 70)
+			end
+		end
+	end
+
+	local rarityRank: { [string]: number } = {}
+	for i, r in ipairs(BrainrotData.RARITY_ORDER) do
+		rarityRank[r] = i
+	end
+
+	local function playableRoster(): { any }
+		local rows = {}
+		for _, def in ipairs(BrainrotData.ROSTER) do
+			if type(def.Id) == "string" and string.sub(def.Id, 1, 5) ~= "gate_" and def.Id ~= "laser_tag" and def.Display ~= nil then
+				table.insert(rows, def)
+			end
+		end
+		return rows
+	end
+
+	if view == "index" then
+		local rows = playableRoster()
+		table.sort(rows, function(a, b)
+			if sortBy == "name" then
+				return string.lower(a.Name) < string.lower(b.Name)
+			end
+			local ra = rarityRank[a.Rarity] or 0
+			local rb = rarityRank[b.Rarity] or 0
+			if ra ~= rb then
+				return ra > rb
+			end
+			return string.lower(a.Name) < string.lower(b.Name)
+		end)
+		local ownedCounts: { [string]: number } = {}
+		for _, inst in ipairs(ownedInstances) do
+			ownedCounts[inst.BrainrotId] = (ownedCounts[inst.BrainrotId] or 0) + 1
+		end
+		local seen = 0
+		for _, def in ipairs(rows) do
+			if caughtIndex[def.Id] then
+				seen += 1
+			end
+		end
+		local header = Instance.new("TextLabel")
+		header.Name = "Entry"
+		header.Size = UDim2.new(1, -12, 0, 28)
+		header.BackgroundTransparency = 1
+		header.Text = ("Index  %d / %d discovered"):format(seen, #rows)
+		header.Font = Enum.Font.GothamBold
+		header.TextSize = 14
+		header.TextColor3 = Color3.fromRGB(200, 220, 180)
+		header.TextXAlignment = Enum.TextXAlignment.Left
+		header.LayoutOrder = 1
+		header.Parent = collectionPanel
+		for order, def in ipairs(rows) do
+			local have = caughtIndex[def.Id] == true
+			local count = ownedCounts[def.Id] or 0
+			local entry = Instance.new("TextLabel")
+			entry.Name = "Entry"
+			entry.Size = UDim2.new(1, -12, 0, 40)
+			entry.BackgroundColor3 = if have then Color3.fromRGB(40, 50, 42) else Color3.fromRGB(32, 32, 40)
+			entry.Text = if have
+				then ("  ✓  %s  [%s]%s"):format(def.Name, def.Rarity, if count > 0 then ("  x" .. tostring(count)) else "  (sold)")
+				else ("  ?  %s  [%s]"):format(def.Name, def.Rarity)
+			entry.Font = Enum.Font.GothamBold
+			entry.TextSize = 14
+			entry.TextXAlignment = Enum.TextXAlignment.Left
+			entry.TextColor3 = if have then Color3.new(1, 1, 1) else Color3.fromRGB(130, 130, 140)
+			entry.TextTruncate = Enum.TextTruncate.AtEnd
+			entry.LayoutOrder = order + 1
+			entry.Parent = collectionPanel
+			corner(entry, 8)
+			local stripe = Instance.new("Frame")
+			stripe.Size = UDim2.new(0, 6, 1, 0)
+			stripe.BackgroundColor3 = if have then (BrainrotData.RARITY_COLORS[def.Rarity] or Color3.new(1, 1, 1)) else Color3.fromRGB(60, 60, 70)
+			stripe.BorderSizePixel = 0
+			stripe.Parent = entry
+			corner(stripe, 3)
+		end
+		return
+	end
+
 	if #ownedInstances == 0 then
 		local empty = Instance.new("TextLabel")
+		empty.Name = "Entry"
 		empty.Size = UDim2.new(1, -12, 0, 40)
 		empty.BackgroundTransparency = 1
 		empty.Text = "No brainrots yet — complete quests!"
 		empty.Font = Enum.Font.Gotham
 		empty.TextSize = 15
 		empty.TextColor3 = Color3.fromRGB(150, 150, 160)
+		empty.LayoutOrder = 1
 		empty.Parent = collectionPanel
 		return
 	end
-	for order, inst in ipairs(ownedInstances) do
+
+	local sorted: { any } = {}
+	for _, inst in ipairs(ownedInstances) do
+		table.insert(sorted, inst)
+	end
+	table.sort(sorted, function(a, b)
+		if sortBy == "name" then
+			return string.lower(instanceLabel(a)) < string.lower(instanceLabel(b))
+		elseif sortBy == "newest" then
+			return false
+		end
+		local da = lookupDef(a.BrainrotId)
+		local db = lookupDef(b.BrainrotId)
+		local ra = rarityRank[da and da.Rarity or ""] or 0
+		local rb = rarityRank[db and db.Rarity or ""] or 0
+		if ra ~= rb then
+			return ra > rb
+		end
+		return string.lower(instanceLabel(a)) < string.lower(instanceLabel(b))
+	end)
+	if sortBy == "newest" then
+		local reversed: { any } = {}
+		for i = #ownedInstances, 1, -1 do
+			table.insert(reversed, ownedInstances[i])
+		end
+		sorted = reversed
+	end
+
+	for order, inst in ipairs(sorted) do
 		local def = lookupDef(inst.BrainrotId)
 		local entry = Instance.new("TextLabel")
+		entry.Name = "Entry"
 		entry.Size = UDim2.new(1, -12, 0, 44)
 		entry.BackgroundColor3 = inst.Shiny and Color3.fromRGB(70, 55, 20) or Color3.fromRGB(45, 45, 60)
 		entry.Text = "  " .. instanceLabel(inst)
@@ -625,7 +785,7 @@ local function refreshCollectionPanel()
 		entry.TextXAlignment = Enum.TextXAlignment.Left
 		entry.TextColor3 = inst.Shiny and Color3.fromRGB(255, 215, 0) or Color3.new(1, 1, 1)
 		entry.TextTruncate = Enum.TextTruncate.AtEnd
-		entry.LayoutOrder = order
+		entry.LayoutOrder = order + 1
 		entry.Parent = collectionPanel
 		corner(entry, 8)
 
@@ -656,7 +816,6 @@ local function refreshCollectionPanel()
 					return
 				end
 				if not armed then
-					-- first click asks to confirm, so nobody sells by accident
 					armed = true
 					sellBtn.Text = "Confirm?"
 					sellBtn.BackgroundColor3 = Color3.fromRGB(190, 60, 60)
@@ -2471,6 +2630,9 @@ local currentCoins = 0
 
 collectionRemote.OnClientEvent:Connect(function(payload: any)
 	ownedInstances = payload.Brainrots or {}
+	if type(payload.Index) == "table" then
+		caughtIndex = payload.Index
+	end
 	showcaseIds = {}
 	for _, id in ipairs(payload.Showcase or {}) do
 		showcaseIds[id] = true
@@ -3193,7 +3355,7 @@ local function buildMobileBar()
 	end
 
 	local mobileButtons: { any } = {
-		{ Icon = "🧠", Label = "Pets", Panel = collectionPanel, Refresh = refreshCollectionPanel },
+		{ Icon = "🧠", Label = "Brainrots", Panel = collectionPanel, Refresh = refreshCollectionPanel },
 		{ Icon = "⚒️", Label = "Work", Panel = workPanel, Refresh = refreshWorkPanel },
 		{ Icon = "⚗️", Label = "Fuse", Panel = fusionPanel, Refresh = refreshFusionPanel },
 		{ Icon = "⭐", Label = "Show", Panel = editorPanel, Refresh = refreshEditorPanel },

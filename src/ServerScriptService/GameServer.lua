@@ -124,6 +124,7 @@ pushCollection = function(player: Player)
 				Coins = data.Coins,
 				Working = PlayerData.GetWorkingIds(player),
 				Upgrades = data.Upgrades or { Speed = 0, Jump = 0, Reach = 0, Luck = 0 },
+				Index = data.Index or {},
 			})
 		end
 	end

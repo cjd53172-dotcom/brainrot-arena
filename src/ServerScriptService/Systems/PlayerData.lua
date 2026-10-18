@@ -49,6 +49,7 @@ local function defaultData()
 	return {
 		Coins = 0,
 		Brainrots = {},
+		Index = {}, -- [brainrotId] = true, stays after selling
 		Showcase = {},
 		QuestsCompleted = {},
 		ActiveQuestId = "first_steps",
@@ -128,6 +129,14 @@ local function mergeDefaults(saved: any)
 			end
 		end
 		data.Brainrots = migrateInstances(data.Brainrots)
+		if type(data.Index) ~= "table" then
+			data.Index = {}
+		end
+		for _, inst in ipairs(data.Brainrots) do
+			if type(inst.BrainrotId) == "string" then
+				data.Index[inst.BrainrotId] = true
+			end
+		end
 		-- Drop showcase entries that no longer exist.
 		local valid: { [string]: boolean } = {}
 		for _, inst in ipairs(data.Brainrots) do
@@ -420,6 +429,10 @@ function PlayerData.TryAddBrainrot(player: Player, brainrotId: string, shiny: bo
 		Variant = variantId, -- nil = base form
 	}
 	table.insert(data.Brainrots, instance)
+	if type(data.Index) ~= "table" then
+		data.Index = {}
+	end
+	data.Index[brainrotId] = true
 	-- Auto-showcase while there's room; the player curates the rest.
 	if #data.Showcase < BrainrotData.SHOWCASE_LIMIT then
 		table.insert(data.Showcase, instance.InstanceId)

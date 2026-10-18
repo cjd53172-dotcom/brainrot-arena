@@ -337,6 +337,7 @@ function QuestSystem.CompleteQuest(player: Player, questId: string)
 		Showcase = data.Showcase,
 		Coins = data.Coins,
 		Working = PlayerData.GetWorkingIds(player),
+		Index = data.Index or {},
 	})
 
 	PlayerData.Save(player)
