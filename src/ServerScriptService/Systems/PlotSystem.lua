@@ -180,7 +180,10 @@ function PlotSystem.FacingCFrame(model: Model, pos: Vector3, dir: Vector3): CFra
 	return CFrame.new(pos) * CFrame.lookAt(Vector3.zero, flat, Vector3.yAxis) * stand
 end
 
+local extraUprightFlip: (Model) -> () = function(_model: Model) end
+
 -- Only stand up stick-like meshes (Tung Tung). Wide pots/potatoes stay as authored.
+-- 180° flip is separate: longest-axis-up cannot tell feet from head.
 local function uprightModel(model: Model)
 	local size = bboxSizeOf(model)
 	local maxD = math.max(size.X, size.Y, size.Z)
@@ -212,6 +215,7 @@ local function uprightModel(model: Model)
 		end
 		model:PivotTo(bestCF)
 	end
+	extraUprightFlip(model)
 	PlotSystem.RememberStand(model)
 end
 
@@ -325,6 +329,48 @@ local function fitLyingFileMesh(model: Model, maxSize: number)
 	end
 	model:SetAttribute("FileMeshFit", true)
 	print("[PlotSystem] force-fit " .. model.Name .. " x" .. string.format("%.3f", factor))
+end
+
+extraUprightFlip = function(model: Model)
+	if not hasFileMeshAsset(model) then
+		return
+	end
+	if model:GetAttribute("UprightFlipped") == true then
+		return
+	end
+	local id = model:GetAttribute("BrainrotId")
+	local catalogFlip = false
+	if typeof(id) == "string" then
+		local flips = BrainrotData.FLIP_UPSIDE_DOWN
+		catalogFlip = flips[id] == true
+		local def = BrainrotData.GetById(id)
+		if def and def.Display and def.Display.FlipUpsideDown == true then
+			catalogFlip = true
+		end
+	end
+	local function doFlip()
+		model:PivotTo(model:GetPivot() * CFrame.Angles(math.pi, 0, 0))
+		model:SetAttribute("UprightFlipped", true)
+	end
+	if catalogFlip then
+		doFlip()
+		return
+	end
+	local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	if part and part.CFrame.UpVector.Y < -0.35 then
+		doFlip()
+		return
+	end
+	local ok, bbCF, bbSize = pcall(function()
+		return model:GetBoundingBox()
+	end)
+	if ok and bbCF and bbSize and (bbSize :: Vector3).Y >= 0.5 then
+		local pivotY = model:GetPivot().Position.Y
+		local midY = (bbCF :: CFrame).Position.Y
+		if pivotY > midY + (bbSize :: Vector3).Y * 0.08 then
+			doFlip()
+		end
+	end
 end
 
 -- Live pack meshes ignore Model:ScaleTo; their size is FileMesh.Scale.
@@ -1627,6 +1673,12 @@ end
 
 local function addDressing(model: Model, height: number, def: any, variantId: string?, isShiny: boolean, host: BasePart?, skipPlate: boolean?)
 	model:SetAttribute("BrainrotId", def.Id)
+	if variantId then
+		model:SetAttribute("Variant", variantId)
+	end
+	if isShiny then
+		model:SetAttribute("Shiny", true)
+	end
 	local accentColor = BrainrotData.RARITY_COLORS[def.Rarity] or Color3.new(1, 1, 1)
 	if isShiny then
 		accentColor = Color3.fromRGB(255, 215, 0)
@@ -1711,6 +1763,13 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 		return nil
 	end
 	model.Name = BrainrotData.GetDisplayName(def, variantId, isShiny)
+	model:SetAttribute("BrainrotId", def.Id)
+	if variantId then
+		model:SetAttribute("Variant", variantId)
+	end
+	if isShiny then
+		model:SetAttribute("Shiny", true)
+	end
 
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript")
@@ -1727,6 +1786,7 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 		model:Destroy()
 		return nil
 	end
+	model.PrimaryPart = host
 
 	local function measure(): (CFrame?, Vector3?)
 		local ok, bbCF, bbSize = pcall(function() return model:GetBoundingBox() end)
@@ -1871,6 +1931,7 @@ function PlotSystem.BuildDisplayModel(def: any, isShiny: boolean, variantId: str
 		buildFace(model, spec.Size, mood)
 	end
 
+	model.PrimaryPart = body
 	addDressing(model, spec.Size.Y, def, variantId, isShiny, body, skipPlate)
 	return model
 end
@@ -1906,6 +1967,12 @@ function PlotSystem.RefreshPlot(player: Player)
 		if def and ped and ped:IsA("BasePart") then
 			local display = PlotSystem.BuildDisplayModel(def, inst.Shiny == true, inst.Variant)
 			display:SetAttribute("BrainrotId", def.Id)
+			if inst.Variant then
+				display:SetAttribute("Variant", inst.Variant)
+			end
+			if inst.Shiny then
+				display:SetAttribute("Shiny", true)
+			end
 			display.Parent = displays
 			placeModelOnTop(display, ped, 0.1)
 			local pedRef = ped

@@ -86,6 +86,14 @@ BrainrotData.RARITY_COLORS = {
 	Legendary = Color3.fromRGB(255, 150, 0),
 }
 
+-- Pack meshes exported feet-up. Only FileMesh clones use this (primitives stay as authored).
+BrainrotData.FLIP_UPSIDE_DOWN = {
+	pot_hotspot = true,
+	pipi_potato = true,
+	pipi_kiwi = true,
+	chillin_chili = true,
+} :: { [string]: boolean }
+
 -- // Collection rules -----------------------------------------------------------
 -- The roster can grow forever; the inventory and showcase stay bounded.
 BrainrotData.INVENTORY_LIMIT = 1000

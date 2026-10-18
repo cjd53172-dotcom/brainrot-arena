@@ -114,8 +114,8 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NameTagGui"
 	billboard.Size = UDim2.new(0, 110, 0, 28)
-	billboard.AlwaysOnTop = false
-	billboard.MaxDistance = 50
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 90
 	billboard.Adornee = part
 	billboard.Parent = model
 
@@ -228,18 +228,49 @@ for _, existing in ipairs(workspace:GetDescendants()) do
 	hideIfForeignWild(existing)
 end
 
-workspace.DescendantAdded:Connect(function(descendant)
-	if descendant:IsA("Model") and descendant:GetAttribute("BrainrotId") then
-		local def = BrainrotData.GetById(descendant:GetAttribute("BrainrotId") :: string)
-		if def then
-			local variantId = descendant:GetAttribute("Variant")
-			local shiny = descendant:GetAttribute("Shiny") == true
-			applyBrainrotNametag(descendant, BrainrotData.GetDisplayName(def, variantId :: any, shiny), def.Rarity)
+local taggedNametags: { [Model]: boolean } = {}
 
-			-- Server already sits and orients these. Client PivotTo was flattening pack meshes.
-		end
+local function tryBrainrotNametag(model: Model)
+	if taggedNametags[model] and model:FindFirstChild("NameTagGui") then
+		return
+	end
+	local id = model:GetAttribute("BrainrotId")
+	if typeof(id) ~= "string" then
+		return
+	end
+	local def = BrainrotData.GetById(id)
+	if not def then
+		return
+	end
+	local variantId = model:GetAttribute("Variant")
+	local shiny = model:GetAttribute("Shiny") == true
+	applyBrainrotNametag(model, BrainrotData.GetDisplayName(def, variantId :: any, shiny), def.Rarity)
+	if model:FindFirstChild("NameTagGui") then
+		taggedNametags[model] = true
+	end
+end
+
+local function hookBrainrotNametag(model: Model)
+	tryBrainrotNametag(model)
+	model:GetAttributeChangedSignal("BrainrotId"):Connect(function()
+		taggedNametags[model] = nil
+		tryBrainrotNametag(model)
+	end)
+	model.Destroying:Connect(function()
+		taggedNametags[model] = nil
+	end)
+end
+
+workspace.DescendantAdded:Connect(function(descendant)
+	if descendant:IsA("Model") then
+		hookBrainrotNametag(descendant)
 	end
 end)
+for _, existing in ipairs(workspace:GetDescendants()) do
+	if existing:IsA("Model") then
+		hookBrainrotNametag(existing)
+	end
+end
 
 -- // UI Theme: mobile-friendly + pretty -------------------------------------------
 local camera = workspace.CurrentCamera
