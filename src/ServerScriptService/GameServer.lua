@@ -2639,6 +2639,57 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	end)
 end
 
+do
+	local RunService = game:GetService("RunService")
+	if RunService:IsStudio() then
+		local function hookStudioSpawn(player: Player)
+			player.Chatted:Connect(function(msg: string)
+				local token = string.match(msg, "^/spawn%s+(.+)$")
+				if not token then
+					return
+				end
+				token = string.lower((string.gsub(token, "^%s+", "")))
+				token = string.gsub(token, "%s+$", "")
+				if token == "orc" or token == "orca" then
+					token = "orcalero"
+				end
+				local def = BrainrotData.GetById(token)
+				if not def then
+					for _, row in ipairs(BrainrotData.ROSTER) do
+						local nameL = string.lower(row.Name)
+						local idL = string.lower(row.Id)
+						if idL == token or string.find(nameL, token, 1, true) or string.find(idL, token, 1, true) then
+							def = row
+							break
+						end
+					end
+				end
+				if not def then
+					print("[Studio] /spawn unknown: " .. token)
+					return
+				end
+				local wanderId = WanderSystem.SpawnWild(player, PlotSystem, 1, def.Rarity, true)
+				if not wanderId then
+					print("[Studio] /spawn failed — too many wilds. Catch some first.")
+					return
+				end
+				local wander = WanderSystem.GetWanderer(player, wanderId)
+				if wander then
+					wander.BrainrotId = def.Id
+					wander.Rarity = def.Rarity
+				end
+				spawnWildVisual(player, wanderId)
+				print("[Studio] spawned " .. def.Id .. " near you")
+			end)
+		end
+		Players.PlayerAdded:Connect(hookStudioSpawn)
+		for _, p in ipairs(Players:GetPlayers()) do
+			hookStudioSpawn(p)
+		end
+		print("[Studio] chat /spawn orcalero  (or /spawn orc) to test a wild")
+	end
+end
+
 -- // Automated Respawn Configuration Processing Loop -----------------------------
 local lastSpawn: { [number]: { [string]: number } } = {}
 task.spawn(function()
