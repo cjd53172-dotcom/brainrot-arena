@@ -76,17 +76,19 @@ function EggSystem.HatchEgg(player: Player, eggId: string): any?
 	local cumulative = 0
 	local rarity = "Common"
 	for _, r in ipairs(BrainrotData.RARITY_ORDER) do
-		cumulative += tierDef.Weights[r] or 0
-		if roll <= cumulative then
-			rarity = r
-			break
+		if not BrainrotData.IsFusionOnlyRarity(r) then
+			cumulative += tierDef.Weights[r] or 0
+			if roll <= cumulative then
+				rarity = r
+				break
+			end
 		end
 	end
 
 	-- Pick random brainrot of that rarity
 	local candidates = {}
 	for _, def in ipairs(BrainrotData.ROSTER) do
-		if def.Rarity == rarity then
+		if def.Rarity == rarity and not BrainrotData.IsFusionOnlyRarity(def.Rarity) then
 			table.insert(candidates, def)
 		end
 	end

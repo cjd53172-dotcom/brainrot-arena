@@ -567,7 +567,7 @@ if fuseBrainrotsRemote then
 			return
 		end
 		local resultRarity = BrainrotData.GetFusionResultRarity(rarity)
-		local resultId = resultRarity and BrainrotData.GetRandomIdOfRarity(resultRarity) or nil
+		local resultId = resultRarity and BrainrotData.GetRandomIdOfRarity(resultRarity, true) or nil
 		if not resultId then
 			return
 		end
@@ -1803,7 +1803,7 @@ do
 			end
 		end
 		if #ids == 0 then
-			return "tung_sahur"
+			return "lirili"
 		end
 		return ids[math.random(1, #ids)]
 	end
@@ -2945,7 +2945,7 @@ task.spawn(function()
 
 								for attempt = 1, 5 do
 									if not player.Parent then break end
-									local wanderId = WanderSystem.SpawnWild(player, PlotSystem, luckMult)
+									local wanderId = WanderSystem.SpawnWild(player, PlotSystem, luckMult, rarity)
 									if wanderId then
 										local wander = WanderSystem.GetWanderer(player, wanderId)
 										if wander and wander.Rarity == rarity then

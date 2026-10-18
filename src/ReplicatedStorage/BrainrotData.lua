@@ -2105,11 +2105,16 @@ BrainrotData.ORB_REWARD_WEIGHTS = {
 	Common = 55, Rare = 24, Epic = 12, Legendary = 7, Mythic = 2,
 }
 
-function BrainrotData.GetRandomIdOfRarity(rarity: string): string?
+function BrainrotData.GetRandomIdOfRarity(rarity: string, allowFusionOnly: boolean?): string?
+	if BrainrotData.IsFusionOnlyRarity(rarity) and allowFusionOnly ~= true then
+		return nil
+	end
 	local pool = {}
 	for _, def in ipairs(BrainrotData.ROSTER) do
 		if def.Rarity == rarity then
-			table.insert(pool, def.Id)
+			if allowFusionOnly == true or not BrainrotData.IsFusionOnlyRarity(def.Rarity) then
+				table.insert(pool, def.Id)
+			end
 		end
 	end
 	if #pool == 0 then
@@ -2225,7 +2230,7 @@ local legendIds = idsOfRarity("Legendary")
 
 local function cycleId(pool: { string }, n: number, offset: number): string
 	if #pool == 0 then
-		return "tung_sahur"
+		return "lirili"
 	end
 	return pool[((n + offset - 1) % #pool) + 1]
 end

@@ -117,7 +117,10 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 		rarity = "Mythic"
 	end
 	local brainrotId = BrainrotData.GetRandomIdOfRarity(rarity)
-	if not brainrotId then return nil end
+	local picked = brainrotId and BrainrotData.GetBrainrot(brainrotId) or nil
+	if not brainrotId or not picked or BrainrotData.IsFusionOnlyRarity(picked.Rarity) then
+		return nil
+	end
 
 	local wanderId = "wild_" .. tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
 	local baseCfg = RARITY_CONFIG[rarity]
