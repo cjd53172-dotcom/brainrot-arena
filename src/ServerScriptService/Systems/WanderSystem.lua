@@ -65,7 +65,7 @@ function WanderSystem.SetEventActive(active: boolean)
 end
 
 function WanderSystem.GetMaxWanderers(): number
-	return if WanderSystem.EventActive then 52 else WanderSystem.MAX_WANDERERS
+	return if WanderSystem.EventActive then 26 else WanderSystem.MAX_WANDERERS
 end
 
 -- Roll a rarity by weight. luckMult boosts Rare+ weights.

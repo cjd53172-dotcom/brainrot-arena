@@ -30,7 +30,8 @@ local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 local PlayerData = {}
 
-local STORE_NAME = "BrainrotArena_SaveV1"
+-- V2 = clean-slate season. Old BrainrotArena_SaveV1 keys are left untouched.
+local STORE_NAME = "BrainrotArena_SaveV2"
 local store: DataStore? = nil
 
 local ok, err = pcall(function()

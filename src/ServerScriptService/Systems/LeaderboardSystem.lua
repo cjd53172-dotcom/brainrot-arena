@@ -12,7 +12,7 @@ local LeaderboardSystem = {}
 
 local winsStore: OrderedDataStore? = nil
 pcall(function()
-	winsStore = DataStoreService:GetOrderedDataStore("BattleWins_v1")
+	winsStore = DataStoreService:GetOrderedDataStore("BattleWins_v2")
 end)
 
 local sessionWins: { [number]: number } = {}

@@ -2839,6 +2839,20 @@ do
 				end
 				return
 			end
+			local rushQuery = string.match(msg, "^/rush%s*(.*)$")
+			if rushQuery ~= nil then
+				local ctl = game:GetService("ServerStorage"):FindFirstChild("RushControl")
+				local result = "Rush control not ready."
+				if ctl and ctl:IsA("BindableFunction") then
+					result = tostring(ctl:Invoke(rushQuery) or "")
+				end
+				print("[Admin] " .. result)
+				local hintEvent = CachedRemotes["ShowHint"]
+				if hintEvent then
+					hintEvent:FireClient(player, string.split(result, "\n")[1])
+				end
+				return
+			end
 			local token = string.match(msg, "^/spawn%s+(.+)$")
 			if not token then
 				return
@@ -2885,7 +2899,7 @@ do
 	for _, p in ipairs(Players:GetPlayers()) do
 		hookAdminChat(p)
 	end
-	print("[Admin] /spawn all  |  /spawn orcalero  |  /sky list  |  /sky next  |  /sky 2  |  /sky obby")
+	print("[Admin] /spawn all  |  /spawn orcalero  |  /rush  |  /rush stop  |  /sky list  |  /sky next  |  /sky 2  |  /sky obby")
 end
 
 -- // Automated Respawn Configuration Processing Loop -----------------------------
@@ -2951,7 +2965,7 @@ task.spawn(function()
 				end
 
 				if WanderSystem.EventActive then
-					for _ = 1, 5 do
+					for _ = 1, 3 do
 						if not player.Parent then
 							break
 						end
@@ -2960,7 +2974,7 @@ task.spawn(function()
 							spawnWildVisual(player, rushId)
 						end
 					end
-					for _ = 1, 4 do
+					for _ = 1, 2 do
 						if not player.Parent then
 							break
 						end
@@ -3295,28 +3309,75 @@ local function broadcastEvent(active: boolean, endsAt: number?)
 	end
 end
 
-task.spawn(function()
-	local function nextHourUnix(): number
-		local t = os.time()
-		return t - (t % 3600) + 3600
-	end
-	local nextAt = nextHourUnix()
-	print("[GameServer] Next Legendary Rush on the hour. unix " .. tostring(nextAt))
-	while true do
-		if os.time() >= nextAt then
-			WanderSystem.SetEventActive(true)
-			applyEventScenery(true)
-			local endsAt = os.time() + 600
-			broadcastEvent(true, endsAt)
-			print("[GameServer] Legendary Rush started")
-			task.wait(600)
-			WanderSystem.SetEventActive(false)
-			cleanupWanderVisuals(WanderSystem.ClearEventRush())
-			applyEventScenery(false)
-			broadcastEvent(false)
-			print("[GameServer] Legendary Rush ended")
-			nextAt = nextHourUnix()
+do
+	local rushRunning = false
+	local rushGen = 0
+	local RUSH_SECS = 600
+
+	local function stopLegendaryRush(): string
+		if not rushRunning and not WanderSystem.EventActive then
+			return "No Legendary Rush is running."
 		end
-		task.wait(5)
+		rushGen += 1
+		rushRunning = false
+		WanderSystem.SetEventActive(false)
+		cleanupWanderVisuals(WanderSystem.ClearEventRush())
+		applyEventScenery(false)
+		broadcastEvent(false)
+		print("[GameServer] Legendary Rush ended")
+		return "Legendary Rush stopped."
 	end
-end)
+
+	local function startLegendaryRush(): string
+		if rushRunning then
+			return "Legendary Rush is already running."
+		end
+		rushRunning = true
+		rushGen += 1
+		local gen = rushGen
+		WanderSystem.SetEventActive(true)
+		applyEventScenery(true)
+		local endsAt = os.time() + RUSH_SECS
+		broadcastEvent(true, endsAt)
+		print("[GameServer] Legendary Rush started")
+		task.delay(RUSH_SECS, function()
+			if gen == rushGen then
+				stopLegendaryRush()
+			end
+		end)
+		return "Legendary Rush started for 10 minutes."
+	end
+
+	local ctl = Instance.new("BindableFunction")
+	ctl.Name = "RushControl"
+	ctl.OnInvoke = function(query: string): string
+		local q = string.lower((string.gsub(query or "", "^%s+", "")))
+		q = string.gsub(q, "%s+$", "")
+		if q == "stop" or q == "end" then
+			return stopLegendaryRush()
+		end
+		return startLegendaryRush()
+	end
+	ctl.Parent = game:GetService("ServerStorage")
+
+	task.spawn(function()
+		local function nextHourUnix(): number
+			local t = os.time()
+			return t - (t % 3600) + 3600
+		end
+		local nextAt = nextHourUnix()
+		print("[GameServer] Next Legendary Rush on the hour. unix " .. tostring(nextAt))
+		while true do
+			if os.time() >= nextAt then
+				if not rushRunning then
+					startLegendaryRush()
+				end
+				nextAt = nextHourUnix()
+				if nextAt <= os.time() then
+					nextAt = os.time() + 3600
+				end
+			end
+			task.wait(5)
+		end
+	end)
+end
