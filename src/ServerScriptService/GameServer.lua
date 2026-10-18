@@ -440,34 +440,29 @@ local function makeBat(): Tool
 	return tool
 end
 
-local function giveBat(player: Player)
-	local function give()
-		local backpack = player:FindFirstChildOfClass("Backpack")
-		local char = player.Character
-		if not backpack then return end
+local function stripBat(player: Player)
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if backpack then
 		local old = backpack:FindFirstChild("Baseball Bat")
 		if old then
 			old:Destroy()
 		end
-		if char then
-			local held = char:FindFirstChild("Baseball Bat")
-			if held then
-				held:Destroy()
-			end
-		end
-		makeBat().Parent = backpack
 	end
-	player.CharacterAdded:Connect(function()
-		task.wait(1)
-		give()
-	end)
-	if player.Character then
-		task.defer(give)
+	local char = player.Character
+	if char then
+		local held = char:FindFirstChild("Baseball Bat")
+		if held then
+			held:Destroy()
+		end
 	end
 end
-Players.PlayerAdded:Connect(giveBat)
-for _, existingPlayer in ipairs(Players:GetPlayers()) do
-	giveBat(existingPlayer)
+
+local function giveBat(player: Player)
+	stripBat(player)
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if backpack then
+		makeBat().Parent = backpack
+	end
 end
 
 -- // Work system ------------------------------------------------------------------
@@ -914,6 +909,67 @@ end
 
 -- // World setup ----------------------------------------------------------------
 PlotSystem.Setup()
+
+do
+	local attach: Instance? = if PlotSystem.ArenaPrompt then PlotSystem.ArenaPrompt.Parent else nil
+	local sign = if attach and attach:IsA("BasePart") then attach else nil
+	local plaza = workspace:FindFirstChild("Plaza")
+	if sign and plaza then
+		local stand = Instance.new("Part")
+		stand.Name = "BatRack"
+		stand.Size = Vector3.new(2.4, 3.4, 2.4)
+		stand.Anchored = true
+		stand.Color = Color3.fromRGB(92, 68, 42)
+		stand.Material = Enum.Material.Wood
+		stand.Position = Vector3.new(sign.Position.X + 12, sign.Position.Y - sign.Size.Y * 0.5 + 1.7, sign.Position.Z)
+		stand.Parent = plaza
+		local peg = Instance.new("Part")
+		peg.Name = "Peg"
+		peg.Size = Vector3.new(0.3, 0.3, 1.4)
+		peg.Anchored = true
+		peg.Color = Color3.fromRGB(60, 44, 28)
+		peg.Material = Enum.Material.Wood
+		peg.Position = stand.Position + Vector3.new(0, 1.5, 0.4)
+		peg.Parent = plaza
+		local deco = Instance.new("Part")
+		deco.Name = "DisplayBat"
+		deco.Shape = Enum.PartType.Cylinder
+		deco.Size = Vector3.new(4.4, 0.55, 0.55)
+		deco.Anchored = true
+		deco.CanCollide = false
+		deco.Color = Color3.fromRGB(196, 142, 78)
+		deco.Material = Enum.Material.Wood
+		deco.CFrame = CFrame.new(stand.Position + Vector3.new(0, 1.7, 0.55)) * CFrame.Angles(0, 0, math.rad(70))
+		deco.Parent = plaza
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "BatPrompt"
+		prompt.ActionText = "Grab Bat"
+		prompt.ObjectText = "Baseball Bat"
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 14
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = stand
+		prompt.Triggered:Connect(function(plr: Player)
+			giveBat(plr)
+			local hintEvent = CachedRemotes["ShowHint"]
+			if hintEvent then
+				hintEvent:FireClient(plr, "Bat grabbed — it only works inside the Arena.")
+			end
+		end)
+	end
+	task.spawn(function()
+		while true do
+			task.wait(1.5)
+			for _, plr in ipairs(Players:GetPlayers()) do
+				local char = plr.Character
+				local root = char and char:FindFirstChild("HumanoidRootPart")
+				if root and root:IsA("BasePart") and not inArena((root :: BasePart).Position) then
+					stripBat(plr)
+				end
+			end
+		end
+	end)
+end
 
 if PlotSystem.FusionPrompt then
 	PlotSystem.FusionPrompt.Triggered:Connect(function(player: Player)

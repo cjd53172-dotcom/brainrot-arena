@@ -390,10 +390,10 @@ coinsLabel.TextColor3 = Color3.fromRGB(255, 210, 80)
 coinsLabel.Parent = gui
 corner(coinsLabel, 10)
 
--- // Bottom buttons (5) ------------------------------------------------------------------
+-- // Bottom buttons (laid out after all HUD buttons exist) -------------------------------
 local collectionBtn = Instance.new("TextButton")
 collectionBtn.Size = UDim2.new(0, 104, 0, 48)
-collectionBtn.Position = UDim2.new(0.5, -276, 1, -124)
+collectionBtn.Position = UDim2.new(0.5, -226, 1, -124)
 collectionBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
 collectionBtn.Text = "Brainrots"
 collectionBtn.Font = Enum.Font.GothamBold
@@ -405,7 +405,7 @@ styleFrame(collectionBtn, false)
 
 local workBtn = Instance.new("TextButton")
 workBtn.Size = UDim2.new(0, 104, 0, 48)
-workBtn.Position = UDim2.new(0.5, -164, 1, -124)
+workBtn.Position = UDim2.new(0.5, -110, 1, -124)
 workBtn.BackgroundColor3 = Color3.fromRGB(45, 60, 35)
 workBtn.Text = "Work"
 workBtn.Font = Enum.Font.GothamBold
@@ -417,13 +417,14 @@ styleFrame(workBtn, false)
 
 local fusionBtn = Instance.new("TextButton")
 fusionBtn.Size = UDim2.new(0, 104, 0, 48)
-fusionBtn.Position = UDim2.new(0.5, -52, 1, -124)
+fusionBtn.Position = UDim2.new(0.5, 6, 1, -124)
 fusionBtn.BackgroundColor3 = Color3.fromRGB(60, 35, 80)
 fusionBtn.Text = "Fusion"
 fusionBtn.Font = Enum.Font.GothamBold
 fusionBtn.TextSize = 14
 fusionBtn.TextColor3 = Color3.fromRGB(220, 170, 255)
 fusionBtn.Parent = gui
+fusionBtn.Visible = false
 corner(fusionBtn, 12)
 styleFrame(fusionBtn, false)
 
@@ -442,7 +443,7 @@ styleFrame(arenaBtn, false)
 
 local showcaseBtn = Instance.new("TextButton")
 showcaseBtn.Size = UDim2.new(0, 104, 0, 48)
-showcaseBtn.Position = UDim2.new(0.5, 172, 1, -124)
+showcaseBtn.Position = UDim2.new(0.5, 122, 1, -124)
 showcaseBtn.BackgroundColor3 = Color3.fromRGB(55, 45, 25)
 showcaseBtn.Text = "Showcase"
 showcaseBtn.Font = Enum.Font.GothamBold
@@ -1805,8 +1806,8 @@ end)
 
 -- // Exploration & Progression Panels -----------------------------------------------------
 local exploreBtn = Instance.new("TextButton")
-exploreBtn.Size = UDim2.new(0, 104, 0, 40)
-exploreBtn.Position = UDim2.new(0.5, -276, 1, -172)
+exploreBtn.Size = UDim2.new(0, 104, 0, 42)
+exploreBtn.Position = UDim2.new(0.5, -226, 1, -176)
 exploreBtn.BackgroundColor3 = Color3.fromRGB(35, 60, 35)
 exploreBtn.Text = "Explore"
 exploreBtn.Font = Enum.Font.GothamBold
@@ -1817,8 +1818,8 @@ exploreBtn.Visible = false
 corner(exploreBtn, 10)
 
 local dailyBtn = Instance.new("TextButton")
-dailyBtn.Size = UDim2.new(0, 104, 0, 40)
-dailyBtn.Position = UDim2.new(0.5, -164, 1, -172)
+dailyBtn.Size = UDim2.new(0, 104, 0, 42)
+dailyBtn.Position = UDim2.new(0.5, -226, 1, -176)
 dailyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
 dailyBtn.Text = "Dailies"
 dailyBtn.Font = Enum.Font.GothamBold
@@ -1826,10 +1827,11 @@ dailyBtn.TextSize = 13
 dailyBtn.TextColor3 = Color3.fromRGB(200, 200, 255)
 dailyBtn.Parent = gui
 corner(dailyBtn, 10)
+styleFrame(dailyBtn, false)
 
 local eggBtn = Instance.new("TextButton")
-eggBtn.Size = UDim2.new(0, 104, 0, 40)
-eggBtn.Position = UDim2.new(0.5, -52, 1, -172)
+eggBtn.Size = UDim2.new(0, 104, 0, 42)
+eggBtn.Position = UDim2.new(0.5, -110, 1, -176)
 eggBtn.BackgroundColor3 = Color3.fromRGB(80, 65, 30)
 eggBtn.Text = "Eggs"
 eggBtn.Font = Enum.Font.GothamBold
@@ -1837,10 +1839,11 @@ eggBtn.TextSize = 13
 eggBtn.TextColor3 = Color3.fromRGB(255, 230, 150)
 eggBtn.Parent = gui
 corner(eggBtn, 10)
+styleFrame(eggBtn, false)
 
 local mineBtn = Instance.new("TextButton")
-mineBtn.Size = UDim2.new(0, 104, 0, 40)
-mineBtn.Position = UDim2.new(0.5, 60, 1, -172)
+mineBtn.Size = UDim2.new(0, 104, 0, 42)
+mineBtn.Position = UDim2.new(0.5, 6, 1, -176)
 mineBtn.BackgroundColor3 = Color3.fromRGB(70, 55, 20)
 mineBtn.Text = "Gold Mine"
 mineBtn.Font = Enum.Font.GothamBold
@@ -1848,10 +1851,11 @@ mineBtn.TextSize = 13
 mineBtn.TextColor3 = Color3.fromRGB(255, 210, 100)
 mineBtn.Parent = gui
 corner(mineBtn, 10)
+styleFrame(mineBtn, false)
 
 local styleBtn = Instance.new("TextButton")
-styleBtn.Size = UDim2.new(0, 104, 0, 40)
-styleBtn.Position = UDim2.new(0.5, 172, 1, -172)
+styleBtn.Size = UDim2.new(0, 104, 0, 42)
+styleBtn.Position = UDim2.new(0.5, 122, 1, -176)
 styleBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 70)
 styleBtn.Text = "Style"
 styleBtn.Font = Enum.Font.GothamBold
@@ -1859,10 +1863,11 @@ styleBtn.TextSize = 13
 styleBtn.TextColor3 = Color3.fromRGB(220, 180, 255)
 styleBtn.Parent = gui
 corner(styleBtn, 10)
+styleFrame(styleBtn, false)
 
 local statsBtn = Instance.new("TextButton")
-statsBtn.Size = UDim2.new(0, 104, 0, 40)
-statsBtn.Position = UDim2.new(0.5, 284, 1, -124)
+statsBtn.Size = UDim2.new(0, 104, 0, 42)
+statsBtn.Position = UDim2.new(0.5, 122, 1, -176)
 statsBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 20)
 statsBtn.Text = "📊 Stats"
 statsBtn.Font = Enum.Font.GothamBold
@@ -1871,6 +1876,24 @@ statsBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
 statsBtn.Parent = gui
 statsBtn.Visible = false
 corner(statsBtn, 10)
+
+if not isMobile then
+	do
+		local w = 108
+		local gap = 10
+		local function placeRow(btns: { TextButton }, yOff: number, h: number)
+			local n = #btns
+			local total = n * w + (n - 1) * gap
+			local start = -math.floor(total / 2)
+			for i, btn in ipairs(btns) do
+				btn.Size = UDim2.new(0, w, 0, h)
+				btn.Position = UDim2.new(0.5, start + (i - 1) * (w + gap), 1, yOff)
+			end
+		end
+		placeRow({ collectionBtn, workBtn, showcaseBtn }, -124, 48)
+		placeRow({ dailyBtn, eggBtn, mineBtn, styleBtn }, -176, 42)
+	end
+end
 
 local function makePanel(title: string, titleColor: Color3): (Frame, TextLabel)
 	local panel = Instance.new("ScrollingFrame")
@@ -2188,15 +2211,6 @@ fishingUpdateRemote.OnClientEvent:Connect(function(payload: any)
 		if fishingPanel.Visible then
 			refreshFishingPanel()
 		end
-	end
-end)
-
-fusionBtn.MouseButton1Click:Connect(function()
-	local was = fusionPanel.Visible
-	hideAllPanels()
-	if not was then
-		refreshFusionPanel()
-		fusionPanel.Visible = true
 	end
 end)
 
@@ -3357,7 +3371,6 @@ local function buildMobileBar()
 	local mobileButtons: { any } = {
 		{ Icon = "🧠", Label = "Brainrots", Panel = collectionPanel, Refresh = refreshCollectionPanel },
 		{ Icon = "⚒️", Label = "Work", Panel = workPanel, Refresh = refreshWorkPanel },
-		{ Icon = "⚗️", Label = "Fuse", Panel = fusionPanel, Refresh = refreshFusionPanel },
 		{ Icon = "⭐", Label = "Show", Panel = editorPanel, Refresh = refreshEditorPanel },
 		{ Icon = "📅", Label = "Daily", Panel = dailyPanel, Refresh = refreshDailyPanel },
 		{ Icon = "🥚", Label = "Eggs", Panel = eggPanel, Refresh = refreshEggPanel },
