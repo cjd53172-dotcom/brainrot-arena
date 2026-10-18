@@ -1606,13 +1606,14 @@ local function buildFace(model: Model, size: Vector3, mood: string?)
 	end
 end
 
-local function addDressing(model: Model, height: number, def: any, variantId: string?, isShiny: boolean, host: BasePart?)
+local function addDressing(model: Model, height: number, def: any, variantId: string?, isShiny: boolean, host: BasePart?, skipPlate: boolean?)
 	model:SetAttribute("BrainrotId", def.Id)
 	local accentColor = BrainrotData.RARITY_COLORS[def.Rarity] or Color3.new(1, 1, 1)
 	if isShiny then
 		accentColor = Color3.fromRGB(255, 215, 0)
 	end
 
+	if not skipPlate then
 	local plate = newPart({
 		Name = "RarityPlate",
 		Size = Vector3.new(3.6, 0.25, 3.6),
@@ -1623,6 +1624,7 @@ local function addDressing(model: Model, height: number, def: any, variantId: st
 	}, model)
 	local bbCF, bbSize = model:GetBoundingBox()
 	plate.CFrame = CFrame.new(bbCF.Position.X, bbCF.Position.Y - bbSize.Y / 2 - 0.15, bbCF.Position.Z)
+	end
 
 	if isShiny and host then
 		local sparkles = Instance.new("ParticleEmitter")
@@ -1674,7 +1676,7 @@ local function firstBasePart(model: Model): BasePart?
 	return nil
 end
 
-local function buildFromCustom(def: any, source: Instance, isShiny: boolean, variantId: string?): Model?
+local function buildFromCustom(def: any, source: Instance, isShiny: boolean, variantId: string?, skipPlate: boolean?): Model?
 	local model: Model
 	if source:IsA("Model") then
 		model = (source :: Model):Clone()
@@ -1777,14 +1779,14 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 	shrinkToPedestalSize(model)
 	fitLyingFileMesh(model, MAX_DISPLAY_SIZE)
 	uprightModel(model)
-	addDressing(model, h, def, variantId, isShiny, host)
+	addDressing(model, h, def, variantId, isShiny, host, skipPlate)
 	return model
 end
 
-function PlotSystem.BuildDisplayModel(def: any, isShiny: boolean, variantId: string?): Model
+function PlotSystem.BuildDisplayModel(def: any, isShiny: boolean, variantId: string?, skipPlate: boolean?): Model
 	local custom = findCustomModel(def, variantId)
 	if custom then
-		local fromCustom = buildFromCustom(def, custom, isShiny, variantId)
+		local fromCustom = buildFromCustom(def, custom, isShiny, variantId, skipPlate)
 		if fromCustom then
 			return fromCustom
 		end
@@ -1850,7 +1852,7 @@ function PlotSystem.BuildDisplayModel(def: any, isShiny: boolean, variantId: str
 		buildFace(model, spec.Size, mood)
 	end
 
-	addDressing(model, spec.Size.Y, def, variantId, isShiny, body)
+	addDressing(model, spec.Size.Y, def, variantId, isShiny, body, skipPlate)
 	return model
 end
 

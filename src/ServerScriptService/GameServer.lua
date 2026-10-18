@@ -2326,7 +2326,16 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	local def = BrainrotData.GetBrainrot(wander.BrainrotId)
 	if not def then return end
 
-	local model = PlotSystem.BuildDisplayModel(def, wander.Shiny == true, wander.Variant)
+	local model = PlotSystem.BuildDisplayModel(def, wander.Shiny == true, wander.Variant, true)
+	for _, d in ipairs(model:GetDescendants()) do
+		if d.Name == "RarityPlate" then
+			d:Destroy()
+		end
+	end
+	local leftover = model:FindFirstChild("RarityPlate")
+	if leftover then
+		leftover:Destroy()
+	end
 	-- Plots stay at display size (~4 studs). Wilds are 6× that.
 	local WILD_SIZE_MULT = 6
 	pcall(function()
