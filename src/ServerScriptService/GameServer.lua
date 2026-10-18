@@ -1734,6 +1734,18 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	model:PivotTo(currentPivot + (spawnPos - currentPivot.Position))
 	model:SetAttribute("WildOwner", player.UserId) -- other players' screens hide it (see ClientUI)
 	model.Parent = workspace
+	PlotSystem.FitInWorld(model, 4)
+	do
+		local okBB, bbCF, bbSize = pcall(function()
+			return model:GetBoundingBox()
+		end)
+		if okBB and bbCF and bbSize then
+			bottomOffset = model:GetPivot().Position.Y - ((bbCF :: CFrame).Position.Y - (bbSize :: Vector3).Y / 2)
+		end
+		local spawnGround2 = wildGroundY(spawnPos.X, spawnPos.Z, model)
+		local grounded = Vector3.new(spawnPos.X, (spawnGround2 or 60) + bottomOffset + 0.2, spawnPos.Z)
+		model:PivotTo(model:GetPivot() + (grounded - model:GetPivot().Position))
+	end
 
 	local reachTier = PlayerData.GetUpgradeTier(player, "Reach")
 	local hitboxSize = 6

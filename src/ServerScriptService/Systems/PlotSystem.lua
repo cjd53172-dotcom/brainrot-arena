@@ -134,7 +134,11 @@ local function shrinkToPedestalSize(model: Model)
 end
 
 local function placeModelOnTop(model: Model, targetPart: BasePart, extraOffset: number)
-	shrinkToPedestalSize(model)
+	if model.Parent then
+		PlotSystem.FitInWorld(model, MAX_DISPLAY_SIZE)
+	else
+		shrinkToPedestalSize(model)
+	end
 	local cf, size = model:GetBoundingBox()
 	local lift = extraOffset
 	local target = Vector3.new(
@@ -148,6 +152,41 @@ end
 
 function PlotSystem.UprightModel(model: Model)
 	uprightModel(model)
+end
+
+-- Call after the model is in Workspace. Pack meshes often report a tiny
+-- bounding box until then, which made Chillin Chili / Tralalero grow.
+function PlotSystem.FitInWorld(model: Model, maxSize: number)
+	if not model.Parent then
+		model.Parent = workspace
+	end
+	uprightModel(model)
+	for _ = 1, 6 do
+		local changed = false
+		local size = model:GetExtentsSize()
+		local maxDim = math.max(size.X, size.Y, size.Z)
+		local s = 1
+		if maxDim > maxSize and maxDim >= 0.05 then
+			s = math.clamp(maxSize / maxDim, 0.01, 1)
+			pcall(function()
+				model:ScaleTo(s)
+			end)
+			changed = true
+		end
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("SpecialMesh") or d:IsA("FileMesh") or d:IsA("DataModelMesh") then
+				local mesh = d :: DataModelMesh
+				local mx = math.max(mesh.Scale.X, mesh.Scale.Y, mesh.Scale.Z)
+				if mx > 2 then
+					mesh.Scale = mesh.Scale * (maxSize / mx)
+					changed = true
+				end
+			end
+		end
+		if not changed then
+			break
+		end
+	end
 end
 
 -- // Pack auto-import ---------------------------------------------------------------
@@ -291,10 +330,10 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 5-flatpad")
+print("[PlotSystem] source 6-stonepad")
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v5-flatpad")
+	print("[PlotSystem] Loaded placement v6-stonepad")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -329,7 +368,7 @@ function PlotSystem.Setup()
 			workspace.Terrain:FillBlock(
 				CFrame.new(cx, topY - thickness / 2, cz),
 				Vector3.new(pad, thickness, pad),
-				Enum.Material.Grass
+				Enum.Material.Rock
 			)
 		end)
 	end
@@ -341,29 +380,6 @@ function PlotSystem.Setup()
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
-
-	pcall(function()
-		local terrain = workspace.Terrain
-		local region = Region3.new(
-			Vector3.new(40, -5, -10),
-			Vector3.new(260, 40, 340)
-		):ExpandToGrid(4)
-		local mats, occ = terrain:ReadVoxels(region, 4)
-		local sx = #mats
-		local sy = #mats[1]
-		local sz = #mats[1][1]
-		for xi = 1, sx do
-			for yi = 1, sy do
-				for zi = 1, sz do
-					local m = mats[xi][yi][zi]
-					if m == Enum.Material.Grass then
-						mats[xi][yi][zi] = Enum.Material.Concrete
-					end
-				end
-			end
-		end
-		terrain:WriteVoxels(region, 4, mats, occ)
-	end)
 
 	local limit = BrainrotData.SHOWCASE_LIMIT
 	local perRow = 5
@@ -1295,7 +1311,7 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 		if math.abs(s - 1) <= 0.03 then
 			break
 		end
-		s = math.clamp(s, 0.02, 20)
+		s = math.clamp(s, 0.02, 1)
 		pcall(function() model:ScaleTo(s) end)
 		local _, afterSize = measure()
 		local afterH = afterSize and afterSize.Y or h
