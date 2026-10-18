@@ -1300,6 +1300,9 @@ do
 			portal:ScaleTo(2)
 		end
 		PlotSystem.SitOnTerrain(portal, gate.X, gate.Z)
+		if gate.Id == "laser_tag" then
+			portal:PivotTo(portal:GetPivot() * CFrame.Angles(0, math.pi, 0))
+		end
 		portal.Parent = workspace
 		print("[GameServer] Place gate " .. tostring(gate.Id) .. " at " .. tostring(gate.X) .. ", " .. tostring(gate.Z))
 
