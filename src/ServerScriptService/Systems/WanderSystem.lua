@@ -221,6 +221,24 @@ function WanderSystem.TickDespawn(): { any }
 	return toRemove
 end
 
+-- Remove event-only legendaries and epics. Returns { UserId, WanderId } for visuals.
+function WanderSystem.ClearEventRush(): { any }
+	local toRemove = {}
+	for userId, list in pairs(wanderers) do
+		for wanderId, wander in pairs(list) do
+			if wander.EventRush == true then
+				table.insert(toRemove, { UserId = userId, WanderId = wanderId })
+			end
+		end
+	end
+	for _, item in ipairs(toRemove) do
+		if wanderers[item.UserId] then
+			wanderers[item.UserId][item.WanderId] = nil
+		end
+	end
+	return toRemove
+end
+
 -- Cleanup when player leaves.
 function WanderSystem.ClearPlayer(player: Player)
 	wanderers[player.UserId] = nil

@@ -1881,6 +1881,27 @@ end)
 local wanderModels: { [number]: { [string]: Model } } = {}
 local wanderBeams: { [number]: { [string]: Model } } = {}
 
+local function cleanupWanderVisuals(items: { any })
+	for _, item in ipairs(items) do
+		local userId = item.UserId
+		local wanderId = item.WanderId
+		if wanderModels[userId] and wanderModels[userId][wanderId] then
+			local model = wanderModels[userId][wanderId]
+			if model and model.Parent then
+				model:Destroy()
+			end
+			wanderModels[userId][wanderId] = nil
+		end
+		if wanderBeams[userId] and wanderBeams[userId][wanderId] then
+			local beam = wanderBeams[userId][wanderId]
+			if beam and beam.Parent then
+				beam:Destroy()
+			end
+			wanderBeams[userId][wanderId] = nil
+		end
+	end
+end
+
 -- How far from the player a wild brainrot can appear, by rarity: { min studs, max studs }.
 -- Raise these numbers for a bigger world, lower them for a smaller one.
 local WILD_SPAWN_RADIUS: { [string]: { number } } = {
@@ -2356,26 +2377,7 @@ task.spawn(function()
 		end
 
 		local despawned = WanderSystem.TickDespawn()
-		for _, item in ipairs(despawned) do
-			local userId = item.UserId
-			local wanderId = item.WanderId
-
-			if wanderModels[userId] and wanderModels[userId][wanderId] then
-				local model = wanderModels[userId][wanderId]
-				if model and model.Parent then
-					model:Destroy()
-				end
-				wanderModels[userId][wanderId] = nil
-			end
-
-			if wanderBeams[userId] and wanderBeams[userId][wanderId] then
-				local beam = wanderBeams[userId][wanderId]
-				if beam and beam.Parent then
-					beam:Destroy()
-				end
-				wanderBeams[userId][wanderId] = nil
-			end
-		end
+		cleanupWanderVisuals(despawned)
 	end
 end)
 
@@ -2581,6 +2583,7 @@ task.spawn(function()
 			print("[GameServer] Legendary Rush started")
 			task.wait(600)
 			WanderSystem.SetEventActive(false)
+			cleanupWanderVisuals(WanderSystem.ClearEventRush())
 			applyEventScenery(false)
 			broadcastEvent(false)
 			print("[GameServer] Legendary Rush ended")
