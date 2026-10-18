@@ -938,6 +938,7 @@ local function buildFace(model: Model, size: Vector3, mood: string?)
 end
 
 local function addDressing(model: Model, height: number, def: any, variantId: string?, isShiny: boolean, host: BasePart?)
+	model:SetAttribute("BrainrotId", def.Id)
 	local accentColor = BrainrotData.RARITY_COLORS[def.Rarity] or Color3.new(1, 1, 1)
 	if isShiny then
 		accentColor = Color3.fromRGB(255, 215, 0)
@@ -967,39 +968,8 @@ local function addDressing(model: Model, height: number, def: any, variantId: st
 		sparkles.Parent = host
 	end
 
-	if not host then
-		return
-	end
-
-	local tag = Instance.new("BillboardGui")
-	tag.Name = "NameTag"
-	tag.Size = UDim2.new(0, 260, 0, 70)
-	tag.StudsOffset = Vector3.new(0, height / 2 + 1.6, 0)
-	tag.AlwaysOnTop = true
-	tag.Adornee = host
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, 0, 0.62, 0)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = BrainrotData.GetDisplayName(def, variantId, isShiny)
-	nameLabel.TextScaled = true
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextColor3 = isShiny and Color3.fromRGB(255, 215, 0) or Color3.new(1, 1, 1)
-	nameLabel.TextStrokeTransparency = 0.4
-	nameLabel.Parent = tag
-
-	local rarityLabel = Instance.new("TextLabel")
-	rarityLabel.Size = UDim2.new(1, 0, 0.38, 0)
-	rarityLabel.Position = UDim2.new(0, 0, 0.62, 0)
-	rarityLabel.BackgroundTransparency = 1
-	rarityLabel.Text = string.upper(def.Rarity) .. (isShiny and " SHINY" or "")
-	rarityLabel.TextScaled = true
-	rarityLabel.Font = Enum.Font.GothamBold
-	rarityLabel.TextColor3 = accentColor
-	rarityLabel.TextStrokeTransparency = 0.4
-	rarityLabel.Parent = tag
-
-	tag.Parent = model
+	-- Nameplates are drawn by the client (small, distance-faded).
+	-- Rarity stays on this floor plate so the air above the plot stays readable.
 end
 
 local function findCustomModel(def: any): Instance?

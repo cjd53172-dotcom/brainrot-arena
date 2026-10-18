@@ -94,17 +94,21 @@ end
 local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: string)
 	if not model or not model.Parent then return end
 
-	local existingTag = model:FindFirstChild("NameTagGui")
-	if existingTag then
-		existingTag:Destroy()
+	local oldGui = model:FindFirstChild("NameTagGui")
+	if oldGui then
+		oldGui:Destroy()
+	end
+	local oldServerTag = model:FindFirstChild("NameTag")
+	if oldServerTag then
+		oldServerTag:Destroy()
 	end
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NameTagGui"
-	billboard.Size = UDim2.new(0, 140, 0, 40)
-	billboard.StudsOffset = Vector3.new(0, 2.8, 0)
+	billboard.Size = UDim2.new(0, 110, 0, 28)
+	billboard.StudsOffset = Vector3.new(0, 2.2, 0)
 	billboard.AlwaysOnTop = false
-	billboard.MaxDistance = 65
+	billboard.MaxDistance = 50
 	billboard.Parent = model
 
 	local layout = Instance.new("UIListLayout")
@@ -116,11 +120,11 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 
 	local rarityLabel = Instance.new("TextLabel")
 	rarityLabel.Name = "RarityLabel"
-	rarityLabel.Size = UDim2.new(1, 0, 0, 12)
+	rarityLabel.Size = UDim2.new(1, 0, 0, 10)
 	rarityLabel.BackgroundTransparency = 1
 	rarityLabel.Text = string.upper(rarity or "Common")
 	rarityLabel.Font = Enum.Font.GothamBlack
-	rarityLabel.TextSize = 10
+	rarityLabel.TextSize = 8
 	rarityLabel.TextStrokeTransparency = 0
 	rarityLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 	rarityLabel.LayoutOrder = 1
@@ -139,11 +143,11 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "NameLabel"
-	nameLabel.Size = UDim2.new(1, 0, 0, 18)
+	nameLabel.Size = UDim2.new(1, 0, 0, 16)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = brainrotName or "Brainrot"
 	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 13
+	nameLabel.TextSize = 12
 	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	nameLabel.TextStrokeTransparency = 0
 	nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -2738,10 +2742,10 @@ end
 
 do
 	local STAT_DEFS = {
-		Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+2 movement speed per tier" },
-		Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+5 jump power per tier" },
-		Reach = { Name = "🧲 Catcher's Reach", MaxTier = 3, Costs = { 1000, 3000, 8000 }, Desc = "Bigger catch radius for wild brainrots" },
-		Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 2000, 6000, 15000 }, Desc = "Better odds for Rare+ wild spawns" },
+		Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+8 movement speed per tier" },
+		Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+20 jump power per tier" },
+		Reach = { Name = "🧲 Catcher's Reach", MaxTier = 3, Costs = { 1000, 3000, 8000 }, Desc = "Much bigger catch radius for wild brainrots" },
+		Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 2000, 6000, 15000 }, Desc = "Much better odds for Rare+ wild spawns" },
 	}
 
 	refreshStatsPanel = function()

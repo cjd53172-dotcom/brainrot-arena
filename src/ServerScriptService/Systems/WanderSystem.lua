@@ -20,28 +20,28 @@ local wanderers: { [number]: { [string]: any } } = {}
 local RARITY_CONFIG = {
 	Common = {
 		Weight = 60,
-		RespawnSecs = { 60, 120 },   -- every 1-2 min
+		RespawnSecs = { 20, 40 },    -- every 20-40 sec
 		DespawnSecs = 600,            -- 10 min to catch
 		WalkSpeed = 4,                -- slow waddle
 		FleeRadius = 0,               -- doesn't run
 	},
 	Rare = {
 		Weight = 25,
-		RespawnSecs = { 240, 360 },   -- every 4-6 min
+		RespawnSecs = { 80, 120 },    -- every 1.5-2 min
 		DespawnSecs = 480,            -- 8 min
 		WalkSpeed = 8,
 		FleeRadius = 6,
 	},
 	Epic = {
 		Weight = 12,
-		RespawnSecs = { 900, 1500 },  -- every 15-25 min
+		RespawnSecs = { 300, 500 },   -- every 5-8 min
 		DespawnSecs = 360,            -- 6 min
 		WalkSpeed = 12,
 		FleeRadius = 10,
 	},
 	Legendary = {
 		Weight = 3,
-		RespawnSecs = { 3600, 5400 }, -- every 60-90 min
+		RespawnSecs = { 1200, 1800 }, -- every 20-30 min
 		DespawnSecs = 180,            -- 3 min URGENCY
 		WalkSpeed = 16,               -- very fast
 		FleeRadius = 15,
@@ -49,7 +49,7 @@ local RARITY_CONFIG = {
 	},
 }
 
-WanderSystem.MAX_WANDERERS = 8
+WanderSystem.MAX_WANDERERS = 16
 
 -- Roll a rarity by weight. luckMult boosts Rare+ weights.
 local function rollRarity(luckMult: number?): string
