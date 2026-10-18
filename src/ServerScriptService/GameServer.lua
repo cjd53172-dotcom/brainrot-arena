@@ -1290,6 +1290,80 @@ do
 		prompt.KeyboardKeyCode = Enum.KeyCode.E
 		prompt.Parent = portal:FindFirstChild("PortalSurface") or portal:FindFirstChildWhichIsA("BasePart")
 		prompt.Triggered:Connect(hop)
+
+		if gate.Id == "laser_tag" then
+			local boardModel = Instance.new("Model")
+			boardModel.Name = "LaserTagKillBoard"
+			local frame = Instance.new("Part")
+			frame.Name = "Board"
+			frame.Size = Vector3.new(14, 10, 0.8)
+			frame.Anchored = true
+			frame.CanCollide = true
+			frame.Color = Color3.fromRGB(18, 28, 18)
+			frame.Material = Enum.Material.SmoothPlastic
+			frame.Parent = boardModel
+			local header = Instance.new("Part")
+			header.Name = "Header"
+			header.Size = Vector3.new(14, 2.2, 0.8)
+			header.Anchored = true
+			header.CanCollide = false
+			header.Color = Color3.fromRGB(20, 70, 30)
+			header.Material = Enum.Material.SmoothPlastic
+			header.Position = Vector3.new(0, 6.1, 0)
+			header.Parent = boardModel
+			local function face(part: BasePart, title: boolean): TextLabel
+				local gui = Instance.new("SurfaceGui")
+				gui.Face = Enum.NormalId.Front
+				gui.PixelsPerStud = 25
+				gui.LightInfluence = 0
+				gui.Parent = part
+				local label = Instance.new("TextLabel")
+				label.Size = UDim2.new(1, -16, 1, -16)
+				label.Position = UDim2.new(0, 8, 0, 8)
+				label.BackgroundTransparency = 1
+				label.Text = if title then "LASER TAG KILLS" else "Play Laser Tag to post kills."
+				label.Font = Enum.Font.GothamBold
+				label.TextScaled = title
+				label.TextSize = 22
+				label.TextColor3 = Color3.fromRGB(120, 255, 140)
+				label.TextStrokeTransparency = 0.35
+				label.TextWrapped = true
+				label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
+				label.Parent = gui
+				return label
+			end
+			face(header, true)
+			local listLabel = face(frame, false)
+			local backGui = header:FindFirstChildOfClass("SurfaceGui")
+			if backGui then
+				local cloneGui = backGui:Clone()
+				cloneGui.Face = Enum.NormalId.Back
+				cloneGui.Parent = header
+			end
+			PlotSystem.SitOnTerrain(boardModel, gate.X + 12, gate.Z)
+			boardModel.Parent = workspace
+			header.Position = Vector3.new(frame.Position.X, frame.Position.Y + 6.1, frame.Position.Z)
+
+			local function paintLaserBoard()
+				local top = LeaderboardSystem.GetLaserTagTop(8)
+				if #top == 0 then
+					listLabel.Text = "Play Laser Tag to post kills.\nKills save across visits."
+					return
+				end
+				local lines = {}
+				for i, row in ipairs(top) do
+					table.insert(lines, string.format("%d.  %s   —   %d", i, tostring(row.Name), tonumber(row.Kills) or 0))
+				end
+				listLabel.Text = table.concat(lines, "\n")
+			end
+			paintLaserBoard()
+			task.spawn(function()
+				while boardModel.Parent do
+					task.wait(15)
+					paintLaserBoard()
+				end
+			end)
+		end
 	end
 end
 

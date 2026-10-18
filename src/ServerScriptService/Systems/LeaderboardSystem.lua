@@ -125,4 +125,46 @@ function LeaderboardSystem.GetPlayerRank(player: Player): any
 	return { Rank = 0, Wins = sessionWins[player.UserId] or 0 }
 end
 
+-- Laser Tag kills (same DataStore as the Laser Tag place script).
+local laserStore: OrderedDataStore? = nil
+pcall(function()
+	laserStore = DataStoreService:GetOrderedDataStore("LaserTagKills_v1")
+end)
+local laserCache: { any } = {}
+local laserCacheAt = 0
+
+function LeaderboardSystem.GetLaserTagTop(n: number): { any }
+	n = math.max(1, n)
+	if os.time() - laserCacheAt < 12 and #laserCache > 0 then
+		return laserCache
+	end
+	local result = {}
+	if laserStore then
+		pcall(function()
+			local pages = (laserStore :: OrderedDataStore):GetSortedAsync(false, n)
+			for _, item in ipairs(pages:GetCurrentPage()) do
+				local userId = tonumber(item.key)
+				if userId then
+					local name = "Player" .. tostring(userId)
+					pcall(function()
+						name = Players:GetNameFromUserIdAsync(userId)
+					end)
+					local live = Players:GetPlayerByUserId(userId)
+					if live then
+						name = live.Name
+					end
+					table.insert(result, {
+						UserId = userId,
+						Name = name,
+						Kills = tonumber(item.value) or 0,
+					})
+				end
+			end
+		end)
+	end
+	laserCache = result
+	laserCacheAt = os.time()
+	return result
+end
+
 return LeaderboardSystem
