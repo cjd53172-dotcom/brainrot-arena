@@ -26,6 +26,17 @@ local LeaderboardSystem = require(Systems:WaitForChild("LeaderboardSystem"))
 local WorldDesign = require(Systems:WaitForChild("WorldDesign"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
+-- Shiny rate (0-1). 0.004 = about 1 in 250. Lower = rarer. (Applies to everything that
+-- rolls BrainrotData.SHINY_CHANCE; if wild catches are still too shiny, WanderSystem has its own roll.)
+local SHINY_CHANCE = 0.004
+do
+	local brainrotDataAny: any = BrainrotData
+	local okShiny = pcall(function()
+		brainrotDataAny.SHINY_CHANCE = SHINY_CHANCE
+	end)
+	print("[GameServer] Shiny chance set to " .. tostring(SHINY_CHANCE) .. " (ok: " .. tostring(okShiny) .. ")")
+end
+
 -- // RemoteEvents System Cache Engine -------------------------------------------
 local remotes = ReplicatedStorage:FindFirstChild("Remotes")
 if not remotes then
@@ -41,7 +52,7 @@ local REMOTE_LIST = {
 	"StartExpedition", "ExpeditionUpdate", "ClaimDailyEgg", "DailyUpdate", "BuyEggSlot", 
 	"EggUpdate", "CollectPassive", "PassiveUpdate", "UnlockTheme", "BuyDecoration", 
 	"CustomizeUpdate", "UnlockZone", "CastLine", "ReelIn", "FishingUpdate", "WildCaught", 
-	"BuyUpgrade", "PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate" 
+	"BuyUpgrade", "PlaySound", "WeatherUpdate", "AchievementUnlocked", "LeaderboardUpdate", "OpenStats", "SellBrainrots" 
 }
 
 local CachedRemotes: { [string]: RemoteEvent } = {}
@@ -89,8 +100,266 @@ if updateShowcaseRemote then
 		if PlayerData.SetShowcase(player, instanceIds) then
 			PlotSystem.RefreshPlot(player)
 			pushCollection(player)
+		else
+			warn("[Showcase] SetShowcase rejected the list from " .. player.Name .. " (" .. tostring(#instanceIds) .. " entries)")
+			pushCollection(player) -- put the player's screen back in step with the server
 		end
 	end)
+end
+
+
+-- Puts your newest brainrot on a free pedestal automatically. Also drops showcase
+-- entries whose brainrot no longer exists in BrainrotData (they only vanish from the
+-- pedestal list; they stay in your inventory), which frees up their slots.
+local function autoShowcase(player: Player, skipAdd: boolean?)
+	local data = PlayerData.Get(player)
+	if not data or not data.Brainrots then return end
+
+	local function defFor(inst: any): any
+		if not inst then return nil end
+		return BrainrotData.GetById(inst.BrainrotId) or BrainrotData.GetBrainrot(inst.BrainrotId)
+	end
+
+	local list: { string } = {}
+	local shown: { [string]: boolean } = {}
+	for _, id in ipairs(data.Showcase or {}) do
+		if defFor(PlayerData.GetInstance(player, id)) then
+			table.insert(list, id)
+			shown[id] = true
+		end
+	end
+
+	local working: any = PlayerData.GetWorkingIds(player) or {}
+	if not skipAdd and #list < BrainrotData.SHOWCASE_LIMIT then
+		for i = #data.Brainrots, 1, -1 do
+			local inst = data.Brainrots[i]
+			if inst and not shown[inst.InstanceId] and not working[inst.InstanceId] and defFor(inst) then
+				table.insert(list, inst.InstanceId)
+				break
+			end
+		end
+	end
+
+	PlayerData.SetShowcase(player, list)
+end
+
+-- // Selling brainrots ----------------------------------------------------------------
+-- Coins you get for selling one brainrot, by rarity (shiny = x5). Keep in step with the
+-- SELL_PRICE table at the top of ClientUI (that one is only used to show the price).
+local SELL_PRICE: { [string]: number } = {
+	Common = 25,
+	Rare = 100,
+	Epic = 400,
+	Legendary = 2000,
+}
+
+local sellRemote = CachedRemotes["SellBrainrots"]
+if sellRemote then
+	sellRemote.OnServerEvent:Connect(function(player: Player, ids: any)
+		if type(ids) ~= "table" or #ids == 0 or #ids > 100 then return end
+		local data = PlayerData.Get(player)
+		if not data then return end
+		local hintEvent = CachedRemotes["ShowHint"]
+
+		local working: any = PlayerData.GetWorkingIds(player) or {}
+		local seen: { [string]: boolean } = {}
+		local toSell: { string } = {}
+		local total = 0
+		for _, id in ipairs(ids) do
+			if type(id) == "string" and not seen[id] then
+				seen[id] = true
+				local inst = PlayerData.GetInstance(player, id)
+				if inst and not working[id] then
+					local def = BrainrotData.GetById(inst.BrainrotId) or BrainrotData.GetBrainrot(inst.BrainrotId)
+					local price = if def then (SELL_PRICE[def.Rarity] or 10) else 10 -- unknown/old brainrots: 10
+					if inst.Shiny then
+						price *= 5
+					end
+					total += price
+					table.insert(toSell, id)
+				end
+			end
+		end
+
+		if #toSell == 0 then
+			if hintEvent then hintEvent:FireClient(player, "Nothing to sell (brainrots at work can't be sold).") end
+			return
+		end
+
+		PlayerData.RemoveBrainrotInstances(player, toSell)
+		PlayerData.AddCoins(player, total)
+		autoShowcase(player, true) -- drops sold ones from the pedestal list without adding others
+		pushCollection(player)
+		PlotSystem.RefreshPlot(player)
+		PlayerData.Save(player)
+		if hintEvent then
+			hintEvent:FireClient(player, ("Sold %d brainrot%s for %d coins!"):format(#toSell, if #toSell == 1 then "" else "s", total))
+		end
+	end)
+end
+
+-- // Coin display fix -------------------------------------------------------------
+-- Modules like the coin obby add coins without telling your screen, so the counter looked
+-- stuck. Any coin change now schedules a quick refresh of that player's UI.
+local coinsDirty: { [Player]: boolean } = {}
+do
+	local playerDataAny: any = PlayerData
+	local originalAddCoins = playerDataAny.AddCoins
+	playerDataAny.AddCoins = function(player: Player, ...)
+		local result = originalAddCoins(player, ...)
+		coinsDirty[player] = true
+		return result
+	end
+	task.spawn(function()
+		while true do
+			task.wait(0.3)
+			for plr in pairs(coinsDirty) do
+				coinsDirty[plr] = nil
+				if plr.Parent then
+					pushCollection(plr)
+				end
+			end
+		end
+	end)
+end
+
+-- // Baseball bat (players can hit each other) -------------------------------------------
+local BAT_DAMAGE = 14
+local BAT_COOLDOWN = 0.7 -- seconds between swings
+local BAT_RANGE = 8 -- studs in front of you
+local BAT_KNOCKBACK = 60
+local BAT_PVP_EVERYWHERE = false -- false = bats only hurt players standing in the Arena
+
+local function inArena(pos: Vector3): boolean
+	if BAT_PVP_EVERYWHERE then
+		return true
+	end
+	local arena = workspace:FindFirstChild("Arena", true)
+	if not arena or not arena:IsA("Model") then
+		return false
+	end
+	local cf, size = arena:GetBoundingBox()
+	local rel = cf:PointToObjectSpace(pos)
+	return math.abs(rel.X) <= size.X / 2 + 10 and math.abs(rel.Z) <= size.Z / 2 + 10 and math.abs(rel.Y) <= size.Y / 2 + 40
+end
+
+local function makeBat(): Tool
+	local tool = Instance.new("Tool")
+	tool.Name = "Baseball Bat"
+	tool.ToolTip = "Click to swing!"
+	tool.CanBeDropped = false
+	tool.RequiresHandle = true
+	local baseGrip = CFrame.new(0, -1.4, 0)
+	tool.Grip = baseGrip
+
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(0.6, 3.6, 0.6)
+	handle.Color = Color3.fromRGB(176, 124, 70)
+	handle.Material = Enum.Material.Wood
+	handle.CanCollide = false
+	handle.Massless = true
+	handle.Parent = tool
+
+	local head = Instance.new("Part")
+	head.Name = "BatHead"
+	head.Size = Vector3.new(0.95, 1.5, 0.95)
+	head.Color = Color3.fromRGB(150, 100, 55)
+	head.Material = Enum.Material.Wood
+	head.CanCollide = false
+	head.Massless = true
+	head.CFrame = handle.CFrame * CFrame.new(0, 1.1, 0)
+	head.Parent = tool
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = handle
+	weld.Part1 = head
+	weld.Parent = head
+
+	local lastSwing = 0
+	tool.Activated:Connect(function()
+		local char = tool.Parent
+		if not char or not char:IsA("Model") then return end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		local rootInst = char:FindFirstChild("HumanoidRootPart")
+		local attacker = Players:GetPlayerFromCharacter(char)
+		if not hum or hum.Health <= 0 or not rootInst or not attacker then return end
+		local now = os.clock()
+		if now - lastSwing < BAT_COOLDOWN then return end
+		lastSwing = now
+		local root = rootInst :: BasePart
+
+		-- swing animation (spin the grip forward and back)
+		task.spawn(function()
+			for i = 1, 6 do
+				tool.Grip = baseGrip * CFrame.Angles(math.rad(-20 * i), 0, 0)
+				task.wait(0.02)
+			end
+			for i = 5, 0, -1 do
+				tool.Grip = baseGrip * CFrame.Angles(math.rad(-20 * i), 0, 0)
+				task.wait(0.02)
+			end
+		end)
+
+		local boxCF = root.CFrame * CFrame.new(0, 0, -BAT_RANGE / 2)
+		local params = OverlapParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { char }
+		local parts = workspace:GetPartBoundsInBox(boxCF, Vector3.new(8, 7, BAT_RANGE), params)
+
+		local hitModels: { [Model]: boolean } = {}
+		for _, part in ipairs(parts) do
+			local model = part:FindFirstAncestorOfClass("Model")
+			if model and not hitModels[model] then
+				local victim = Players:GetPlayerFromCharacter(model)
+				local vHum = model:FindFirstChildOfClass("Humanoid")
+				local vRootInst = model:FindFirstChild("HumanoidRootPart")
+				if victim and victim ~= attacker and vHum and vRootInst and vHum.Health > 0 then
+					hitModels[model] = true
+					local vRoot = vRootInst :: BasePart
+					if inArena(root.Position) and inArena(vRoot.Position) then
+						vHum:TakeDamage(BAT_DAMAGE)
+						local flat = (vRoot.Position - root.Position) * Vector3.new(1, 0, 1)
+						local dir = if flat.Magnitude > 0 then flat.Unit else root.CFrame.LookVector
+						vRoot.AssemblyLinearVelocity = dir * BAT_KNOCKBACK + Vector3.new(0, 30, 0)
+						if vHum.Health <= 0 then
+							local hintEvent = CachedRemotes["ShowHint"]
+							if hintEvent then
+								hintEvent:FireClient(attacker, "You knocked out " .. victim.DisplayName .. "!")
+							end
+						end
+					else
+						local hintEvent = CachedRemotes["ShowHint"]
+						if hintEvent then
+							hintEvent:FireClient(attacker, "Bats only work inside the Arena!")
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	return tool
+end
+
+local function giveBat(player: Player)
+	local function give()
+		local backpack = player:FindFirstChildOfClass("Backpack")
+		local char = player.Character
+		if not backpack then return end
+		if backpack:FindFirstChild("Baseball Bat") or (char and char:FindFirstChild("Baseball Bat")) then return end
+		makeBat().Parent = backpack
+	end
+	player.CharacterAdded:Connect(function()
+		task.wait(1)
+		give()
+	end)
+	if player.Character then
+		task.defer(give)
+	end
+end
+Players.PlayerAdded:Connect(giveBat)
+for _, existingPlayer in ipairs(Players:GetPlayers()) do
+	giveBat(existingPlayer)
 end
 
 -- // Work system ------------------------------------------------------------------
@@ -209,6 +478,7 @@ if fuseBrainrotsRemote then
 			data.Fusions = (data.Fusions or 0) + 1
 			DailyQuestSystem.RecordProgress(player, "fuse", 1)
 			pushDailyState(player)
+			autoShowcase(player)
 			PlotSystem.RefreshPlot(player)
 
 			local fusionResultEvent = CachedRemotes["FusionResult"]
@@ -270,6 +540,7 @@ if fuseBrainrotsRemote then
 			data.Fusions = (data.Fusions or 0) + 1
 			DailyQuestSystem.RecordProgress(player, "fuse", 1)
 			pushDailyState(player)
+			autoShowcase(player)
 			PlotSystem.RefreshPlot(player)
 
 			local fusionResultEvent = CachedRemotes["FusionResult"]
@@ -312,9 +583,12 @@ local function battleReward(player: Player, rival: any)
 	end
 
 	PlayerData.RecordRivalWin(player, rival.Id)
+	autoShowcase(player)
 	PlotSystem.RefreshPlot(player)
 	pushCollection(player)
 	QuestSystem.CheckObjective(player, "rival", rival.Id)
+	QuestSystem.CheckObjective(player, "battle", rival.Id)
+	QuestSystem.CheckObjective(player, "battles")
 	PlayerData.Save(player)
 end
 
@@ -481,6 +755,7 @@ do
 	board.Position = Vector3.new(127, targetY, 60)
 end
 board.Parent = workspace
+print("[GameServer] Quest board placed at " .. tostring(board.Position))
 
 local boardGui = Instance.new("SurfaceGui")
 boardGui.Face = Enum.NormalId.Front
@@ -501,6 +776,7 @@ prompt.ActionText = "Read Board"
 prompt.ObjectText = "Quest Board"
 prompt.HoldDuration = 0
 prompt.MaxActivationDistance = 12
+prompt.RequiresLineOfSight = false
 prompt.Parent = board
 
 prompt.Triggered:Connect(function(player: Player)
@@ -514,6 +790,73 @@ prompt.Triggered:Connect(function(player: Player)
 		hintEvent:FireClient(player, "No active quests. More adventures coming soon!")
 	end
 end)
+
+-- // Stat upgrade board (spend coins on Speed / Jump / Reach / Luck) ----------------
+do
+	local upBoard = Instance.new("Part")
+	upBoard.Name = "UpgradeBoard"
+	upBoard.Size = Vector3.new(6, 5, 0.6)
+	upBoard.Anchored = true
+	upBoard.Color = Color3.fromRGB(70, 55, 20)
+	upBoard.Material = Enum.Material.Wood
+
+	local upY = 16
+	local upParams = RaycastParams.new()
+	upParams.FilterType = Enum.RaycastFilterType.Include
+	upParams.FilterDescendantsInstances = { workspace.Terrain }
+	for _ = 1, 3 do
+		local hit = workspace:Raycast(Vector3.new(141, 500, 60), Vector3.new(0, -1000, 0), upParams)
+		if hit then
+			upY = hit.Position.Y + 3.5
+			break
+		end
+		if not game:IsLoaded() then task.wait(0.1) end
+	end
+	upBoard.Position = Vector3.new(141, upY, 60)
+	upBoard.Parent = workspace
+	print("[GameServer] Upgrade board placed at " .. tostring(upBoard.Position))
+
+	local upGui = Instance.new("SurfaceGui")
+	upGui.Face = Enum.NormalId.Front
+	upGui.Parent = upBoard
+
+	local upLabel = Instance.new("TextLabel")
+	upLabel.Size = UDim2.new(1, 0, 1, 0)
+	upLabel.BackgroundTransparency = 1
+	upLabel.Text = "UPGRADE BOARD\nSpeed - Jump - Reach - Luck"
+	upLabel.TextScaled = true
+	upLabel.Font = Enum.Font.GothamBold
+	upLabel.TextColor3 = Color3.fromRGB(255, 215, 90)
+	upLabel.TextStrokeTransparency = 0.5
+	upLabel.Parent = upGui
+
+	local coin = Instance.new("Part")
+	coin.Name = "UpgradeBoardGlow"
+	coin.Shape = Enum.PartType.Ball
+	coin.Size = Vector3.new(2, 2, 2)
+	coin.Anchored = true
+	coin.CanCollide = false
+	coin.Material = Enum.Material.Neon
+	coin.Color = Color3.fromRGB(255, 200, 60)
+	coin.Position = upBoard.Position + Vector3.new(0, 4.5, 0)
+	coin.Parent = workspace
+
+	local upPrompt = Instance.new("ProximityPrompt")
+	upPrompt.ActionText = "Upgrade Stats"
+	upPrompt.ObjectText = "Upgrade Board"
+	upPrompt.HoldDuration = 0
+	upPrompt.MaxActivationDistance = 12
+	upPrompt.RequiresLineOfSight = false
+	upPrompt.Parent = upBoard
+
+	upPrompt.Triggered:Connect(function(player: Player)
+		pushCollection(player) -- fresh coins + tiers before the panel opens
+		local openStats = CachedRemotes["OpenStats"]
+		if openStats then
+			openStats:FireClient(player)
+		end
+	end)
+end
 
 -- // Expedition board system module ----------------------------------------------
 local expBoard = Instance.new("Part")
@@ -560,6 +903,7 @@ expPrompt.ActionText = "Open"
 expPrompt.ObjectText = "Expedition Board"
 expPrompt.HoldDuration = 0
 expPrompt.MaxActivationDistance = 12
+expPrompt.RequiresLineOfSight = false
 expPrompt.Parent = expBoard
 
 pushExpeditionState = function(player: Player)
@@ -583,19 +927,46 @@ local PORTAL_SPACING = 18
 local PORTAL_START_X = 100
 local PORTAL_Z = 155
 
+-- Portals are spread in a ring around the world instead of one short row.
+-- If a spot isn't dry/flat land it tries nearby, and finally falls back to the old row.
+local PORTAL_RING_CENTER = Vector3.new(127, 0, 98) -- middle of your plots
+local PORTAL_RING_RADIUS = 300 -- studs from the center; raise for a bigger world
+
+local function findPortalSpot(angle: number): Vector3?
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { workspace.Terrain }
+	for _, mult in ipairs({ 1, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3 }) do
+		for _, da in ipairs({ 0, 0.08, -0.08, 0.16, -0.16 }) do
+			local x = PORTAL_RING_CENTER.X + math.cos(angle + da) * PORTAL_RING_RADIUS * mult
+			local z = PORTAL_RING_CENTER.Z + math.sin(angle + da) * PORTAL_RING_RADIUS * mult
+			local hit = workspace:Raycast(Vector3.new(x, 1000, z), Vector3.new(0, -2000, 0), params)
+			if hit and hit.Material ~= Enum.Material.Water and hit.Normal.Y > 0.85 then
+				return Vector3.new(x, hit.Position.Y, z)
+			end
+		end
+	end
+	return nil
+end
+
+local portalZoneCount = #BrainrotData.ZONE_ORDER
+
 for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	local portal = VisualEffects.BuildZonePortal(zoneId)
-	local x = PORTAL_START_X + (i - 1) * PORTAL_SPACING
+	local spot = findPortalSpot(((i - 1) / math.max(1, portalZoneCount)) * math.pi * 2)
+	local x = if spot then spot.X else PORTAL_START_X + (i - 1) * PORTAL_SPACING
+	local z = if spot then spot.Z else PORTAL_Z
+	print("[GameServer] Portal " .. tostring(zoneId) .. " placed at " .. tostring(Vector3.new(x, 0, z)))
 
 	local targetY = 16
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = { workspace.Terrain }
 
-	local castResult = workspace:Raycast(Vector3.new(x, 500, PORTAL_Z), Vector3.new(0, -1000, 0), raycastParams)
+	local castResult = workspace:Raycast(Vector3.new(x, 1000, z), Vector3.new(0, -2000, 0), raycastParams)
 	if castResult then targetY = castResult.Position.Y end
 
-	portal:PivotTo(CFrame.new(Vector3.new(x, targetY, PORTAL_Z)))
+	portal:PivotTo(CFrame.new(Vector3.new(x, targetY, z)))
 	portal.Parent = workspace
 
 	local zoneDef = BrainrotData.ZONES[zoneId]
@@ -665,6 +1036,7 @@ minePrompt.ActionText = "Mine Gold"
 minePrompt.ObjectText = "Shared Gold Mine"
 minePrompt.HoldDuration = 2
 minePrompt.MaxActivationDistance = 12
+minePrompt.RequiresLineOfSight = false
 minePrompt.RequiresLineOfSight = false
 minePrompt.Parent = sharedMine.PrimaryPart or sharedMine:FindFirstChildWhichIsA("BasePart")
 
@@ -828,7 +1200,9 @@ if reelInRemote then
 			pushFishingState(player, "None", reward)
 			pushCollection(player)
 			if reward.Kind == "Brainrot" then
+				autoShowcase(player)
 				PlotSystem.RefreshPlot(player)
+				pushCollection(player)
 			end
 		end
 	end)
@@ -954,6 +1328,31 @@ if buyEggSlotRemote then
 end
 
 -- // Passive Income ------------------------------------------------------------------
+-- Brainrots on your pedestals earn gold for you. Coins per MINUTE per brainrot, by rarity
+-- (shiny doubles it). Edit these numbers to tune the economy.
+local BRAINROT_GOLD_PER_MIN: { [string]: number } = {
+	Common = 2,
+	Rare = 5,
+	Epic = 12,
+	Legendary = 40,
+}
+
+local function brainrotGoldPerMin(player: Player, data: any): number
+	local total = 0
+	for _, id in ipairs(data.Showcase or {}) do
+		local inst = PlayerData.GetInstance(player, id)
+		local def = inst and (BrainrotData.GetById(inst.BrainrotId) or BrainrotData.GetBrainrot(inst.BrainrotId))
+		if def then
+			local rate = BRAINROT_GOLD_PER_MIN[def.Rarity] or 1
+			if inst.Shiny then
+				rate *= 2
+			end
+			total += rate
+		end
+	end
+	return total
+end
+
 local collectPassiveRemote = CachedRemotes["CollectPassive"]
 if collectPassiveRemote then
 	collectPassiveRemote.OnServerEvent:Connect(function(player: Player)
@@ -1149,10 +1548,24 @@ task.spawn(function()
 				end
 
 				local gained = PlayerData.TickPassiveIncome(p)
+
+				-- Brainrot income. This loop runs every 30 seconds (half a minute).
+				local perMin = brainrotGoldPerMin(p, data)
+				local brainrotGold = perMin * 0.5
+				if brainrotGold > 0 then
+					local banked = data.PassiveBanked or 0
+					-- Bank holds up to 2 hours of brainrot income (never shrinks what's already banked).
+					data.PassiveBanked = math.max(banked, math.min(banked + brainrotGold, perMin * 120))
+					gained += brainrotGold
+				end
+
 				if gained > 0 then
 					local passiveUpdateEvent = CachedRemotes["PassiveUpdate"]
 					if passiveUpdateEvent then
-						passiveUpdateEvent:FireClient(p, { Banked = math.floor(data.PassiveBanked or 0) })
+						passiveUpdateEvent:FireClient(p, {
+							Banked = math.floor(data.PassiveBanked or 0),
+							BrainrotRate = perMin,
+						})
 					end
 				end
 			end)
@@ -1163,6 +1576,38 @@ end)
 -- // Wandering Brainrots System Module ------------------------------------------------
 local wanderModels: { [number]: { [string]: Model } } = {}
 local wanderBeams: { [number]: { [string]: Model } } = {}
+
+-- How far from the player a wild brainrot can appear, by rarity: { min studs, max studs }.
+-- Raise these numbers for a bigger world, lower them for a smaller one.
+local WILD_SPAWN_RADIUS: { [string]: { number } } = {
+	Common = { 60, 220 },
+	Rare = { 120, 380 },
+	Epic = { 180, 550 },
+	Legendary = { 300, 850 },
+}
+
+-- Picks a random dry, fairly flat spot on the terrain around the player.
+-- Falls back to the position WanderSystem chose if nothing suitable is found.
+local function findWildSpawn(player: Player, rarity: string, fallback: Vector3): Vector3
+	local range = WILD_SPAWN_RADIUS[rarity] or WILD_SPAWN_RADIUS.Common
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local center = if hrp then (hrp :: BasePart).Position else fallback
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { workspace.Terrain }
+	for _ = 1, 20 do
+		local angle = math.random() * math.pi * 2
+		local dist = range[1] + math.random() * (range[2] - range[1])
+		local x = center.X + math.cos(angle) * dist
+		local z = center.Z + math.sin(angle) * dist
+		local hit = workspace:Raycast(Vector3.new(x, 1000, z), Vector3.new(0, -2000, 0), params)
+		if hit and hit.Material ~= Enum.Material.Water and hit.Normal.Y > 0.75 then
+			return Vector3.new(x, hit.Position.Y, z)
+		end
+	end
+	return fallback
+end
 
 -- Finds solid ground under (x, z). Ignores the creature itself, characters, other
 -- wild creatures, beams, and anything with CanCollide off (decor, effects).
@@ -1263,12 +1708,13 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		end
 	end
 
-	local spawnPos = wander.SpawnPos
+	local spawnPos = findWildSpawn(player, wander.Rarity, wander.SpawnPos)
 	local spawnGround = wildGroundY(spawnPos.X, spawnPos.Z, model)
 	spawnPos = Vector3.new(spawnPos.X, (spawnGround or 60) + bottomOffset + 0.2, spawnPos.Z)
 
 	local currentPivot = model:GetPivot()
 	model:PivotTo(currentPivot + (spawnPos - currentPivot.Position))
+	model:SetAttribute("WildOwner", player.UserId) -- other players' screens hide it (see ClientUI)
 	model.Parent = workspace
 
 	local reachTier = PlayerData.GetUpgradeTier(player, "Reach")
@@ -1295,12 +1741,9 @@ local function spawnWildVisual(player: Player, wanderId: string)
 	local touchConnection: RBXScriptConnection?
 	local isCatchRunning = false
 
-	touchConnection = hitbox.Touched:Connect(function(hit: BasePart)
+	local function attemptCatch(p: Player)
 		if isCatchRunning then return end
-
-		local char = hit and hit.Parent
-		local p = char and Players:GetPlayerFromCharacter(char)
-		if p and p.UserId == player.UserId then
+		if p.UserId == player.UserId then
 			isCatchRunning = true
 
 			if touchConnection then
@@ -1309,6 +1752,19 @@ local function spawnWildVisual(player: Player, wanderId: string)
 			end
 
 			local result = WanderSystem.Catch(p, wanderId)
+			print("[Wild] catch attempt " .. tostring(wanderId) .. " -> success: " .. tostring(result and result.Success)
+				.. ", reason: " .. tostring(result and (result.Reason or result.Error or result.Message)))
+			if not (result and result.Success) then
+				-- Don't delete the creature when a catch fails; tell the player and let them retry.
+				local failHint = CachedRemotes["ShowHint"]
+				if failHint then
+					failHint:FireClient(p, "Couldn't catch that one - " .. tostring(result and (result.Reason or result.Error or result.Message) or "try again") .. "!")
+				end
+				task.delay(4, function()
+					isCatchRunning = false
+				end)
+				return
+			end
 			if result and result.Success then
 				VisualEffects.PlayWildCatch(spawnPos, wander.Rarity)
 				SoundSystem.PlayForPlayer(p, "Catch" .. wander.Rarity)
@@ -1346,6 +1802,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 					hintEvent:FireClient(p, "Caught: " .. result.BrainrotName .. " (" .. result.Rarity .. ")!" .. shinyText)
 				end
 
+				autoShowcase(p)
 				pushCollection(p)
 				PlotSystem.RefreshPlot(p)
 				QuestSystem.CheckObjective(p, "brainrots")
@@ -1363,6 +1820,15 @@ local function spawnWildVisual(player: Player, wanderId: string)
 				wanderBeams[player.UserId][wanderId] = nil
 			end
 		end
+	end
+
+	touchConnection = hitbox.Touched:Connect(function(hit: BasePart)
+		if isCatchRunning then return end
+		local char = hit and hit.Parent
+		local p = char and Players:GetPlayerFromCharacter(char)
+		if p then
+			attemptCatch(p)
+		end
 	end)
 
 	if not wanderModels[player.UserId] then wanderModels[player.UserId] = {} end
@@ -1371,6 +1837,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 	if wander.Rarity == "Legendary" then
 		local beam = VisualEffects.BuildLegendaryBeam(spawnPos)
+		beam:SetAttribute("WildOwner", player.UserId)
 		beam.Parent = workspace
 		if not wanderBeams[player.UserId] then wanderBeams[player.UserId] = {} end
 		wanderBeams[player.UserId][wanderId] = beam
@@ -1381,23 +1848,55 @@ local function spawnWildVisual(player: Player, wanderId: string)
 		end
 	end
 
+	if wander.Rarity == "Rare" or wander.Rarity == "Epic" then
+		local hintEvent = CachedRemotes["ShowHint"]
+		local pc = player.Character
+		local phrp = pc and pc:FindFirstChild("HumanoidRootPart")
+		if hintEvent and phrp then
+			local far = math.floor(((phrp :: BasePart).Position - spawnPos).Magnitude / 10 + 0.5) * 10
+			hintEvent:FireClient(player, "A wild " .. wander.Rarity .. " brainrot appeared about " .. tostring(far) .. " studs away!")
+		end
+	end
+
 	task.spawn(function()
 		local cfg = wander.Config
 		local currentPos = spawnPos
 		local targetPos = currentPos
 		local fleeing = false
+		local fleeTime = 0
+		local tiredTime = 0
 		while model and model.Parent do
 			local char = player.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			local playerPos = hrp and (hrp :: BasePart).Position
-			if playerPos and cfg.FleeRadius > 0 then
+			if playerPos then
+				-- Distance check as well as Touched: Touched is unreliable against a moving,
+				-- fleeing creature, which is why running right over a Legendary did nothing.
+				local flat = Vector3.new(playerPos.X - currentPos.X, 0, playerPos.Z - currentPos.Z).Magnitude
+				if flat <= hitboxSize / 2 + 5 and math.abs(playerPos.Y - currentPos.Y) < 12 then
+					attemptCatch(player)
+					break
+				end
+			end
+			if tiredTime > 0 then
+				tiredTime -= 0.2
+				fleeing = false
+			elseif playerPos and cfg.FleeRadius > 0 then
 				local dist = (currentPos - playerPos).Magnitude
 				if dist < cfg.FleeRadius then
 					local fleeDir = (currentPos - playerPos).Unit
 					targetPos = currentPos + fleeDir * 20
 					fleeing = true
+					fleeTime += 0.2
+					if fleeTime > 3.5 then
+						-- worn out: stops running for a few seconds so it can be caught
+						tiredTime = 3
+						fleeTime = 0
+						fleeing = false
+					end
 				else
 					fleeing = false
+					fleeTime = math.max(0, fleeTime - 0.2)
 				end
 			end
 
@@ -1416,7 +1915,7 @@ local function spawnWildVisual(player: Player, wanderId: string)
 
 			if dir.Magnitude > 0.5 then
 				dir = dir.Unit
-				local speed = cfg.WalkSpeed * (if fleeing then 1.5 else 1)
+				local speed = if fleeing then math.min(cfg.WalkSpeed * 1.5, 13) elseif tiredTime > 0 then cfg.WalkSpeed * 0.5 else cfg.WalkSpeed
 				currentPos += dir * speed * 0.2
 				-- Re-snap to the ground every step so slopes don't swallow the creature
 				local gy = wildGroundY(currentPos.X, currentPos.Z, model)
