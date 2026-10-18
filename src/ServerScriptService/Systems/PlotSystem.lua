@@ -154,6 +154,40 @@ function PlotSystem.UprightModel(model: Model)
 	uprightModel(model)
 end
 
+local function hasFileMeshAsset(model: Model): boolean
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("SpecialMesh") or d:IsA("FileMesh") then
+			local mesh = d :: FileMesh
+			if mesh.MeshId ~= "" then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+-- Server does not load MeshId geometry, so GetExtentsSize stays tiny while
+-- the client renders a giant. Scale those down by a fixed factor.
+local function fitLyingFileMesh(model: Model, maxSize: number)
+	if not hasFileMeshAsset(model) then
+		return
+	end
+	local maxDim = modelMaxDim(model)
+	if maxDim > maxSize * 0.85 then
+		return
+	end
+	local factor = maxSize / 150
+	pcall(function()
+		model:ScaleTo(model:GetScale() * factor)
+	end)
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("SpecialMesh") or d:IsA("FileMesh") or d:IsA("DataModelMesh") then
+			(d :: DataModelMesh).Scale = (d :: DataModelMesh).Scale * factor
+		end
+	end
+	print("[PlotSystem] force-fit " .. model.Name .. " x" .. string.format("%.3f", factor))
+end
+
 -- Call after the model is in Workspace. Pack meshes often report a tiny
 -- bounding box until then, which made Chillin Chili / Tralalero grow.
 function PlotSystem.FitInWorld(model: Model, maxSize: number)
@@ -161,32 +195,14 @@ function PlotSystem.FitInWorld(model: Model, maxSize: number)
 		model.Parent = workspace
 	end
 	uprightModel(model)
-	for _ = 1, 6 do
-		local changed = false
-		local size = model:GetExtentsSize()
-		local maxDim = math.max(size.X, size.Y, size.Z)
-		local s = 1
-		if maxDim > maxSize and maxDim >= 0.05 then
-			s = math.clamp(maxSize / maxDim, 0.01, 1)
-			pcall(function()
-				model:ScaleTo(s)
-			end)
-			changed = true
-		end
-		for _, d in ipairs(model:GetDescendants()) do
-			if d:IsA("SpecialMesh") or d:IsA("FileMesh") or d:IsA("DataModelMesh") then
-				local mesh = d :: DataModelMesh
-				local mx = math.max(mesh.Scale.X, mesh.Scale.Y, mesh.Scale.Z)
-				if mx > 2 then
-					mesh.Scale = mesh.Scale * (maxSize / mx)
-					changed = true
-				end
-			end
-		end
-		if not changed then
-			break
-		end
+	local maxDim = modelMaxDim(model)
+	if maxDim > maxSize and maxDim >= 0.05 then
+		local s = math.clamp(maxSize / maxDim, 0.01, 1)
+		pcall(function()
+			model:ScaleTo(model:GetScale() * s)
+		end)
 	end
+	fitLyingFileMesh(model, maxSize)
 end
 
 -- // Pack auto-import ---------------------------------------------------------------
@@ -330,10 +346,10 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 6-stonepad")
+print("[PlotSystem] source 7-flatslab")
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v6-stonepad")
+	print("[PlotSystem] Loaded placement v7-flatslab")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -363,12 +379,12 @@ function PlotSystem.Setup()
 
 	local function flattenPad(cx: number, cz: number, topY: number)
 		local pad = PLOT_SIZE + 18
-		local thickness = math.max(16, topY + 8)
+		local thickness = math.max(20, topY + 12)
 		pcall(function()
 			workspace.Terrain:FillBlock(
 				CFrame.new(cx, topY - thickness / 2, cz),
 				Vector3.new(pad, thickness, pad),
-				Enum.Material.Rock
+				Enum.Material.Air
 			)
 		end)
 	end
@@ -492,11 +508,19 @@ function PlotSystem.Setup()
 		plot:SetAttribute("Index", i)
 
 		newPart({
+			Name = "GroundSlab",
+			Size = Vector3.new(PLOT_SIZE + 16, 8, PLOT_SIZE + 16),
+			Position = Vector3.new(x, -3.9, z),
+			Anchored = true,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(110, 110, 118),
+		}, plot)
+		newPart({
 			Name = "BaseBorder",
 			Size = Vector3.new(PLOT_SIZE + 2, 1, PLOT_SIZE + 2),
 			Position = Vector3.new(x, 0.4, z),
 			Anchored = true,
-			Material = Enum.Material.Cobblestone,
+			Material = Enum.Material.SmoothPlastic,
 			Color = Color3.fromRGB(120, 120, 130),
 		}, plot)
 		newPart({
@@ -504,7 +528,7 @@ function PlotSystem.Setup()
 			Size = Vector3.new(PLOT_SIZE, 1, PLOT_SIZE),
 			Position = Vector3.new(x, 0.6, z),
 			Anchored = true,
-			Material = Enum.Material.Grass,
+			Material = Enum.Material.SmoothPlastic,
 			Color = Color3.fromRGB(95, 180, 95),
 		}, plot)
 		local deckY = 8
@@ -1329,6 +1353,7 @@ local function buildFromCustom(def: any, source: Instance, isShiny: boolean, var
 	end
 
 	shrinkToPedestalSize(model)
+	fitLyingFileMesh(model, MAX_DISPLAY_SIZE)
 	addDressing(model, h, def, variantId, isShiny, host)
 	return model
 end
