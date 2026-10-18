@@ -2313,8 +2313,23 @@ function VisualEffects.SetupRobuxShop()
 		end
 		return false
 	end
-	local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material): Part
-		local p = Instance.new("Part")
+	local function weld(a: BasePart, b: BasePart)
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = a
+		w.Part1 = b
+		w.Parent = b
+	end
+	local function addPart(model: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, shape: Enum.PartType?): BasePart
+		local p: BasePart
+		if shape == Enum.PartType.Ball or shape == Enum.PartType.Cylinder then
+			local q = Instance.new("Part")
+			q.Shape = shape :: Enum.PartType
+			p = q
+		elseif name == "Wedge" then
+			p = Instance.new("WedgePart")
+		else
+			p = Instance.new("Part")
+		end
 		p.Name = name
 		p.Size = size
 		p.CFrame = cf
@@ -2323,41 +2338,122 @@ function VisualEffects.SetupRobuxShop()
 		p.CanCollide = false
 		p.Massless = true
 		p.Anchored = true
-		p.Parent = parent
+		p.Parent = model
 		return p
 	end
-	local function weld(a: BasePart, b: BasePart)
-		local w = Instance.new("WeldConstraint")
-		w.Part0 = a
-		w.Part1 = b
-		w.Parent = b
+	local function finishModel(model: Model, root: BasePart)
+		model.PrimaryPart = root
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") and d ~= root then
+				d.Anchored = false
+				weld(root, d)
+			end
+		end
+		root.Anchored = false
 	end
-	local function makeDisplay(itemId: string, parent: Instance, at: CFrame)
+	local function buildItemModel(itemId: string): Model
+		local model = Instance.new("Model")
+		model.Name = "ShopModel_" .. itemId
+		local origin = CFrame.new()
+		local root: BasePart
 		if itemId == "skateboard" then
-			part(parent, "Deck", Vector3.new(2.4, 0.12, 0.7), at, Color3.fromRGB(40, 40, 48), Enum.Material.SmoothPlastic)
-			part(parent, "Grip", Vector3.new(2.2, 0.04, 0.6), at * CFrame.new(0, 0.08, 0), Color3.fromRGB(220, 60, 80), Enum.Material.Fabric)
-			for _, x in ipairs({ -0.85, 0.85 }) do
-				for _, z in ipairs({ -0.22, 0.22 }) do
-					part(parent, "Wheel", Vector3.new(0.22, 0.22, 0.22), at * CFrame.new(x, -0.18, z), Color3.fromRGB(30, 30, 30), Enum.Material.SmoothPlastic)
+			root = addPart(model, "Deck", Vector3.new(3.1, 0.1, 0.9), origin, Color3.fromRGB(28, 26, 32), Enum.Material.SmoothPlastic)
+			addPart(model, "Grip", Vector3.new(2.85, 0.04, 0.78), origin * CFrame.new(0, 0.07, 0), Color3.fromRGB(18, 18, 20), Enum.Material.Fabric)
+			addPart(model, "Stripe", Vector3.new(2.4, 0.03, 0.18), origin * CFrame.new(0, 0.09, 0), Color3.fromRGB(255, 70, 90), Enum.Material.Neon)
+			addPart(model, "Nose", Vector3.new(0.45, 0.1, 0.88), origin * CFrame.new(1.7, 0.12, 0) * CFrame.Angles(0, 0, math.rad(-18)), Color3.fromRGB(28, 26, 32), Enum.Material.SmoothPlastic)
+			addPart(model, "Tail", Vector3.new(0.45, 0.1, 0.88), origin * CFrame.new(-1.7, 0.12, 0) * CFrame.Angles(0, 0, math.rad(18)), Color3.fromRGB(28, 26, 32), Enum.Material.SmoothPlastic)
+			for _, x in ipairs({ -0.95, 0.95 }) do
+				addPart(model, "Truck", Vector3.new(0.35, 0.16, 0.72), origin * CFrame.new(x, -0.14, 0), Color3.fromRGB(160, 165, 175), Enum.Material.Metal)
+				for _, z in ipairs({ -0.28, 0.28 }) do
+					addPart(model, "Wheel", Vector3.new(0.28, 0.34, 0.34), origin * CFrame.new(x, -0.32, z) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(245, 90, 40), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
 				end
 			end
 		elseif itemId == "magic_carpet" then
-			part(parent, "Rug", Vector3.new(3.2, 0.12, 2.0), at, Color3.fromRGB(170, 40, 70), Enum.Material.Fabric)
+			root = addPart(model, "Rug", Vector3.new(4.6, 0.12, 2.6), origin, Color3.fromRGB(165, 28, 58), Enum.Material.Fabric)
+			addPart(model, "GoldTrim", Vector3.new(4.75, 0.08, 2.75), origin * CFrame.new(0, -0.02, 0), Color3.fromRGB(220, 175, 55), Enum.Material.Metal)
+			addPart(model, "Medallion", Vector3.new(1.4, 0.06, 1.4), origin * CFrame.new(0, 0.08, 0), Color3.fromRGB(255, 210, 80), Enum.Material.Neon)
+			addPart(model, "Inner", Vector3.new(3.4, 0.05, 1.6), origin * CFrame.new(0, 0.07, 0), Color3.fromRGB(95, 20, 110), Enum.Material.Fabric)
+			for i = -2, 2 do
+				addPart(model, "TasselF", Vector3.new(0.08, 0.55, 0.08), origin * CFrame.new(i * 0.85, -0.28, 1.4), Color3.fromRGB(220, 175, 55), Enum.Material.Fabric)
+				addPart(model, "TasselB", Vector3.new(0.08, 0.55, 0.08), origin * CFrame.new(i * 0.85, -0.28, -1.4), Color3.fromRGB(220, 175, 55), Enum.Material.Fabric)
+			end
 		elseif itemId == "airplane" then
-			part(parent, "Fuselage", Vector3.new(3.2, 0.7, 0.7), at, Color3.fromRGB(230, 230, 240), Enum.Material.SmoothPlastic)
-			part(parent, "Wing", Vector3.new(0.5, 0.12, 3.6), at, Color3.fromRGB(50, 90, 180), Enum.Material.SmoothPlastic)
-			part(parent, "Tail", Vector3.new(0.7, 0.9, 0.12), at * CFrame.new(-1.4, 0.5, 0), Color3.fromRGB(50, 90, 180), Enum.Material.SmoothPlastic)
-			part(parent, "Nose", Vector3.new(0.5, 0.5, 0.5), at * CFrame.new(1.7, 0, 0), Color3.fromRGB(220, 80, 70), Enum.Material.SmoothPlastic)
+			root = addPart(model, "CabinCore", Vector3.new(1, 1, 1), origin, Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+			root.Transparency = 1
+			addPart(model, "Floor", Vector3.new(9.5, 0.28, 3.6), origin * CFrame.new(0, -2.15, 0), Color3.fromRGB(70, 80, 95), Enum.Material.Metal)
+			addPart(model, "Roof", Vector3.new(9.5, 0.22, 3.6), origin * CFrame.new(0, 2.25, 0), Color3.fromRGB(235, 238, 245), Enum.Material.SmoothPlastic)
+			addPart(model, "WallL", Vector3.new(9.5, 4.2, 0.18), origin * CFrame.new(0, 0.05, -1.85), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
+			addPart(model, "WallR", Vector3.new(9.5, 4.2, 0.18), origin * CFrame.new(0, 0.05, 1.85), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
+			local glassL = addPart(model, "GlassL", Vector3.new(4.2, 1.6, 0.08), origin * CFrame.new(1.2, 0.7, -1.92), Color3.fromRGB(160, 220, 255), Enum.Material.Glass)
+			glassL.Transparency = 0.45
+			local glassR = addPart(model, "GlassR", Vector3.new(4.2, 1.6, 0.08), origin * CFrame.new(1.2, 0.7, 1.92), Color3.fromRGB(160, 220, 255), Enum.Material.Glass)
+			glassR.Transparency = 0.45
+			addPart(model, "Nose", Vector3.new(2.4, 2.4, 2.4), origin * CFrame.new(5.6, 0, 0), Color3.fromRGB(230, 70, 70), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+			addPart(model, "Cowl", Vector3.new(1.6, 2.2, 2.2), origin * CFrame.new(4.4, 0, 0), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+			addPart(model, "TailBoom", Vector3.new(3.2, 1.1, 1.1), origin * CFrame.new(-6.0, 0.2, 0), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+			addPart(model, "TailFin", Vector3.new(1.4, 2.6, 0.16), origin * CFrame.new(-7.1, 1.6, 0), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
+			addPart(model, "TailWing", Vector3.new(1.1, 0.16, 3.4), origin * CFrame.new(-7.0, 0.35, 0), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
+			addPart(model, "Wing", Vector3.new(2.4, 0.22, 16), origin * CFrame.new(0.4, -0.6, 0), Color3.fromRGB(45, 90, 175), Enum.Material.SmoothPlastic)
+			addPart(model, "Stripe", Vector3.new(9.2, 0.12, 0.35), origin * CFrame.new(0, -0.5, 0), Color3.fromRGB(255, 210, 70), Enum.Material.Neon)
+			addPart(model, "Prop", Vector3.new(0.18, 3.6, 0.35), origin * CFrame.new(6.7, 0, 0), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
 		elseif itemId == "sword" then
-			part(parent, "Blade", Vector3.new(0.18, 2.4, 0.08), at * CFrame.new(0, 0.6, 0), Color3.fromRGB(210, 220, 230), Enum.Material.Metal)
-			part(parent, "Hilt", Vector3.new(0.22, 0.7, 0.22), at * CFrame.new(0, -0.7, 0), Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+			root = addPart(model, "Handle", Vector3.new(0.22, 0.85, 0.22), origin * CFrame.new(0, -0.9, 0), Color3.fromRGB(70, 45, 28), Enum.Material.Wood)
+			addPart(model, "Wrap", Vector3.new(0.24, 0.7, 0.24), origin * CFrame.new(0, -0.85, 0), Color3.fromRGB(120, 40, 40), Enum.Material.Fabric)
+			addPart(model, "Pommel", Vector3.new(0.38, 0.38, 0.38), origin * CFrame.new(0, -1.4, 0), Color3.fromRGB(210, 175, 70), Enum.Material.Metal, Enum.PartType.Ball)
+			addPart(model, "Guard", Vector3.new(0.9, 0.14, 0.22), origin * CFrame.new(0, -0.42, 0), Color3.fromRGB(210, 175, 70), Enum.Material.Metal)
+			addPart(model, "Blade", Vector3.new(0.16, 2.7, 0.06), origin * CFrame.new(0, 0.95, 0), Color3.fromRGB(225, 230, 240), Enum.Material.Metal)
+			addPart(model, "Fuller", Vector3.new(0.04, 2.3, 0.07), origin * CFrame.new(0, 0.9, 0), Color3.fromRGB(160, 170, 185), Enum.Material.Metal)
+			addPart(model, "Tip", Vector3.new(0.14, 0.35, 0.05), origin * CFrame.new(0, 2.4, 0), Color3.fromRGB(240, 245, 255), Enum.Material.Metal)
 		elseif itemId == "mace" then
-			part(parent, "Head", Vector3.new(0.9, 0.9, 0.9), at * CFrame.new(0, 1.1, 0), Color3.fromRGB(120, 120, 130), Enum.Material.Metal)
-			part(parent, "Shaft", Vector3.new(0.22, 2.2, 0.22), at, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+			root = addPart(model, "Handle", Vector3.new(0.22, 2.15, 0.22), origin, Color3.fromRGB(75, 48, 28), Enum.Material.Wood)
+			addPart(model, "Ring", Vector3.new(0.32, 0.12, 0.32), origin * CFrame.new(0, 0.95, 0), Color3.fromRGB(190, 155, 60), Enum.Material.Metal)
+			addPart(model, "Head", Vector3.new(1.05, 1.05, 1.05), origin * CFrame.new(0, 1.45, 0), Color3.fromRGB(125, 128, 138), Enum.Material.Metal, Enum.PartType.Ball)
+			for i = 0, 5 do
+				local ang = i * math.pi / 3
+				addPart(model, "Spike", Vector3.new(0.16, 0.55, 0.16), origin * CFrame.new(math.cos(ang) * 0.55, 1.45, math.sin(ang) * 0.55) * CFrame.Angles(0, 0, math.rad(55)), Color3.fromRGB(90, 92, 100), Enum.Material.Metal)
+			end
+			addPart(model, "TopSpike", Vector3.new(0.16, 0.5, 0.16), origin * CFrame.new(0, 2.05, 0), Color3.fromRGB(90, 92, 100), Enum.Material.Metal)
 		else
-			part(parent, "Head", Vector3.new(1.1, 0.7, 0.12), at * CFrame.new(0.2, 1.0, 0), Color3.fromRGB(140, 140, 150), Enum.Material.Metal)
-			part(parent, "Haft", Vector3.new(0.2, 2.2, 0.2), at, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+			root = addPart(model, "Haft", Vector3.new(0.2, 2.3, 0.2), origin, Color3.fromRGB(92, 58, 32), Enum.Material.Wood)
+			addPart(model, "Collar", Vector3.new(0.28, 0.16, 0.28), origin * CFrame.new(0, 0.85, 0), Color3.fromRGB(80, 82, 90), Enum.Material.Metal)
+			addPart(model, "Bit", Vector3.new(1.35, 0.85, 0.12), origin * CFrame.new(0.45, 1.15, 0), Color3.fromRGB(150, 155, 165), Enum.Material.Metal)
+			addPart(model, "Edge", Vector3.new(0.12, 0.95, 0.05), origin * CFrame.new(1.12, 1.15, 0), Color3.fromRGB(230, 235, 245), Enum.Material.Metal)
+			addPart(model, "Poll", Vector3.new(0.35, 0.55, 0.22), origin * CFrame.new(-0.25, 1.15, 0), Color3.fromRGB(120, 124, 132), Enum.Material.Metal)
 		end
+		finishModel(model, root)
+		return model
+	end
+	local function rideOffset(itemId: string): CFrame
+		if itemId == "skateboard" then
+			return CFrame.new(0, -3.15, 0)
+		elseif itemId == "magic_carpet" then
+			return CFrame.new(0, -3.05, 0)
+		elseif itemId == "airplane" then
+			return CFrame.new(0, 0.15, 0)
+		end
+		return CFrame.new()
+	end
+	local function attachRide(char: Model, itemId: string)
+		local old = char:FindFirstChild("ShopRideVisual")
+		if old then
+			old:Destroy()
+		end
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if not (hrp and hrp:IsA("BasePart")) then
+			return
+		end
+		local model = buildItemModel(itemId)
+		model.Name = "ShopRideVisual"
+		model:SetAttribute("RideId", itemId)
+		local root = model.PrimaryPart
+		if not root then
+			model:Destroy()
+			return
+		end
+		model:PivotTo((hrp :: BasePart).CFrame * rideOffset(itemId))
+		model.Parent = char
+		root.Anchored = false
+		weld(hrp :: BasePart, root)
 	end
 	local function makeTool(item: any): Tool
 		local tool = Instance.new("Tool")
@@ -2369,31 +2465,21 @@ function VisualEffects.SetupRobuxShop()
 		tool:SetAttribute("Fly", item.Fly == true)
 		local handle = Instance.new("Part")
 		handle.Name = "Handle"
-		handle.Size = Vector3.new(0.4, 1, 0.4)
+		handle.Size = Vector3.new(0.35, 1, 0.35)
 		handle.Transparency = if item.Kind == "vehicle" then 1 else 0
 		handle.CanCollide = false
 		handle.Massless = true
 		handle.Color = Color3.fromRGB(80, 55, 35)
 		handle.Parent = tool
-		makeDisplay(item.Id, tool, handle.CFrame)
-		for _, p in ipairs(tool:GetChildren()) do
-			if p:IsA("BasePart") and p ~= handle then
-				p.Anchored = false
-				p.Massless = true
-				p.CanCollide = false
-				weld(handle, p)
+		if item.Kind ~= "vehicle" then
+			local vis = buildItemModel(item.Id)
+			vis.Parent = tool
+			local visRoot = vis.PrimaryPart
+			if visRoot then
+				vis:PivotTo(handle.CFrame)
+				weld(handle, visRoot)
 			end
-		end
-		if item.Kind == "vehicle" then
-			if item.Id == "skateboard" then
-				tool.Grip = CFrame.new(0, 2.2, 0) * CFrame.Angles(0, 0, math.pi / 2)
-			elseif item.Id == "magic_carpet" then
-				tool.Grip = CFrame.new(0, 2.6, 0)
-			else
-				tool.Grip = CFrame.new(0, -1.4, 1.4) * CFrame.Angles(0, math.pi / 2, 0)
-			end
-		else
-			tool.Grip = CFrame.new(0, -0.8, 0)
+			tool.Grip = CFrame.new(0, -0.85, 0)
 			local last = 0
 			tool.Activated:Connect(function()
 				if os.clock() - last < 0.45 then
@@ -2406,6 +2492,24 @@ function VisualEffects.SetupRobuxShop()
 					task.wait(0.02)
 				end
 				tool.Grip = base
+			end)
+		else
+			tool.Grip = CFrame.new()
+			tool.Equipped:Connect(function()
+				local char = tool.Parent
+				if char and char:IsA("Model") then
+					attachRide(char, item.Id)
+				end
+			end)
+			tool.Unequipped:Connect(function()
+				local bag = tool.Parent
+				local owner = bag and bag.Parent
+				if owner and owner:IsA("Player") and owner.Character then
+					local vis = owner.Character:FindFirstChild("ShopRideVisual")
+					if vis then
+						vis:Destroy()
+					end
+				end
 			end)
 		end
 		return tool
@@ -2452,6 +2556,12 @@ function VisualEffects.SetupRobuxShop()
 			if child:IsA("Tool") and child:GetAttribute("ShopItemId") ~= nil then
 				task.defer(function()
 					refreshSpeed(player)
+					if child:GetAttribute("Fly") == true or child.Name == "Skateboard" or child.Name == "Magic Carpet" then
+						local id = child:GetAttribute("ShopItemId")
+						if type(id) == "string" then
+							attachRide(char, id)
+						end
+					end
 				end)
 			end
 		end)
@@ -2459,6 +2569,10 @@ function VisualEffects.SetupRobuxShop()
 			if child:IsA("Tool") then
 				task.defer(function()
 					refreshSpeed(player)
+					local vis = char:FindFirstChild("ShopRideVisual")
+					if vis then
+						vis:Destroy()
+					end
 				end)
 			end
 		end)
@@ -2563,8 +2677,15 @@ function VisualEffects.SetupRobuxShop()
 	back.Face = Enum.NormalId.Back
 	back.Parent = sign
 	for i, item in ipairs(catalog()) do
-		local px = cx - 3.6 + (i - 1) * 1.45
-		makeDisplay(item.Id, stall, CFrame.new(px, gy + 2.4, cz - 2.2) * CFrame.Angles(0, 0, math.rad(-20)))
+		local px = cx - 3.5 + (i - 1) * 1.4
+		local vis = buildItemModel(item.Id)
+		vis:ScaleTo(if item.Id == "airplane" then 0.18 else 0.42)
+		local root = vis.PrimaryPart
+		if root then
+			vis:PivotTo(CFrame.new(px, gy + 2.15, cz - 2.15) * CFrame.Angles(0, math.rad(25), 0))
+			root.Anchored = true
+		end
+		vis.Parent = stall
 	end
 
 	local promptParent: BasePart = floor
