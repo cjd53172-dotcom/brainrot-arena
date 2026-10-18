@@ -152,6 +152,53 @@ function WanderSystem.SpawnWild(player: Player, plotSystem: any, luckMult: numbe
 	return wanderId
 end
 
+function WanderSystem.ForceSpawn(player: Player, brainrotId: string, spawnPos: Vector3?, despawnSecs: number?): string?
+	local def = BrainrotData.GetById(brainrotId)
+	if not def then
+		return nil
+	end
+	local rarity = def.Rarity
+	local baseCfg = RARITY_CONFIG[rarity] or RARITY_CONFIG.Common
+	if not baseCfg then
+		return nil
+	end
+	local list = getWanderers(player)
+	local wanderId = "wild_" .. tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
+	local angle = math.random() * math.pi * 2
+	local dist = 16 + math.random() * 22
+	local cx = 127
+	local cz = 98
+	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if spawnPos then
+		cx = spawnPos.X
+		cz = spawnPos.Z
+	elseif hrp and hrp:IsA("BasePart") then
+		cx = hrp.Position.X + math.cos(angle) * dist
+		cz = hrp.Position.Z + math.sin(angle) * dist
+	end
+	list[wanderId] = {
+		BrainrotId = def.Id,
+		Rarity = if RARITY_CONFIG[rarity] then rarity else "Common",
+		Config = {
+			Weight = baseCfg.Weight,
+			RespawnSecs = baseCfg.RespawnSecs,
+			DespawnSecs = despawnSecs or 600,
+			WalkSpeed = 4,
+			FleeRadius = 0,
+			Announce = false,
+		},
+		SpawnTime = os.time(),
+		DespawnTime = os.time() + (despawnSecs or 600),
+		SpawnPos = Vector3.new(cx, 20, cz),
+		Model = nil,
+		Announced = false,
+		EventRush = true,
+		Variant = nil,
+		Shiny = false,
+	}
+	return wanderId
+end
+
 -- Get wanderer info.
 function WanderSystem.GetWanderer(player: Player, wanderId: string): any?
 	local list = getWanderers(player)

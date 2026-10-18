@@ -2641,53 +2641,107 @@ end
 
 do
 	local RunService = game:GetService("RunService")
-	if RunService:IsStudio() then
-		local function hookStudioSpawn(player: Player)
-			player.Chatted:Connect(function(msg: string)
-				local token = string.match(msg, "^/spawn%s+(.+)$")
-				if not token then
-					return
-				end
-				token = string.lower((string.gsub(token, "^%s+", "")))
-				token = string.gsub(token, "%s+$", "")
-				if token == "orc" or token == "orca" then
-					token = "orcalero"
-				end
-				local def = BrainrotData.GetById(token)
-				if not def then
-					for _, row in ipairs(BrainrotData.ROSTER) do
-						local nameL = string.lower(row.Name)
-						local idL = string.lower(row.Id)
-						if idL == token or string.find(nameL, token, 1, true) or string.find(idL, token, 1, true) then
-							def = row
+	local function isAdmin(player: Player): boolean
+		if RunService:IsStudio() then
+			return true
+		end
+		if player.UserId == game.CreatorId then
+			return true
+		end
+		return false
+	end
+
+	local function playableRoster(): { any }
+		local out = {}
+		for _, row in ipairs(BrainrotData.ROSTER) do
+			if type(row.Id) == "string"
+				and string.sub(row.Id, 1, 5) ~= "gate_"
+				and row.Id ~= "laser_tag"
+				and row.Display ~= nil
+			then
+				table.insert(out, row)
+			end
+		end
+		return out
+	end
+
+	local function resolveDef(token: string): any?
+		if token == "orc" or token == "orca" then
+			token = "orcalero"
+		end
+		local def = BrainrotData.GetById(token)
+		if def then
+			return def
+		end
+		for _, row in ipairs(BrainrotData.ROSTER) do
+			local nameL = string.lower(row.Name)
+			local idL = string.lower(row.Id)
+			if idL == token or string.find(nameL, token, 1, true) or string.find(idL, token, 1, true) then
+				return row
+			end
+		end
+		return nil
+	end
+
+	local function spawnOne(player: Player, def: any, spawnPos: Vector3?)
+		local wanderId = WanderSystem.ForceSpawn(player, def.Id, spawnPos, 600)
+		if wanderId then
+			spawnWildVisual(player, wanderId)
+		end
+		return wanderId
+	end
+
+	local function hookAdminChat(player: Player)
+		player.Chatted:Connect(function(msg: string)
+			if not isAdmin(player) then
+				return
+			end
+			local token = string.match(msg, "^/spawn%s+(.+)$")
+			if not token then
+				return
+			end
+			token = string.lower((string.gsub(token, "^%s+", "")))
+			token = string.gsub(token, "%s+$", "")
+			if token == "all" then
+				local roster = playableRoster()
+				local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+				local origin = if hrp and hrp:IsA("BasePart") then (hrp :: BasePart).Position else Vector3.new(127, 20, 98)
+				print("[Admin] spawning " .. tostring(#roster) .. " brainrots around you")
+				task.spawn(function()
+					for i, def in ipairs(roster) do
+						if not player.Parent then
 							break
 						end
+						local angle = ((i - 1) / math.max(#roster, 1)) * math.pi * 2
+						local dist = 18 + (i % 5) * 6
+						local pos = Vector3.new(origin.X + math.cos(angle) * dist, origin.Y, origin.Z + math.sin(angle) * dist)
+						spawnOne(player, def, pos)
+						if i % 8 == 0 then
+							task.wait()
+						end
 					end
-				end
-				if not def then
-					print("[Studio] /spawn unknown: " .. token)
-					return
-				end
-				local wanderId = WanderSystem.SpawnWild(player, PlotSystem, 1, def.Rarity, true)
-				if not wanderId then
-					print("[Studio] /spawn failed — too many wilds. Catch some first.")
-					return
-				end
-				local wander = WanderSystem.GetWanderer(player, wanderId)
-				if wander then
-					wander.BrainrotId = def.Id
-					wander.Rarity = def.Rarity
-				end
-				spawnWildVisual(player, wanderId)
-				print("[Studio] spawned " .. def.Id .. " near you")
-			end)
-		end
-		Players.PlayerAdded:Connect(hookStudioSpawn)
-		for _, p in ipairs(Players:GetPlayers()) do
-			hookStudioSpawn(p)
-		end
-		print("[Studio] chat /spawn orcalero  (or /spawn orc) to test a wild")
+					print("[Admin] /spawn all done")
+				end)
+				return
+			end
+			local def = resolveDef(token)
+			if not def then
+				print("[Admin] /spawn unknown: " .. token)
+				return
+			end
+			if spawnOne(player, def, nil) then
+				print("[Admin] spawned " .. def.Id .. " near you")
+			else
+				print("[Admin] /spawn failed")
+			end
+		end)
 	end
+
+	Players.PlayerAdded:Connect(hookAdminChat)
+	for _, p in ipairs(Players:GetPlayers()) do
+		hookAdminChat(p)
+	end
+	print("[Admin] /spawn all  |  /spawn orcalero")
 end
 
 -- // Automated Respawn Configuration Processing Loop -----------------------------
