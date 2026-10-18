@@ -970,7 +970,16 @@ local portalZoneCount = #BrainrotData.ZONE_ORDER
 
 for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	local portal = VisualEffects.BuildZonePortal(zoneId)
-	local spot = findPortalSpot(((i - 1) / math.max(1, portalZoneCount)) * math.pi * 2)
+	local spot: Vector3? = nil
+	if zoneId == "crystal_caves" then
+		-- Keep this portal off the arena hill (arena lives west/south of the plots).
+		spot = findPortalSpot(0.55)
+		if not spot then
+			spot = Vector3.new(360, 0, 240)
+		end
+	else
+		spot = findPortalSpot(((i - 1) / math.max(1, portalZoneCount)) * math.pi * 2)
+	end
 	local x = if spot then spot.X else PORTAL_START_X + (i - 1) * PORTAL_SPACING
 	local z = if spot then spot.Z else PORTAL_Z
 	print("[GameServer] Portal " .. tostring(zoneId) .. " placed at " .. tostring(Vector3.new(x, 0, z)))

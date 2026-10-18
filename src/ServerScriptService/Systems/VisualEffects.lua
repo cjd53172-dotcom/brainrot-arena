@@ -1023,23 +1023,24 @@ end
 
 -- // Arena Colosseum ------------------------------------------------------------------
 -- Build an impressive colosseum structure for battles.
-function VisualEffects.BuildColosseum(centerPos: Vector3): Model
+function VisualEffects.BuildColosseum(centerPos: Vector3, scale: number?): Model
 	local model = Instance.new("Model")
 	model.Name = "Colosseum"
+	local s = scale or 1
 
 	-- Outer wall (cylinder segments)
 	local wallSegments = 16
-	local radius = 30
+	local radius = 30 * s
 	for i = 1, wallSegments do
 		local angle = (i / wallSegments) * math.pi * 2
 		local wall = Instance.new("Part")
-		wall.Size = Vector3.new(8, 15, 3)
+		wall.Size = Vector3.new(8 * s, 15 * s, 3 * s)
 		wall.Color = Color3.fromRGB(180, 170, 160)
 		wall.Material = Enum.Material.Marble
 		wall.Anchored = true
 		wall.Position = centerPos + Vector3.new(
 			math.cos(angle) * radius,
-			7.5,
+			7.5 * s,
 			math.sin(angle) * radius
 		)
 		wall.Orientation = Vector3.new(0, -math.deg(angle) + 90, 0)
@@ -1047,10 +1048,10 @@ function VisualEffects.BuildColosseum(centerPos: Vector3): Model
 
 		-- Arch openings (every other segment is shorter)
 		if i % 2 == 0 then
-			wall.Size = Vector3.new(8, 8, 3)
+			wall.Size = Vector3.new(8 * s, 8 * s, 3 * s)
 			wall.Position = centerPos + Vector3.new(
 				math.cos(angle) * radius,
-				4,
+				4 * s,
 				math.sin(angle) * radius
 			)
 		end
@@ -1069,29 +1070,29 @@ function VisualEffects.BuildColosseum(centerPos: Vector3): Model
 
 	-- Center emblem
 	local emblem = Instance.new("Part")
-	emblem.Size = Vector3.new(10, 0.5, 10)
+	emblem.Size = Vector3.new(10 * s, 0.5 * s, 10 * s)
 	emblem.Shape = Enum.PartType.Cylinder
 	emblem.Color = Color3.fromRGB(200, 50, 50)
 	emblem.Material = Enum.Material.Marble
 	emblem.Anchored = true
-	emblem.Position = centerPos + Vector3.new(0, 0.8, 0)
+	emblem.Position = centerPos + Vector3.new(0, 0.8 * s, 0)
 	emblem.Parent = model
 
 	-- Torches around the rim
 	for i = 1, 8 do
 		local angle = (i / 8) * math.pi * 2
 		local torchPos = centerPos + Vector3.new(
-			math.cos(angle) * (radius - 3),
+			math.cos(angle) * (radius - 3 * s),
 			0,
-			math.sin(angle) * (radius - 3)
+			math.sin(angle) * (radius - 3 * s)
 		)
 		-- Simple torch
 		local post = Instance.new("Part")
-		post.Size = Vector3.new(0.8, 6, 0.8)
+		post.Size = Vector3.new(0.8 * s, 6 * s, 0.8 * s)
 		post.Color = Color3.fromRGB(90, 60, 35)
 		post.Material = Enum.Material.Wood
 		post.Anchored = true
-		post.Position = torchPos + Vector3.new(0, 3, 0)
+		post.Position = torchPos + Vector3.new(0, 3 * s, 0)
 		post.Parent = model
 
 		local flame = Instance.new("Fire")
@@ -1109,12 +1110,12 @@ function VisualEffects.BuildColosseum(centerPos: Vector3): Model
 	for i = 1, 4 do
 		local angle = (i / 4) * math.pi * 2 + math.pi/4
 		local bannerPos = centerPos + Vector3.new(
-			math.cos(angle) * (radius - 1),
-			12,
-			math.sin(angle) * (radius - 1)
+			math.cos(angle) * (radius - 1 * s),
+			12 * s,
+			math.sin(angle) * (radius - 1 * s)
 		)
 		local banner = Instance.new("Part")
-		banner.Size = Vector3.new(3, 6, 0.3)
+		banner.Size = Vector3.new(3 * s, 6 * s, 0.3 * s)
 		banner.Color = Color3.fromRGB(180, 40, 40)
 		banner.Material = Enum.Material.Fabric
 		banner.Anchored = true

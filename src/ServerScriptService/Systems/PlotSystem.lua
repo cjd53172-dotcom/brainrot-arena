@@ -26,8 +26,10 @@ local WORLD_DX = 127
 local WORLD_DZ = 98
 -- Arena used to sit at (WORLD_DX, WORLD_DZ - 70), right against the plots.
 -- +X is toward the river/mountain; left of the plots is -X, on the open grass.
-local ARENA_X = WORLD_DX - 220
-local ARENA_Z = WORLD_DZ - 200
+local ARENA_X = WORLD_DX - 300
+local ARENA_Z = WORLD_DZ - 260
+local ARENA_SCALE = 2
+local ARENA_PAD = 140
 -- Plots are lined up side-by-side along X, all facing +Z (front = +Z).
 
 local plotsFolder: Folder? = nil
@@ -350,10 +352,10 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 9-arenaleft")
+print("[PlotSystem] source 10-arenapad")
 
 function PlotSystem.Setup()
-	print("[PlotSystem] Loaded placement v9-arenaleft")
+	print("[PlotSystem] Loaded placement v10-arenapad")
 	autoImportPack()
 	local function groundY(x: number, z: number): number
 		local params = RaycastParams.new()
@@ -381,8 +383,8 @@ function PlotSystem.Setup()
 		end
 	end
 
-	local function flattenPad(cx: number, cz: number, topY: number)
-		local pad = PLOT_SIZE + 18
+	local function flattenPad(cx: number, cz: number, topY: number, padSize: number?)
+		local pad = padSize or (PLOT_SIZE + 18)
 		local thickness = math.max(20, topY + 12)
 		pcall(function()
 			workspace.Terrain:FillBlock(
@@ -750,10 +752,21 @@ function PlotSystem.Setup()
 
 	local arena = Instance.new("Model")
 	arena.Name = "Arena"
+	local s = ARENA_SCALE
+	local arenaTopY = maxGroundY(ARENA_X, ARENA_Z, ARENA_PAD / 2)
+	flattenPad(ARENA_X, ARENA_Z, arenaTopY, ARENA_PAD)
+	newPart({
+		Name = "GroundSlab",
+		Size = Vector3.new(ARENA_PAD, 8, ARENA_PAD),
+		Position = Vector3.new(ARENA_X, -3.9, ARENA_Z),
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(110, 110, 118),
+	}, arena)
 	newPart({
 		Name = "Floor",
 		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(44, 2, 44),
+		Size = Vector3.new(44 * s, 2, 44 * s),
 		Position = Vector3.new(ARENA_X, 1, ARENA_Z),
 		Anchored = true,
 		Color = Color3.fromRGB(200, 170, 120),
@@ -762,7 +775,7 @@ function PlotSystem.Setup()
 	newPart({
 		Name = "Center",
 		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(12, 2.4, 12),
+		Size = Vector3.new(12 * s, 2.4, 12 * s),
 		Position = Vector3.new(ARENA_X, 1.2, ARENA_Z),
 		Anchored = true,
 		Color = Color3.fromRGB(180, 60, 60),
@@ -771,8 +784,8 @@ function PlotSystem.Setup()
 	for _, side in ipairs({ -1, 1 }) do
 		newPart({
 			Name = "Gate" .. if side < 0 then "Blue" else "Red",
-			Size = Vector3.new(6, 8, 1),
-			Position = Vector3.new(ARENA_X + side * 16, 5, ARENA_Z),
+			Size = Vector3.new(6 * s, 8 * s, 1 * s),
+			Position = Vector3.new(ARENA_X + side * 16 * s, 5 * s, ARENA_Z),
 			Anchored = true,
 			Color = if side < 0 then Color3.fromRGB(60, 120, 220) else Color3.fromRGB(220, 60, 60),
 			Material = Enum.Material.SmoothPlastic,
@@ -780,8 +793,8 @@ function PlotSystem.Setup()
 	end
 	local arenaSign = newPart({
 		Name = "Sign",
-		Size = Vector3.new(14, 4, 0.8),
-		Position = Vector3.new(ARENA_X, 9, ARENA_Z + 22),
+		Size = Vector3.new(14 * s, 4 * s, 0.8 * s),
+		Position = Vector3.new(ARENA_X, 9 * s, ARENA_Z + 22 * s),
 		Anchored = true,
 		Color = Color3.fromRGB(90, 70, 50),
 		Material = Enum.Material.Wood,
@@ -806,20 +819,11 @@ function PlotSystem.Setup()
 	arenaPrompt.MaxActivationDistance = 16
 	arenaPrompt.Parent = arenaSign
 	arena.Parent = plaza
-	liftModel(arena, groundY(ARENA_X, ARENA_Z))
+	liftModel(arena, arenaTopY + 0.4)
 	PlotSystem.ArenaPrompt = arenaPrompt
 
-	local arenaCenter = Vector3.new(ARENA_X, 2, ARENA_Z)
-	pcall(function()
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Include
-		params.FilterDescendantsInstances = { workspace.Terrain }
-		local r = workspace:Raycast(Vector3.new(ARENA_X, 500, ARENA_Z), Vector3.new(0, -1000, 0), params)
-		if r then
-			arenaCenter = Vector3.new(ARENA_X, r.Position.Y + 1, ARENA_Z)
-		end
-	end)
-	local colosseum = VisualEffects.BuildColosseum(arenaCenter)
+	local arenaCenter = Vector3.new(ARENA_X, arenaTopY + 1, ARENA_Z)
+	local colosseum = VisualEffects.BuildColosseum(arenaCenter, ARENA_SCALE)
 	colosseum.Parent = plaza
 
 	local obby = Instance.new("Model")
@@ -2028,10 +2032,10 @@ function PlotSystem.SpawnBattleModels(player: Player, pFighters: any, eFighters:
 
 	local rec: any = { folder = folder, pModels = {}, eModels = {} }
 	for i, f in ipairs(pFighters) do
-		rec.pModels[i] = spawnOne(f, cx - 8, cz - 4 + (i - 1) * 4, math.pi / 2, (i - 1) * 0.25)
+		rec.pModels[i] = spawnOne(f, cx - 8 * ARENA_SCALE, cz - 4 * ARENA_SCALE + (i - 1) * 4 * ARENA_SCALE, math.pi / 2, (i - 1) * 0.25)
 	end
 	for i, f in ipairs(eFighters) do
-		rec.eModels[i] = spawnOne(f, cx + 8, cz - 4 + (i - 1) * 4, -math.pi / 2, 0.5 + (i - 1) * 0.25)
+		rec.eModels[i] = spawnOne(f, cx + 8 * ARENA_SCALE, cz - 4 * ARENA_SCALE + (i - 1) * 4 * ARENA_SCALE, -math.pi / 2, 0.5 + (i - 1) * 0.25)
 	end
 	battleArenas[player.UserId] = rec
 	task.wait(1.8)
