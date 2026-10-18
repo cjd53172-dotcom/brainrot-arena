@@ -9,8 +9,17 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
+
+-- Stops Roblox's "disconnected for being idle (20 min)" kick: a tiny fake click when idle.
+local VirtualUser = game:GetService("VirtualUser")
+player.Idled:Connect(function()
+	VirtualUser:CaptureController()
+	VirtualUser:ClickButton2(Vector2.new(0, 0))
+end)
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -149,6 +158,42 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 	nameLabel.Parent = billboard
 end
 
+local function hideIfForeignWild(inst: Instance)
+	local cur: Instance? = inst
+	local foreign = false
+	while cur and cur ~= workspace do
+		local owner = cur:GetAttribute("WildOwner")
+		if owner ~= nil then
+			foreign = owner ~= player.UserId
+			break
+		end
+		cur = cur.Parent
+	end
+	if not foreign then
+		return
+	end
+	local anyInst: any = inst
+	if inst:IsA("BasePart") then
+		anyInst.LocalTransparencyModifier = 1
+	elseif inst:IsA("GuiObject") or inst:IsA("Decal") or inst:IsA("Texture") then
+		pcall(function()
+			anyInst.Visible = false
+		end)
+	end
+	if inst:IsA("BillboardGui") or inst:IsA("SurfaceGui") then
+		anyInst.Enabled = false
+	elseif inst:IsA("ParticleEmitter") or inst:IsA("Beam") or inst:IsA("Trail") or inst:IsA("Light") then
+		pcall(function()
+			anyInst.Enabled = false
+		end)
+	end
+end
+
+workspace.DescendantAdded:Connect(hideIfForeignWild)
+for _, existing in ipairs(workspace:GetDescendants()) do
+	hideIfForeignWild(existing)
+end
+
 workspace.DescendantAdded:Connect(function(descendant)
 	if descendant:IsA("Model") and descendant:GetAttribute("BrainrotId") then
 		local def = BrainrotData.GetById(descendant:GetAttribute("BrainrotId") :: string)
@@ -179,7 +224,10 @@ end)
 -- // UI Theme: mobile-friendly + pretty -------------------------------------------
 local camera = workspace.CurrentCamera
 local viewportSize = camera and camera.ViewportSize or Vector2.new(1920, 1080)
-local isMobile = viewportSize.X < 900 or viewportSize.Y < 700
+-- Phone/tablet = touch screen without a keyboard (or a really narrow window).
+-- A small desktop/Studio window is NOT a phone, so it keeps the normal button layout.
+-- (Window size is NOT used: it can read as tiny during startup and wrongly flip this on.)
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local uiScale = if isMobile then 1.25 else 1.0
 
 local function fitLegacyPanel(panel: Instance)
@@ -200,18 +248,26 @@ local THEME = {
 	Danger = Color3.fromRGB(220, 80, 80),
 	Text = Color3.fromRGB(255, 255, 255),
 	TextDim = Color3.fromRGB(180, 180, 200),
-	Gradient1 = Color3.fromRGB(45, 45, 70),
-	Gradient2 = Color3.fromRGB(25, 25, 40),
+	Gradient1 = Color3.fromRGB(62, 62, 94),
+	Gradient2 = Color3.fromRGB(38, 38, 60),
 }
 
 local function styleFrame(frame: GuiObject, useAccent: boolean?)
-	local grad = Instance.new("UIGradient")
-	grad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, THEME.Gradient1),
-		ColorSequenceKeypoint.new(1, THEME.Gradient2),
-	})
-	grad.Rotation = 90
-	grad.Parent = frame
+	-- A UIGradient also tints the TEXT of buttons and labels (white text came out dark),
+	-- so only plain frames/panels get the gradient. Text objects keep their solid color.
+	if not (frame:IsA("TextButton") or frame:IsA("TextLabel")) then
+		local grad = Instance.new("UIGradient")
+		grad.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, THEME.Gradient1),
+			ColorSequenceKeypoint.new(1, THEME.Gradient2),
+		})
+		grad.Rotation = 90
+		grad.Parent = frame
+		-- A UIGradient MULTIPLIES the frame's own color. Dark color x dark gradient = black,
+		-- which is why Stats / Style / Explore / Mine etc. looked black. A white base lets the
+		-- gradient colors show exactly as written.
+		frame.BackgroundColor3 = Color3.new(1, 1, 1)
+	end
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = if useAccent then THEME.Accent else Color3.fromRGB(70, 70, 95)
@@ -228,7 +284,7 @@ end
 local tracker = Instance.new("Frame")
 tracker.Name = "QuestTracker"
 tracker.Size = UDim2.new(0, 320, 0, 92)
-tracker.Position = UDim2.new(0, 16, 0, 16)
+tracker.Position = UDim2.new(0, 16, 0, 64)
 tracker.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 tracker.BackgroundTransparency = 0.15
 tracker.BorderSizePixel = 0
@@ -289,7 +345,7 @@ corner(coinsLabel, 10)
 -- // Bottom buttons (5) ------------------------------------------------------------------
 local collectionBtn = Instance.new("TextButton")
 collectionBtn.Size = UDim2.new(0, 104, 0, 48)
-collectionBtn.Position = UDim2.new(0.5, -276, 1, -64)
+collectionBtn.Position = UDim2.new(0.5, -276, 1, -124)
 collectionBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
 collectionBtn.Text = "Brainrots"
 collectionBtn.Font = Enum.Font.GothamBold
@@ -301,7 +357,7 @@ styleFrame(collectionBtn, false)
 
 local workBtn = Instance.new("TextButton")
 workBtn.Size = UDim2.new(0, 104, 0, 48)
-workBtn.Position = UDim2.new(0.5, -164, 1, -64)
+workBtn.Position = UDim2.new(0.5, -164, 1, -124)
 workBtn.BackgroundColor3 = Color3.fromRGB(45, 60, 35)
 workBtn.Text = "Work"
 workBtn.Font = Enum.Font.GothamBold
@@ -313,7 +369,7 @@ styleFrame(workBtn, false)
 
 local fusionBtn = Instance.new("TextButton")
 fusionBtn.Size = UDim2.new(0, 104, 0, 48)
-fusionBtn.Position = UDim2.new(0.5, -52, 1, -64)
+fusionBtn.Position = UDim2.new(0.5, -52, 1, -124)
 fusionBtn.BackgroundColor3 = Color3.fromRGB(60, 35, 80)
 fusionBtn.Text = "Fusion"
 fusionBtn.Font = Enum.Font.GothamBold
@@ -325,7 +381,7 @@ styleFrame(fusionBtn, false)
 
 local arenaBtn = Instance.new("TextButton")
 arenaBtn.Size = UDim2.new(0, 104, 0, 48)
-arenaBtn.Position = UDim2.new(0.5, 60, 1, -64)
+arenaBtn.Position = UDim2.new(0.5, 60, 1, -124)
 arenaBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
 arenaBtn.Text = "Arena"
 arenaBtn.Font = Enum.Font.GothamBold
@@ -337,7 +393,7 @@ styleFrame(arenaBtn, false)
 
 local showcaseBtn = Instance.new("TextButton")
 showcaseBtn.Size = UDim2.new(0, 104, 0, 48)
-showcaseBtn.Position = UDim2.new(0.5, 172, 1, -64)
+showcaseBtn.Position = UDim2.new(0.5, 172, 1, -124)
 showcaseBtn.BackgroundColor3 = Color3.fromRGB(55, 45, 25)
 showcaseBtn.Text = "Showcase"
 showcaseBtn.Font = Enum.Font.GothamBold
@@ -388,6 +444,8 @@ collectionPanel.BackgroundTransparency = 0.05
 collectionPanel.BorderSizePixel = 0
 collectionPanel.Visible = false
 collectionPanel.ScrollBarThickness = 6
+collectionPanel.CanvasSize = UDim2.new(0, 0, 0, 0)
+collectionPanel.AutomaticCanvasSize = Enum.AutomaticSize.Y
 collectionPanel.Parent = gui
 corner(collectionPanel, 12)
 
@@ -427,6 +485,8 @@ editorList.Position = UDim2.new(0, 12, 0, 52)
 editorList.BackgroundTransparency = 1
 editorList.BorderSizePixel = 0
 editorList.ScrollBarThickness = 6
+editorList.CanvasSize = UDim2.new(0, 0, 0, 0)
+editorList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 editorList.Parent = editorPanel
 
 local editorLayout = Instance.new("UIListLayout")
@@ -448,6 +508,19 @@ corner(saveBtn, 10)
 -- Looks a brainrot definition up with either getter the data module offers.
 local function lookupDef(id: any): any
 	return BrainrotData.GetById(id) or BrainrotData.GetBrainrot(id)
+end
+
+-- Display only: the server decides the real price (keep in step with SELL_PRICE in GameServer).
+local SELL_PRICE: { [string]: number } = { Common = 25, Rare = 100, Epic = 400, Legendary = 2000 }
+local sellRemote = remotes:WaitForChild("SellBrainrots", 5)
+
+local function sellPriceFor(inst: any): number
+	local def = lookupDef(inst.BrainrotId)
+	local price = if def then (SELL_PRICE[def.Rarity] or 10) else 10
+	if inst.Shiny then
+		price *= 5
+	end
+	return price
 end
 
 local function instanceLabel(inst: any): string
@@ -499,6 +572,52 @@ local function refreshCollectionPanel()
 		entry.LayoutOrder = order
 		entry.Parent = collectionPanel
 		corner(entry, 8)
+
+		local textPad = Instance.new("UIPadding")
+		textPad.PaddingRight = UDim.new(0, 112)
+		textPad.Parent = entry
+
+		local sellBtn = Instance.new("TextButton")
+		sellBtn.Size = UDim2.new(0, 100, 0, 30)
+		sellBtn.Position = UDim2.new(1, -106, 0.5, -15)
+		sellBtn.Font = Enum.Font.GothamBold
+		sellBtn.TextSize = 12
+		sellBtn.TextColor3 = Color3.new(1, 1, 1)
+		sellBtn.Parent = entry
+		corner(sellBtn, 8)
+		local sellLabel = "Sell " .. tostring(sellPriceFor(inst)) .. " coins"
+		local sellColor = Color3.fromRGB(150, 90, 40)
+		if workingIds[inst.InstanceId] then
+			sellBtn.Text = "At work"
+			sellBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+			sellBtn.AutoButtonColor = false
+		else
+			sellBtn.Text = sellLabel
+			sellBtn.BackgroundColor3 = sellColor
+			local armed = false
+			sellBtn.MouseButton1Click:Connect(function()
+				if not sellRemote then
+					return
+				end
+				if not armed then
+					-- first click asks to confirm, so nobody sells by accident
+					armed = true
+					sellBtn.Text = "Confirm?"
+					sellBtn.BackgroundColor3 = Color3.fromRGB(190, 60, 60)
+					task.delay(3, function()
+						if armed and sellBtn.Parent then
+							armed = false
+							sellBtn.Text = sellLabel
+							sellBtn.BackgroundColor3 = sellColor
+						end
+					end)
+					return
+				end
+				armed = false
+				local sellEvent = sellRemote :: RemoteEvent
+				sellEvent:FireServer({ inst.InstanceId })
+			end)
+		end
 		if def then
 			local stripe = Instance.new("Frame")
 			stripe.Size = UDim2.new(0, 6, 1, 0)
@@ -519,13 +638,40 @@ local function isPending(id: string): boolean
 	return false
 end
 
+-- Sends the showcase to the server shortly after the last change, so toggling a brainrot
+-- off takes effect on the plot even if you close the panel without pressing Save.
+local showcaseSaveToken = 0
+local function queueShowcaseSave()
+	showcaseSaveToken += 1
+	local token = showcaseSaveToken
+	task.delay(0.5, function()
+		if token == showcaseSaveToken then
+			showcaseRemote:FireServer(pendingShowcase)
+		end
+	end)
+end
+
 local function refreshEditorPanel()
 	for _, child in ipairs(editorList:GetChildren()) do
 		if child:IsA("Frame") then
 			child:Destroy()
 		end
 	end
-	for order, inst in ipairs(ownedInstances) do
+	local sortedOwned: { any } = {}
+	for _, pid in ipairs(pendingShowcase) do
+		for _, inst in ipairs(ownedInstances) do
+			if inst.InstanceId == pid then
+				table.insert(sortedOwned, inst)
+				break
+			end
+		end
+	end
+	for _, inst in ipairs(ownedInstances) do
+		if not isPending(inst.InstanceId) then
+			table.insert(sortedOwned, inst)
+		end
+	end
+	for order, inst in ipairs(sortedOwned) do
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, -6, 0, 44)
 		row.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
@@ -577,16 +723,34 @@ local function refreshEditorPanel()
 				end
 			else
 				if #pendingShowcase >= BrainrotData.SHOWCASE_LIMIT then
+					showBanner("Showcase is full (" .. tostring(BrainrotData.SHOWCASE_LIMIT) .. "). Remove one first!", 3)
 					return
 				end
 				table.insert(pendingShowcase, inst.InstanceId)
 			end
 			paint()
 			saveBtn.Text = ("Save Showcase (%d/%d)"):format(#pendingShowcase, BrainrotData.SHOWCASE_LIMIT)
+			queueShowcaseSave()
 		end)
 	end
 	saveBtn.Text = ("Save Showcase (%d/%d)"):format(#pendingShowcase, BrainrotData.SHOWCASE_LIMIT)
 end
+
+local clearShowcaseBtn = Instance.new("TextButton")
+clearShowcaseBtn.Size = UDim2.new(0, 96, 0, 28)
+clearShowcaseBtn.Position = UDim2.new(1, -156, 0, 14)
+clearShowcaseBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
+clearShowcaseBtn.Text = "Clear all"
+clearShowcaseBtn.Font = Enum.Font.GothamBold
+clearShowcaseBtn.TextSize = 13
+clearShowcaseBtn.TextColor3 = Color3.new(1, 1, 1)
+clearShowcaseBtn.Parent = editorPanel
+corner(clearShowcaseBtn, 8)
+clearShowcaseBtn.MouseButton1Click:Connect(function()
+	pendingShowcase = {}
+	refreshEditorPanel()
+	queueShowcaseSave()
+end)
 
 -- // Milestone 2: Fusion panel ---------------------------------------------------------
 local fusionPanel = Instance.new("ScrollingFrame")
@@ -598,6 +762,8 @@ fusionPanel.BackgroundTransparency = 0.05
 fusionPanel.BorderSizePixel = 0
 fusionPanel.Visible = false
 fusionPanel.ScrollBarThickness = 6
+fusionPanel.CanvasSize = UDim2.new(0, 0, 0, 0)
+fusionPanel.AutomaticCanvasSize = Enum.AutomaticSize.Y
 fusionPanel.Parent = gui
 corner(fusionPanel, 12)
 
@@ -626,7 +792,7 @@ local function refreshFusionPanel()
 	end
 	local groups: { [string]: any } = {}
 	for _, inst in ipairs(ownedInstances) do
-		if not inst.Shiny and not workingIds[inst.InstanceId] then
+		if not inst.Shiny and not workingIds[inst.InstanceId] and lookupDef(inst.BrainrotId) then
 			groups[inst.BrainrotId] = groups[inst.BrainrotId] or {}
 			table.insert(groups[inst.BrainrotId], inst)
 		end
@@ -748,6 +914,8 @@ teamList.Position = UDim2.new(0, 12, 0, 78)
 teamList.BackgroundColor3 = Color3.fromRGB(22, 14, 14)
 teamList.BorderSizePixel = 0
 teamList.ScrollBarThickness = 6
+teamList.CanvasSize = UDim2.new(0, 0, 0, 0)
+teamList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 teamList.Parent = arenaPanel
 corner(teamList, 8)
 
@@ -773,6 +941,8 @@ rivalList.Position = UDim2.new(0, 12, 0, 262)
 rivalList.BackgroundColor3 = Color3.fromRGB(22, 14, 14)
 rivalList.BorderSizePixel = 0
 rivalList.ScrollBarThickness = 6
+rivalList.CanvasSize = UDim2.new(0, 0, 0, 0)
+rivalList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 rivalList.Parent = arenaPanel
 corner(rivalList, 8)
 
@@ -820,7 +990,7 @@ local function refreshArenaPanel()
 	end
 	local order = 1
 	for _, inst in ipairs(ownedInstances) do
-		if not workingIds[inst.InstanceId] then
+		if not workingIds[inst.InstanceId] and lookupDef(inst.BrainrotId) then
 			local btn = Instance.new("TextButton")
 			btn.Size = UDim2.new(1, -12, 0, 34)
 			btn.BackgroundColor3 = Color3.fromRGB(40, 28, 28)
@@ -945,10 +1115,19 @@ battlePanel.ScrollBarThickness = 6
 battlePanel.ScrollingDirection = Enum.ScrollingDirection.Y
 fitLegacyPanel(battlePanel)
 battlePanel.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+battlePanel.BackgroundTransparency = 1
 battlePanel.BorderSizePixel = 0
 battlePanel.Visible = false
 battlePanel.Parent = gui
 corner(battlePanel, 12)
+if not isMobile then
+	-- Dock to the left edge so the arena fight stays visible on the right.
+	battlePanel.AnchorPoint = Vector2.new(0, 0.5)
+	battlePanel.Position = UDim2.new(0, 12, 0.5, 0)
+end
+local battleScale = Instance.new("UIScale")
+battleScale.Scale = 0.7
+battleScale.Parent = battlePanel
 
 local battleTitle = Instance.new("TextLabel")
 battleTitle.Size = UDim2.new(1, 0, 0, 36)
@@ -958,6 +1137,7 @@ battleTitle.Text = "Battle!"
 battleTitle.Font = Enum.Font.GothamBold
 battleTitle.TextSize = 20
 battleTitle.TextColor3 = Color3.fromRGB(255, 200, 200)
+battleTitle.TextStrokeTransparency = 0.4
 battleTitle.Parent = battlePanel
 
 local enemyBars: any = {}
@@ -972,6 +1152,7 @@ do
 		nameL.Font = Enum.Font.GothamBold
 		nameL.TextSize = 13
 		nameL.TextColor3 = Color3.fromRGB(255, 150, 150)
+		nameL.TextStrokeTransparency = 0.4
 		nameL.TextXAlignment = Enum.TextXAlignment.Left
 		nameL.Parent = battlePanel
 		local back = Instance.new("Frame")
@@ -996,6 +1177,7 @@ local battleLog = Instance.new("ScrollingFrame")
 battleLog.Size = UDim2.new(0.94, 0, 0, 110)
 battleLog.Position = UDim2.new(0.03, 0, 0, 190)
 battleLog.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
+battleLog.BackgroundTransparency = 0.35
 battleLog.BorderSizePixel = 0
 battleLog.ScrollBarThickness = 4
 battleLog.Parent = battlePanel
@@ -1030,6 +1212,7 @@ do
 		card.Size = UDim2.new(0.94, 0, 0, 64)
 		card.Position = UDim2.new(0.03, 0, 0, y)
 		card.BackgroundColor3 = Color3.fromRGB(22, 30, 22)
+		card.BackgroundTransparency = 0.3
 		card.BorderSizePixel = 0
 		card.Parent = battlePanel
 		corner(card, 8)
@@ -1040,6 +1223,7 @@ do
 		nameL.Font = Enum.Font.GothamBold
 		nameL.TextSize = 13
 		nameL.TextColor3 = Color3.fromRGB(170, 255, 170)
+		nameL.TextStrokeTransparency = 0.4
 		nameL.TextXAlignment = Enum.TextXAlignment.Left
 		nameL.Parent = card
 		local back = Instance.new("Frame")
@@ -1099,7 +1283,57 @@ local function paintHp(fill: Instance, hp: number, maxHp: number)
 	bar.Size = UDim2.new(math.clamp(hp / math.max(1, maxHp), 0, 1), 0, 1, 0)
 end
 
+local currentBattleState: any = nil
+
+local function fighterAlive(i: number): boolean
+	local st: any = currentBattleState
+	local f = st and st.pTeam and st.pTeam[i]
+	return f ~= nil and (f.HP or 0) > 0
+end
+
+local function refreshMoveButtons()
+	for i = 1, 3 do
+		local alive = fighterAlive(i)
+		for _, b in ipairs(playerCards[i].moveBtns) do
+			local mb = b :: TextButton
+			mb.Active = alive
+			mb.AutoButtonColor = alive
+			mb.BackgroundTransparency = if alive then 0 else 0.7
+		end
+		playerCards[i].card.BackgroundTransparency = if alive then 0.3 else 0.7
+	end
+end
+
+-- The old code waited for ALL THREE fighters to pick a move, so once one fainted the turn
+-- could never be sent and the battle froze after the first round. Only living fighters pick now.
+local function trySubmitMoves()
+	if not battleActive then
+		return
+	end
+	local picks: { number } = {}
+	for i = 1, 3 do
+		if fighterAlive(i) then
+			local m = lockedMoves[i]
+			if not m then
+				return
+			end
+			picks[i] = m
+		else
+			picks[i] = 1
+		end
+	end
+	battleActive = false
+	submitMovesRemote:FireServer(picks)
+end
+
 local function buildBattleUI(state: any)
+	currentBattleState = state
+	local cam = workspace.CurrentCamera
+	if isMobile or not cam then
+		battleScale.Scale = 1
+	else
+		battleScale.Scale = math.clamp(cam.ViewportSize.Y / 950, 0.45, 0.75)
+	end
 	battleTitle.Text = "⚔ vs " .. tostring(state.rivalName)
 	logOrder = 0
 	for _, child in ipairs(battleLog:GetChildren()) do
@@ -1135,6 +1369,7 @@ local function buildBattleUI(state: any)
 			local stroke = Instance.new("UIStroke")
 			stroke.Color = Color3.new(1, 1, 1)
 			stroke.Thickness = 2.5
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			stroke.Enabled = false
 			stroke.Parent = mb
 			table.insert(card.moveBtns, mb)
@@ -1150,14 +1385,12 @@ local function buildBattleUI(state: any)
 						s.Enabled = (j == mIdx)
 					end
 				end
-				if lockedMoves[1] and lockedMoves[2] and lockedMoves[3] then
-					battleActive = false
-					submitMovesRemote:FireServer({ lockedMoves[1], lockedMoves[2], lockedMoves[3] })
-				end
+				trySubmitMoves()
 			end)
 		end
 	end
 	battleActive = true
+	refreshMoveButtons()
 	battleLogLine("Battle started! Pick a move for each fighter.", Color3.fromRGB(255, 220, 120))
 end
 
@@ -1204,6 +1437,9 @@ local function applyTurn(payload: any)
 			task.wait(1.25)
 		end
 		lockedMoves = { nil, nil, nil }
+		if state then
+			currentBattleState = state
+		end
 		if payload.Phase == "Turn" and state then
 			if state.winner == "player" then
 				local rw = payload.Rewards or {}
@@ -1233,6 +1469,7 @@ local function applyTurn(payload: any)
 					end
 				end
 				battleActive = true
+				refreshMoveButtons()
 				battleLogLine("Pick your moves!", Color3.fromRGB(255, 220, 120))
 			end
 		end
@@ -1247,7 +1484,7 @@ end)
 -- // Exploration & Progression Panels -----------------------------------------------------
 local exploreBtn = Instance.new("TextButton")
 exploreBtn.Size = UDim2.new(0, 104, 0, 40)
-exploreBtn.Position = UDim2.new(0.5, -276, 1, -112)
+exploreBtn.Position = UDim2.new(0.5, -276, 1, -172)
 exploreBtn.BackgroundColor3 = Color3.fromRGB(35, 60, 35)
 exploreBtn.Text = "Explore"
 exploreBtn.Font = Enum.Font.GothamBold
@@ -1258,7 +1495,7 @@ corner(exploreBtn, 10)
 
 local dailyBtn = Instance.new("TextButton")
 dailyBtn.Size = UDim2.new(0, 104, 0, 40)
-dailyBtn.Position = UDim2.new(0.5, -164, 1, -112)
+dailyBtn.Position = UDim2.new(0.5, -164, 1, -172)
 dailyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
 dailyBtn.Text = "Dailies"
 dailyBtn.Font = Enum.Font.GothamBold
@@ -1269,7 +1506,7 @@ corner(dailyBtn, 10)
 
 local eggBtn = Instance.new("TextButton")
 eggBtn.Size = UDim2.new(0, 104, 0, 40)
-eggBtn.Position = UDim2.new(0.5, -52, 1, -112)
+eggBtn.Position = UDim2.new(0.5, -52, 1, -172)
 eggBtn.BackgroundColor3 = Color3.fromRGB(80, 65, 30)
 eggBtn.Text = "Eggs"
 eggBtn.Font = Enum.Font.GothamBold
@@ -1280,7 +1517,7 @@ corner(eggBtn, 10)
 
 local mineBtn = Instance.new("TextButton")
 mineBtn.Size = UDim2.new(0, 104, 0, 40)
-mineBtn.Position = UDim2.new(0.5, 60, 1, -112)
+mineBtn.Position = UDim2.new(0.5, 60, 1, -172)
 mineBtn.BackgroundColor3 = Color3.fromRGB(70, 55, 20)
 mineBtn.Text = "Gold Mine"
 mineBtn.Font = Enum.Font.GothamBold
@@ -1291,7 +1528,7 @@ corner(mineBtn, 10)
 
 local styleBtn = Instance.new("TextButton")
 styleBtn.Size = UDim2.new(0, 104, 0, 40)
-styleBtn.Position = UDim2.new(0.5, 172, 1, -112)
+styleBtn.Position = UDim2.new(0.5, 172, 1, -172)
 styleBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 70)
 styleBtn.Text = "Style"
 styleBtn.Font = Enum.Font.GothamBold
@@ -1302,7 +1539,7 @@ corner(styleBtn, 10)
 
 local statsBtn = Instance.new("TextButton")
 statsBtn.Size = UDim2.new(0, 104, 0, 40)
-statsBtn.Position = UDim2.new(0.5, 284, 1, -64)
+statsBtn.Position = UDim2.new(0.5, 284, 1, -124)
 statsBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 20)
 statsBtn.Text = "📊 Stats"
 statsBtn.Font = Enum.Font.GothamBold
@@ -1326,18 +1563,10 @@ local function makePanel(title: string, titleColor: Color3): (Frame, TextLabel)
 	panel.Parent = gui
 	panel.ScrollBarThickness = 6
 	panel.ScrollingDirection = Enum.ScrollingDirection.Y
+	panel.CanvasSize = UDim2.new(0, 0, 0, 0)
+	panel.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	corner(panel, 16)
 	styleFrame(panel, false)
-	local shadow = Instance.new("ImageLabel")
-	shadow.Name = "Shadow"
-	shadow.Size = UDim2.new(1, 12, 1, 12)
-	shadow.Position = UDim2.new(0, -6, 0, -6)
-	shadow.BackgroundTransparency = 1
-	shadow.Image = "rbxassetid://6014261993"
-	shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-	shadow.ImageTransparency = 0.5
-	shadow.ZIndex = -1
-	shadow.Parent = panel
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 8)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1465,7 +1694,7 @@ end)
 
 local fishBtn = Instance.new("TextButton")
 fishBtn.Size = UDim2.new(0, 104, 0, 40)
-fishBtn.Position = UDim2.new(0.5, 284, 1, -112)
+fishBtn.Position = UDim2.new(0.5, 284, 1, -172)
 fishBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 120)
 fishBtn.Text = "🎣 Fish"
 fishBtn.Font = Enum.Font.GothamBold
@@ -1611,7 +1840,7 @@ fishingUpdateRemote.OnClientEvent:Connect(function(payload: any)
 		if r.Kind == "Fish" then
 			msg = "🐟 Caught " .. tostring(r.Amount) .. " Fish!"
 		elseif r.Kind == "Coins" then
-			msg = "🪙 Found " .. tostring(r.Amount) .. " coins!"
+			msg = "Found " .. tostring(r.Amount) .. " coins!"
 		elseif r.Kind == "Material" then
 			msg = "💎 Got " .. tostring(r.Amount) .. "x " .. tostring(r.Name) .. "!"
 		elseif r.Kind == "Brainrot" then
@@ -1698,6 +1927,8 @@ workPanel.BackgroundTransparency = 0.05
 workPanel.BorderSizePixel = 0
 workPanel.Visible = false
 workPanel.ScrollBarThickness = 6
+workPanel.CanvasSize = UDim2.new(0, 0, 0, 0)
+workPanel.AutomaticCanvasSize = Enum.AutomaticSize.Y
 workPanel.Parent = gui
 corner(workPanel, 12)
 
@@ -1736,6 +1967,8 @@ pickerList.Position = UDim2.new(0, 12, 0, 52)
 pickerList.BackgroundTransparency = 1
 pickerList.BorderSizePixel = 0
 pickerList.ScrollBarThickness = 6
+pickerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+pickerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 pickerList.Parent = pickerPanel
 
 local pickerLayout = Instance.new("UIListLayout")
@@ -2018,7 +2251,7 @@ end
 
 local hintLabel = Instance.new("TextLabel")
 hintLabel.Size = UDim2.new(0, 500, 0, 44)
-hintLabel.Position = UDim2.new(0.5, -250, 1, -130)
+hintLabel.Position = UDim2.new(0.5, -250, 1, -290)
 hintLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 hintLabel.BackgroundTransparency = 0.2
 hintLabel.Text = ""
@@ -2063,6 +2296,7 @@ questRemote.OnClientEvent:Connect(function(payload: any)
 end)
 
 local upgradeTiers = { Speed = 0, Jump = 0, Reach = 0, Luck = 0 }
+local currentCoins = 0
 
 collectionRemote.OnClientEvent:Connect(function(payload: any)
 	ownedInstances = payload.Brainrots or {}
@@ -2072,6 +2306,7 @@ collectionRemote.OnClientEvent:Connect(function(payload: any)
 	end
 	workingIds = payload.Working or {}
 	coinsLabel.Text = "Coins: " .. tostring(payload.Coins or 0)
+	currentCoins = payload.Coins or 0
 	if payload.Upgrades then
 		upgradeTiers = payload.Upgrades
 		if statsPanel.Visible then
@@ -2178,6 +2413,7 @@ local expeditionData: any = { Expeditions = {}, UnlockedZones = {} }
 local dailyData: any = { Quests = {} }
 local eggData: any = { Eggs = {}, Slots = 3 }
 local passiveBanked: number = 0
+local passiveBrainrotRate: number = 0
 local customizeData: any = { Theme = "default", UnlockedThemes = {}, Decorations = {} }
 
 refreshExpeditionPanel = function()
@@ -2252,7 +2488,7 @@ refreshExpeditionPanel = function()
 		local availCount = 0
 		for _, inst in ipairs(ownedInstances) do
 			local iid = inst.InstanceId
-			if not workingIds[iid] and not showcaseIds[iid] then
+			if not workingIds[iid] and not showcaseIds[iid] and lookupDef(inst.BrainrotId) then
 				availCount += 1
 				if availCount > 12 then break end
 				local def = lookupDef(inst.BrainrotId)
@@ -2400,7 +2636,9 @@ refreshMinePanel = function()
 		end
 	end
 	local order = 1
-	makeLabel(minePanel, "Your gold mine earns coins while you play!", 14, Color3.new(1,1,1), order)
+	makeLabel(minePanel, "Your gold mine and the brainrots on your pedestals earn coins while you play!", 14, Color3.new(1,1,1), order)
+	order += 1
+	makeLabel(minePanel, "🧠 Displayed brainrots earn about " .. tostring(passiveBrainrotRate) .. " coins/min", 13, Color3.fromRGB(180, 255, 170), order)
 	order += 1
 	local bankRow = makeRow(minePanel, order, 72)
 	order += 1
@@ -2448,7 +2686,7 @@ refreshCustomizePanel = function()
 			local owned = unlocked[id] == true or table.find(unlocked, id) ~= nil
 			local row = makeRow(customizePanel, order, 44)
 			order += 1
-			makeLabel(row, themeName .. (if owned then "  ✅" elseif cost then ("  (" .. tostring(cost) .. " 🪙)") else ""), 14, Color3.new(1, 1, 1), 1).Position = UDim2.new(0, 8, 0, 10)
+			makeLabel(row, themeName .. (if owned then "  (owned)" elseif cost then ("  (" .. tostring(cost) .. " coins)") else ""), 14, Color3.new(1, 1, 1), 1).Position = UDim2.new(0, 8, 0, 10)
 			if not owned then
 				local buy = Instance.new("TextButton")
 				buy.Size = UDim2.new(0, 90, 0, 30)
@@ -2480,7 +2718,7 @@ refreshCustomizePanel = function()
 			local cost = if type(deco) == "table" and deco.Cost then tonumber(deco.Cost) else nil
 			local row = makeRow(customizePanel, order, 44)
 			order += 1
-			makeLabel(row, decoName .. (if cost then ("  (" .. tostring(cost) .. " 🪙)") else ""), 14, Color3.new(1, 1, 1), 1).Position = UDim2.new(0, 8, 0, 10)
+			makeLabel(row, decoName .. (if cost then ("  (" .. tostring(cost) .. " coins)") else ""), 14, Color3.new(1, 1, 1), 1).Position = UDim2.new(0, 8, 0, 10)
 			local buy = Instance.new("TextButton")
 			buy.Size = UDim2.new(0, 90, 0, 30)
 			buy.Position = UDim2.new(1, -98, 0.5, -15)
@@ -2498,61 +2736,79 @@ refreshCustomizePanel = function()
 	end
 end
 
-local STAT_DEFS = {
-	Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+2 movement speed per tier" },
-	Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+5 jump power per tier" },
-	Reach = { Name = "🧲 Catcher's Reach", MaxTier = 3, Costs = { 1000, 3000, 8000 }, Desc = "Bigger catch radius for wild brainrots" },
-	Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 2000, 6000, 15000 }, Desc = "Better odds for Rare+ wild spawns" },
-}
+do
+	local STAT_DEFS = {
+		Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+2 movement speed per tier" },
+		Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+5 jump power per tier" },
+		Reach = { Name = "🧲 Catcher's Reach", MaxTier = 3, Costs = { 1000, 3000, 8000 }, Desc = "Bigger catch radius for wild brainrots" },
+		Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 2000, 6000, 15000 }, Desc = "Better odds for Rare+ wild spawns" },
+	}
 
-refreshStatsPanel = function()
-	for _, c in ipairs(statsPanel:GetChildren()) do
-		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
-			c:Destroy()
+	refreshStatsPanel = function()
+		local savedScroll = statsPanel.CanvasPosition
+		task.defer(function()
+			statsPanel.CanvasPosition = savedScroll
+		end)
+		for _, c in ipairs(statsPanel:GetChildren()) do
+			if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+				c:Destroy()
+			end
 		end
-	end
-	local order = 1
-	makeLabel(statsPanel, "Spend coins to boost your character!", 15, Color3.fromRGB(255, 200, 100), order)
-	order += 1
-
-	for _, statKey in ipairs({ "Speed", "Jump", "Reach", "Luck" }) do
-		local def = STAT_DEFS[statKey]
-		local tier = (upgradeTiers :: any)[statKey] or 0
-		local isMax = tier >= def.MaxTier
-
-		local row = makeRow(statsPanel, order, 80)
+		local order = 1
+		makeLabel(statsPanel, "Your coins: " .. tostring(currentCoins) .. "  —  spend them to boost your character!", 15, Color3.fromRGB(255, 200, 100), order)
 		order += 1
 
-		local pipStr = ""
-		for i = 1, def.MaxTier do
-			pipStr ..= if i <= tier then "●" else "○"
-		end
+		for _, statKey in ipairs({ "Speed", "Jump", "Reach", "Luck" }) do
+			local def = STAT_DEFS[statKey]
+			local tier = (upgradeTiers :: any)[statKey] or 0
+			local isMax = tier >= def.MaxTier
 
-		local info = makeLabel(row, def.Name .. "\n" .. def.Desc .. "\n" .. pipStr .. "  Tier " .. tostring(tier) .. "/" .. tostring(def.MaxTier), 13, Color3.new(1,1,1), 1)
-		info.Size = UDim2.new(0.65, 0, 1, 0)
+			local row = makeRow(statsPanel, order, 80)
+			order += 1
 
-		if not isMax then
-			local cost = def.Costs[tier + 1]
-			local buyBtn = Instance.new("TextButton")
-			buyBtn.Size = UDim2.new(0.32, 0, 0, 44)
-			buyBtn.Position = UDim2.new(0.66, 0, 0.5, -22)
-			buyBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 50)
-			buyBtn.Text = "Buy\n" .. tostring(cost) .. " 🪙"
-			buyBtn.Font = Enum.Font.GothamBold
-			buyBtn.TextSize = 13
-			buyBtn.TextColor3 = Color3.new(1, 1, 1)
-			buyBtn.Parent = row
-			corner(buyBtn, 8)
-			buyBtn.MouseButton1Click:Connect(function()
-				remotes:WaitForChild("BuyUpgrade"):FireServer(statKey)
-				task.wait(0.3)
-				refreshStatsPanel()
-			end)
-		else
-			local maxLbl = makeLabel(row, "MAX", 14, Color3.fromRGB(255, 200, 100), 1)
-			maxLbl.Size = UDim2.new(0.32, 0, 1, 0)
-			maxLbl.Position = UDim2.new(0.66, 0, 0, 0)
+			local pipStr = ""
+			for i = 1, def.MaxTier do
+				pipStr ..= if i <= tier then "●" else "○"
+			end
+
+			local info = makeLabel(row, def.Name .. "\n" .. def.Desc .. "\n" .. pipStr .. "  Tier " .. tostring(tier) .. "/" .. tostring(def.MaxTier), 13, Color3.new(1,1,1), 1)
+			info.Size = UDim2.new(0.65, 0, 1, 0)
+
+			if not isMax then
+				local cost = def.Costs[tier + 1]
+				local buyBtn = Instance.new("TextButton")
+				buyBtn.Size = UDim2.new(0.32, 0, 0, 44)
+				buyBtn.Position = UDim2.new(0.66, 0, 0.5, -22)
+				buyBtn.BackgroundColor3 = if currentCoins >= cost then Color3.fromRGB(50, 150, 60) else Color3.fromRGB(95, 60, 60)
+				buyBtn.Text = "Buy\n" .. tostring(cost) .. " coins"
+				buyBtn.Font = Enum.Font.GothamBold
+				buyBtn.TextSize = 13
+				buyBtn.TextColor3 = Color3.new(1, 1, 1)
+				buyBtn.Parent = row
+				corner(buyBtn, 8)
+				buyBtn.MouseButton1Click:Connect(function()
+					remotes:WaitForChild("BuyUpgrade"):FireServer(statKey)
+					task.wait(0.3)
+					refreshStatsPanel()
+				end)
+			else
+				local maxLbl = makeLabel(row, "MAX", 14, Color3.fromRGB(255, 200, 100), 1)
+				maxLbl.Size = UDim2.new(0.32, 0, 1, 0)
+				maxLbl.Position = UDim2.new(0.66, 0, 0, 0)
+			end
 		end
+	end
+end
+
+do
+	local openStatsRemote = remotes:WaitForChild("OpenStats", 5)
+	if openStatsRemote then
+		local openStatsEvent = openStatsRemote :: RemoteEvent
+		openStatsEvent.OnClientEvent:Connect(function()
+			hideAllPanels()
+			refreshStatsPanel()
+			statsPanel.Visible = true
+		end)
 	end
 end
 
@@ -2581,6 +2837,9 @@ passiveUpdateRemote.OnClientEvent:Connect(function(payload: any)
 	if payload.Banked ~= nil then
 		passiveBanked = payload.Banked
 	end
+	if payload.BrainrotRate ~= nil then
+		passiveBrainrotRate = payload.BrainrotRate
+	end
 	if minePanel.Visible then
 		refreshMinePanel()
 	end
@@ -2601,7 +2860,49 @@ end)
 refreshButtons()
 print("[Brainrot Arena] Client UI ready.")
 
-if isMobile then
+do
+	-- // One red close button that sits in the corner of whichever panel is open ---------------
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Name = "ClosePanel"
+	closeBtn.Size = UDim2.new(0, 40, 0, 40)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+	closeBtn.Text = "X"
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.TextSize = 20
+	closeBtn.TextColor3 = Color3.new(1, 1, 1)
+	closeBtn.ZIndex = 100
+	closeBtn.Visible = false
+	closeBtn.Parent = gui
+	corner(closeBtn, 10)
+	closeBtn.MouseButton1Click:Connect(function()
+		hideAllPanels()
+	end)
+
+	local closablePanels: { GuiObject } = {
+		collectionPanel, editorPanel, workPanel, fusionPanel, expeditionPanel, dailyPanel,
+		eggPanel, minePanel, customizePanel, statsPanel, leaderboardPanel, fishingPanel,
+	}
+	RunService.RenderStepped:Connect(function()
+		local openPanel: GuiObject? = nil
+		for _, panel in ipairs(closablePanels) do
+			if panel.Visible then
+				openPanel = panel
+				break
+			end
+		end
+		if openPanel then
+			local origin = gui.AbsolutePosition
+			local abs = openPanel.AbsolutePosition
+			local size = openPanel.AbsoluteSize
+			closeBtn.Position = UDim2.fromOffset(abs.X - origin.X + size.X - 48, abs.Y - origin.Y + 8)
+			closeBtn.Visible = true
+		else
+			closeBtn.Visible = false
+		end
+	end)
+end
+
+local function buildMobileBar()
 	for _, btn in ipairs({ collectionBtn, workBtn, fusionBtn, arenaBtn, showcaseBtn,
 		exploreBtn, dailyBtn, eggBtn, mineBtn, styleBtn, statsBtn }) do
 		btn.Visible = false
@@ -2617,6 +2918,8 @@ if isMobile then
 	mobileBar.BorderSizePixel = 0
 	mobileBar.ScrollBarThickness = 0
 	mobileBar.ScrollingDirection = Enum.ScrollingDirection.X
+	mobileBar.CanvasSize = UDim2.new(0, 0, 0, 0)
+	mobileBar.AutomaticCanvasSize = Enum.AutomaticSize.X
 	mobileBar.Parent = gui
 	corner(mobileBar, 0)
 
@@ -2673,175 +2976,190 @@ if isMobile then
 	end
 end
 
-local soundRemote = remotes:WaitForChild("PlaySound")
-soundRemote.OnClientEvent:Connect(function(soundName: string, position: Vector3?)
-	local sound = Instance.new("Sound")
-	sound.SoundId = "rbxassetid://3926305904"
-	sound.Volume = 0.5
-	if position then
-		local part = Instance.new("Part")
-		part.Anchored = true
-		part.CanCollide = false
-		part.Transparency = 1
-		part.Position = position
-		part.Parent = workspace
-		sound.Parent = part
-		sound:Play()
-		task.delay(3, function()
-			if part and part.Parent then part:Destroy() end
-		end)
-	else
-		sound.Parent = gui
-		sound:Play()
-		task.delay(2, function()
-			if sound and sound.Parent then sound:Destroy() end
-		end)
-	end
-end)
-
-local musicTracks = {
-	"rbxassetid://1837879082",
-	"rbxassetid://1837464237",
-}
-local currentTrack = 1
-local musicSound = Instance.new("Sound")
-musicSound.Name = "BackgroundMusic"
-musicSound.SoundId = musicTracks[1]
-musicSound.Volume = 0.25
-musicSound.Looped = false
-musicSound.Parent = gui
-
-local function playNextTrack()
-	currentTrack = currentTrack % #musicTracks + 1
-	musicSound.SoundId = musicTracks[currentTrack]
-	musicSound:Play()
+if isMobile then
+	buildMobileBar()
 end
 
-musicSound.Ended:Connect(playNextTrack)
-task.delay(2, function()
-	pcall(function() musicSound:Play() end)
-end)
-
-local weatherRemote = remotes:WaitForChild("WeatherUpdate")
-local weatherLabel = Instance.new("TextLabel")
-weatherLabel.Name = "WeatherDisplay"
-weatherLabel.Size = if isMobile then UDim2.new(0, 120, 0, 36) else UDim2.new(0, 180, 0, 40)
-weatherLabel.Position = if isMobile then UDim2.new(1, -128, 0, 8) else UDim2.new(1, -196, 0, 16)
-weatherLabel.BackgroundColor3 = THEME.Panel
-weatherLabel.BackgroundTransparency = 0.15
-weatherLabel.Text = "☀️ Clear"
-weatherLabel.Font = Enum.Font.GothamBold
-weatherLabel.TextSize = 14
-weatherLabel.TextColor3 = THEME.Text
-weatherLabel.Parent = gui
-corner(weatherLabel, 10)
-styleFrame(weatherLabel, false)
-
-weatherRemote.OnClientEvent:Connect(function(info: any)
-	local weather = tostring(info.Current or info.CurrentWeather or info.Weather or "Clear")
-	local icon = if weather == "Rain" then "🌧️"
-		elseif weather == "Storm" then "⛈️"
-		elseif weather == "Fog" then "🌫️"
-		else "☀️"
-	weatherLabel.Text = icon .. " " .. weather
-end)
-
-local achRemote = remotes:WaitForChild("AchievementUnlocked")
-achRemote.OnClientEvent:Connect(function(data: any)
-	local popup = Instance.new("Frame")
-	popup.Size = UDim2.new(0, 320, 0, 80)
-	popup.Position = UDim2.new(0.5, -160, 0, -90)
-	popup.BackgroundColor3 = Color3.fromRGB(40, 35, 20)
-	popup.BorderSizePixel = 0
-	popup.Parent = gui
-	corner(popup, 12)
-	styleFrame(popup, true)
-
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, -20, 0, 30)
-	title.Position = UDim2.new(0, 10, 0, 8)
-	title.BackgroundTransparency = 1
-	title.Text = "🏆 " .. (data.Name or "Achievement!")
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 16
-	title.TextColor3 = Color3.fromRGB(255, 210, 100)
-	title.Parent = popup
-
-	local desc = Instance.new("TextLabel")
-	desc.Size = UDim2.new(1, -20, 0, 30)
-	desc.Position = UDim2.new(0, 10, 0, 40)
-	desc.BackgroundTransparency = 1
-	desc.Text = data.Desc or ""
-	desc.Font = Enum.Font.Gotham
-	desc.TextSize = 13
-	desc.TextColor3 = THEME.Text
-	desc.TextWrapped = true
-	desc.Parent = popup
-
-	popup:TweenPosition(UDim2.new(0.5, -160, 0, 20), Enum.EasingDirection.Out, Enum.EasingStyle.Back, 0.5, true)
-	task.wait(3)
-	popup:TweenPosition(UDim2.new(0.5, -160, 0, -90), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.5, true)
-	task.wait(0.6)
-	if popup and popup.Parent then popup:Destroy() end
-end)
-
-local lbRemote = remotes:WaitForChild("LeaderboardUpdate")
-
-local function refreshLeaderboard(data: any)
-	for _, c in ipairs(leaderboardPanel:GetChildren()) do
-		if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
-			c:Destroy()
-		end
-	end
-	local order = 1
-
-	if data.MyWins then
-		makeLabel(leaderboardPanel, "Your wins: " .. tostring(data.MyWins), 15, Color3.fromRGB(255, 210, 100), order)
-		order += 1
-	end
-
-	makeLabel(leaderboardPanel, "Top Battlers:", 15, THEME.Text, order)
-	order += 1
-
-	local top = data.Top or {}
-	if #top == 0 then
-		makeLabel(leaderboardPanel, "No battles recorded yet. Be the first!", 14, THEME.TextDim, order)
-	else
-		for i, entry in ipairs(top) do
-			local medal = if i == 1 then "🥇" elseif i == 2 then "🥈" elseif i == 3 then "🥉" else tostring(i) .. "."
-			local row = makeRow(leaderboardPanel, order, 40)
-			order += 1
-			makeLabel(row, medal .. " " .. (entry.Name or "?") .. " - " .. tostring(entry.Wins) .. " wins", 14, THEME.Text, 1)
-		end
-	end
-end
-
-lbRemote.OnClientEvent:Connect(function(data: any)
-	refreshLeaderboard(data)
-	if not leaderboardPanel.Visible then
-		hideAllPanels()
-		leaderboardPanel.Visible = true
-	end
-end)
-
-if not isMobile then
-	local lbBtn = Instance.new("TextButton")
-	lbBtn.Size = UDim2.new(0, 104, 0, 40)
-	lbBtn.Position = UDim2.new(0.5, 284, 1, -160)
-	lbBtn.BackgroundColor3 = Color3.fromRGB(60, 50, 20)
-	lbBtn.Text = "🏆 Ranks"
-	lbBtn.Font = Enum.Font.GothamBold
-	lbBtn.TextSize = 13
-	lbBtn.TextColor3 = Color3.fromRGB(255, 210, 100)
-	lbBtn.Parent = gui
-	corner(lbBtn, 10)
-	styleFrame(lbBtn, false)
-	lbBtn.MouseButton1Click:Connect(function()
-		-- Second click closes the panel (it had no way to close before).
-		if leaderboardPanel.Visible then
-			leaderboardPanel.Visible = false
+do
+	local soundRemote = remotes:WaitForChild("PlaySound")
+	soundRemote.OnClientEvent:Connect(function(soundName: string, position: Vector3?)
+		local sound = Instance.new("Sound")
+		sound.SoundId = "rbxassetid://3926305904"
+		sound.Volume = 0.5
+		if position then
+			local part = Instance.new("Part")
+			part.Anchored = true
+			part.CanCollide = false
+			part.Transparency = 1
+			part.Position = position
+			part.Parent = workspace
+			sound.Parent = part
+			sound:Play()
+			task.delay(3, function()
+				if part and part.Parent then part:Destroy() end
+			end)
 		else
-			lbRemote:FireServer()
+			sound.Parent = gui
+			sound:Play()
+			task.delay(2, function()
+				if sound and sound.Parent then sound:Destroy() end
+			end)
 		end
 	end)
 end
+
+do
+	local musicTracks = {
+		"rbxassetid://1837879082",
+		"rbxassetid://1837464237",
+	}
+	local currentTrack = 1
+	local musicSound = Instance.new("Sound")
+	musicSound.Name = "BackgroundMusic"
+	musicSound.SoundId = musicTracks[1]
+	musicSound.Volume = 0.25
+	musicSound.Looped = false
+	musicSound.Parent = gui
+
+	local function playNextTrack()
+		currentTrack = currentTrack % #musicTracks + 1
+		musicSound.SoundId = musicTracks[currentTrack]
+		musicSound:Play()
+	end
+
+	musicSound.Ended:Connect(playNextTrack)
+	task.delay(2, function()
+		pcall(function() musicSound:Play() end)
+	end)
+end
+
+do
+	local weatherRemote = remotes:WaitForChild("WeatherUpdate")
+	local weatherLabel = Instance.new("TextLabel")
+	weatherLabel.Name = "WeatherDisplay"
+	weatherLabel.Size = if isMobile then UDim2.new(0, 120, 0, 36) else UDim2.new(0, 180, 0, 40)
+	weatherLabel.Position = if isMobile then UDim2.new(1, -128, 0, 56) else UDim2.new(0.5, -90, 0, 62)
+	weatherLabel.BackgroundColor3 = THEME.Panel
+	weatherLabel.BackgroundTransparency = 0.15
+	weatherLabel.Text = "☀️ Clear"
+	weatherLabel.Font = Enum.Font.GothamBold
+	weatherLabel.TextSize = 14
+	weatherLabel.TextColor3 = THEME.Text
+	weatherLabel.Parent = gui
+	corner(weatherLabel, 10)
+	styleFrame(weatherLabel, false)
+
+	weatherRemote.OnClientEvent:Connect(function(info: any)
+		local weather = tostring(info.Current or info.CurrentWeather or info.Weather or "Clear")
+		local icon = if weather == "Rain" then "🌧️"
+			elseif weather == "Storm" then "⛈️"
+			elseif weather == "Fog" then "🌫️"
+			else "☀️"
+		weatherLabel.Text = icon .. " " .. weather
+	end)
+end
+
+do
+	local achRemote = remotes:WaitForChild("AchievementUnlocked")
+	achRemote.OnClientEvent:Connect(function(data: any)
+		local popup = Instance.new("Frame")
+		popup.Size = UDim2.new(0, 320, 0, 80)
+		popup.Position = UDim2.new(0.5, -160, 0, -90)
+		popup.BackgroundColor3 = Color3.fromRGB(40, 35, 20)
+		popup.BorderSizePixel = 0
+		popup.Parent = gui
+		corner(popup, 12)
+		styleFrame(popup, true)
+
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, -20, 0, 30)
+		title.Position = UDim2.new(0, 10, 0, 8)
+		title.BackgroundTransparency = 1
+		title.Text = "🏆 " .. (data.Name or "Achievement!")
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 16
+		title.TextColor3 = Color3.fromRGB(255, 210, 100)
+		title.Parent = popup
+
+		local desc = Instance.new("TextLabel")
+		desc.Size = UDim2.new(1, -20, 0, 30)
+		desc.Position = UDim2.new(0, 10, 0, 40)
+		desc.BackgroundTransparency = 1
+		desc.Text = data.Desc or ""
+		desc.Font = Enum.Font.Gotham
+		desc.TextSize = 13
+		desc.TextColor3 = THEME.Text
+		desc.TextWrapped = true
+		desc.Parent = popup
+
+		popup:TweenPosition(UDim2.new(0.5, -160, 0, 20), Enum.EasingDirection.Out, Enum.EasingStyle.Back, 0.5, true)
+		task.wait(3)
+		popup:TweenPosition(UDim2.new(0.5, -160, 0, -90), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.5, true)
+		task.wait(0.6)
+		if popup and popup.Parent then popup:Destroy() end
+	end)
+end
+
+do
+	local lbRemote = remotes:WaitForChild("LeaderboardUpdate")
+
+	local function refreshLeaderboard(data: any)
+		for _, c in ipairs(leaderboardPanel:GetChildren()) do
+			if c:IsA("GuiObject") and (c :: GuiObject).LayoutOrder > 0 then
+				c:Destroy()
+			end
+		end
+		local order = 1
+
+		if data.MyWins then
+			makeLabel(leaderboardPanel, "Your wins: " .. tostring(data.MyWins), 15, Color3.fromRGB(255, 210, 100), order)
+			order += 1
+		end
+
+		makeLabel(leaderboardPanel, "Top Battlers:", 15, THEME.Text, order)
+		order += 1
+
+		local top = data.Top or {}
+		if #top == 0 then
+			makeLabel(leaderboardPanel, "No battles recorded yet. Be the first!", 14, THEME.TextDim, order)
+		else
+			for i, entry in ipairs(top) do
+				local medal = if i == 1 then "🥇" elseif i == 2 then "🥈" elseif i == 3 then "🥉" else tostring(i) .. "."
+				local row = makeRow(leaderboardPanel, order, 40)
+				order += 1
+				makeLabel(row, medal .. " " .. (entry.Name or "?") .. " - " .. tostring(entry.Wins) .. " wins", 14, THEME.Text, 1)
+			end
+		end
+	end
+
+	lbRemote.OnClientEvent:Connect(function(data: any)
+		refreshLeaderboard(data)
+		if not leaderboardPanel.Visible then
+			hideAllPanels()
+			leaderboardPanel.Visible = true
+		end
+	end)
+
+	if not isMobile then
+		local lbBtn = Instance.new("TextButton")
+		lbBtn.Size = UDim2.new(0, 104, 0, 40)
+		lbBtn.Position = UDim2.new(0.5, 284, 1, -220)
+		lbBtn.BackgroundColor3 = Color3.fromRGB(60, 50, 20)
+		lbBtn.Text = "🏆 Ranks"
+		lbBtn.Font = Enum.Font.GothamBold
+		lbBtn.TextSize = 13
+		lbBtn.TextColor3 = Color3.fromRGB(255, 210, 100)
+		lbBtn.Parent = gui
+		corner(lbBtn, 10)
+		styleFrame(lbBtn, false)
+		lbBtn.MouseButton1Click:Connect(function()
+			-- Second click closes the panel (it had no way to close before).
+			if leaderboardPanel.Visible then
+				leaderboardPanel.Visible = false
+			else
+				lbRemote:FireServer()
+			end
+		end)
+	end
+end
+
