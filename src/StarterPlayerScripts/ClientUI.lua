@@ -103,13 +103,35 @@ local function applyBrainrotNametag(model: Model, brainrotName: string, rarity: 
 		oldServerTag:Destroy()
 	end
 
+	local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	if not part then
+		return
+	end
+
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NameTagGui"
 	billboard.Size = UDim2.new(0, 110, 0, 28)
-	billboard.StudsOffset = Vector3.new(0, 2.2, 0)
 	billboard.AlwaysOnTop = false
 	billboard.MaxDistance = 50
+	billboard.Adornee = part
 	billboard.Parent = model
+
+	local function sitTagOnTop()
+		if not (model.Parent and part.Parent) then
+			return
+		end
+		local ok, bbCF, bbSize = pcall(function()
+			return model:GetBoundingBox()
+		end)
+		if ok and bbCF and bbSize then
+			local topY = (bbCF :: CFrame).Position.Y + (bbSize :: Vector3).Y / 2
+			billboard.StudsOffsetWorldSpace = Vector3.new(0, (topY - part.Position.Y) + 1.5, 0)
+		else
+			billboard.StudsOffset = Vector3.new(0, 3, 0)
+		end
+	end
+	sitTagOnTop()
+	task.defer(sitTagOnTop)
 
 	local layout = Instance.new("UIListLayout")
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -1550,6 +1572,7 @@ statsBtn.Font = Enum.Font.GothamBold
 statsBtn.TextSize = 13
 statsBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
 statsBtn.Parent = gui
+statsBtn.Visible = false
 corner(statsBtn, 10)
 
 local function makePanel(title: string, titleColor: Color3): (Frame, TextLabel)
@@ -2742,10 +2765,10 @@ end
 
 do
 	local STAT_DEFS = {
-		Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+8 movement speed per tier" },
-		Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 500, 1500, 4000, 10000, 25000 }, Desc = "+20 jump power per tier" },
-		Reach = { Name = "🧲 Catcher's Reach", MaxTier = 3, Costs = { 1000, 3000, 8000 }, Desc = "Much bigger catch radius for wild brainrots" },
-		Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 2000, 6000, 15000 }, Desc = "Much better odds for Rare+ wild spawns" },
+		Speed = { Name = "🏃 Speed", MaxTier = 5, Costs = { 2000, 6000, 16000, 40000, 100000 }, Desc = "+8 movement speed per tier" },
+		Jump = { Name = "🦘 Jump", MaxTier = 5, Costs = { 2000, 6000, 16000, 40000, 100000 }, Desc = "+20 jump power per tier" },
+		Reach = { Name = "🧲 Catcher's Reach", MaxTier = 3, Costs = { 4000, 12000, 32000 }, Desc = "Much bigger catch radius for wild brainrots" },
+		Luck = { Name = "🍀 Lucky Charm", MaxTier = 3, Costs = { 8000, 24000, 60000 }, Desc = "Much better odds for Rare+ wild spawns" },
 	}
 
 	refreshStatsPanel = function()
@@ -2759,7 +2782,7 @@ do
 			end
 		end
 		local order = 1
-		makeLabel(statsPanel, "Your coins: " .. tostring(currentCoins) .. "  —  spend them to boost your character!", 15, Color3.fromRGB(255, 200, 100), order)
+		makeLabel(statsPanel, "Trainer shop  —  coins: " .. tostring(currentCoins) .. "  —  walk here to buy boosts", 15, Color3.fromRGB(255, 200, 100), order)
 		order += 1
 
 		for _, statKey in ipairs({ "Speed", "Jump", "Reach", "Luck" }) do
@@ -2958,7 +2981,6 @@ local function buildMobileBar()
 		{ Icon = "🥚", Label = "Eggs", Panel = eggPanel, Refresh = refreshEggPanel },
 		{ Icon = "⛏️", Label = "Mine", Panel = minePanel, Refresh = refreshMinePanel },
 		{ Icon = "🎨", Label = "Style", Panel = customizePanel, Refresh = refreshCustomizePanel },
-		{ Icon = "📊", Label = "Stats", Panel = statsPanel, Refresh = refreshStatsPanel },
 		{ Icon = "🎣", Label = "Fish", Panel = fishingPanel, Refresh = refreshFishingPanel },
 		{ Icon = "🏆", Label = "Ranks", Request = function()
 			if leaderboardPanel.Visible then

@@ -823,12 +823,29 @@ do
 	local upLabel = Instance.new("TextLabel")
 	upLabel.Size = UDim2.new(1, 0, 1, 0)
 	upLabel.BackgroundTransparency = 1
-	upLabel.Text = "UPGRADE BOARD\nSpeed - Jump - Reach - Luck"
+	upLabel.Text = "STAT TRAINER\nWalk up to buy Speed, Jump, Reach, Luck"
 	upLabel.TextScaled = true
 	upLabel.Font = Enum.Font.GothamBold
 	upLabel.TextColor3 = Color3.fromRGB(255, 215, 90)
 	upLabel.TextStrokeTransparency = 0.5
 	upLabel.Parent = upGui
+
+	local vendorTorso = Instance.new("Part")
+	vendorTorso.Name = "StatTrainer"
+	vendorTorso.Size = Vector3.new(2, 3, 1.2)
+	vendorTorso.Anchored = true
+	vendorTorso.Color = Color3.fromRGB(40, 80, 160)
+	vendorTorso.Material = Enum.Material.SmoothPlastic
+	vendorTorso.Position = upBoard.Position + Vector3.new(0, -0.5, 2.2)
+	vendorTorso.Parent = workspace
+	local vendorHead = Instance.new("Part")
+	vendorHead.Name = "StatTrainerHead"
+	vendorHead.Shape = Enum.PartType.Ball
+	vendorHead.Size = Vector3.new(1.4, 1.4, 1.4)
+	vendorHead.Anchored = true
+	vendorHead.Color = Color3.fromRGB(240, 200, 160)
+	vendorHead.Position = vendorTorso.Position + Vector3.new(0, 2.2, 0)
+	vendorHead.Parent = workspace
 
 	local coin = Instance.new("Part")
 	coin.Name = "UpgradeBoardGlow"
@@ -843,11 +860,11 @@ do
 
 	local upPrompt = Instance.new("ProximityPrompt")
 	upPrompt.ActionText = "Upgrade Stats"
-	upPrompt.ObjectText = "Upgrade Board"
+	upPrompt.ObjectText = "Stat Trainer"
 	upPrompt.HoldDuration = 0
 	upPrompt.MaxActivationDistance = 12
 	upPrompt.RequiresLineOfSight = false
-	upPrompt.Parent = upBoard
+	upPrompt.Parent = vendorTorso
 
 	upPrompt.Triggered:Connect(function(player: Player)
 		pushCollection(player) -- fresh coins + tiers before the panel opens

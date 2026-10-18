@@ -214,28 +214,28 @@ PlayerData.UPGRADE_DEFS = {
 	Speed = {
 		Name = "🏃 Speed",
 		MaxTier = 5,
-		Costs = { 500, 1500, 4000, 10000, 25000 },
+		Costs = { 2000, 6000, 16000, 40000, 100000 },
 		Values = { 24, 32, 40, 48, 56 }, -- WalkSpeed (default is 16; +8 per tier)
 		Desc = "+8 movement speed per tier",
 	},
 	Jump = {
 		Name = "🦘 Jump",
 		MaxTier = 5,
-		Costs = { 500, 1500, 4000, 10000, 25000 },
+		Costs = { 2000, 6000, 16000, 40000, 100000 },
 		Values = { 70, 90, 110, 130, 150 }, -- JumpPower (default is 50; +20 per tier)
 		Desc = "+20 jump power per tier",
 	},
 	Reach = {
 		Name = "🧲 Catcher\'s Reach",
 		MaxTier = 3,
-		Costs = { 1000, 3000, 8000 },
+		Costs = { 4000, 12000, 32000 },
 		Values = { 14, 22, 30 }, -- wild catch hitbox size (default is 6)
 		Desc = "Much bigger catch radius for wild brainrots",
 	},
 	Luck = {
 		Name = "🍀 Lucky Charm",
 		MaxTier = 3,
-		Costs = { 2000, 6000, 15000 },
+		Costs = { 8000, 24000, 60000 },
 		Values = { 1.4, 1.8, 2.2 }, -- rare weight multiplier
 		Desc = "Much better odds for Rare+ wild spawns",
 	},
@@ -651,28 +651,28 @@ PlayerData.UPGRADE_DEFS = {
 	Speed = {
 		Name = "🏃 Speed",
 		MaxTier = 5,
-		Costs = { 500, 1500, 4000, 10000, 25000 },
+		Costs = { 2000, 6000, 16000, 40000, 100000 },
 		Values = { 24, 32, 40, 48, 56 }, -- WalkSpeed (default is 16; +8 per tier)
 		Desc = "+8 movement speed per tier",
 	},
 	Jump = {
 		Name = "🦘 Jump",
 		MaxTier = 5,
-		Costs = { 500, 1500, 4000, 10000, 25000 },
+		Costs = { 2000, 6000, 16000, 40000, 100000 },
 		Values = { 70, 90, 110, 130, 150 }, -- JumpPower (default is 50; +20 per tier)
 		Desc = "+20 jump power per tier",
 	},
 	Reach = {
 		Name = "🧲 Catcher\'s Reach",
 		MaxTier = 3,
-		Costs = { 1000, 3000, 8000 },
+		Costs = { 4000, 12000, 32000 },
 		Values = { 14, 22, 30 }, -- wild catch hitbox size (default is 6)
 		Desc = "Much bigger catch radius for wild brainrots",
 	},
 	Luck = {
 		Name = "🍀 Lucky Charm",
 		MaxTier = 3,
-		Costs = { 2000, 6000, 15000 },
+		Costs = { 8000, 24000, 60000 },
 		Values = { 1.4, 1.8, 2.2 }, -- rare weight multiplier
 		Desc = "Much better odds for Rare+ wild spawns",
 	},
@@ -844,28 +844,28 @@ PlayerData.UPGRADE_DEFS = {
 	Speed = {
 		Name = "🏃 Speed",
 		MaxTier = 5,
-		Costs = { 500, 1500, 4000, 10000, 25000 },
+		Costs = { 2000, 6000, 16000, 40000, 100000 },
 		Values = { 24, 32, 40, 48, 56 }, -- WalkSpeed (default is 16; +8 per tier)
 		Desc = "+8 movement speed per tier",
 	},
 	Jump = {
 		Name = "🦘 Jump",
 		MaxTier = 5,
-		Costs = { 500, 1500, 4000, 10000, 25000 },
+		Costs = { 2000, 6000, 16000, 40000, 100000 },
 		Values = { 70, 90, 110, 130, 150 }, -- JumpPower (default is 50; +20 per tier)
 		Desc = "+20 jump power per tier",
 	},
 	Reach = {
 		Name = "🧲 Catcher\'s Reach",
 		MaxTier = 3,
-		Costs = { 1000, 3000, 8000 },
+		Costs = { 4000, 12000, 32000 },
 		Values = { 14, 22, 30 }, -- wild catch hitbox size (default is 6)
 		Desc = "Much bigger catch radius for wild brainrots",
 	},
 	Luck = {
 		Name = "🍀 Lucky Charm",
 		MaxTier = 3,
-		Costs = { 2000, 6000, 15000 },
+		Costs = { 8000, 24000, 60000 },
 		Values = { 1.4, 1.8, 2.2 }, -- rare weight multiplier
 		Desc = "Much better odds for Rare+ wild spawns",
 	},

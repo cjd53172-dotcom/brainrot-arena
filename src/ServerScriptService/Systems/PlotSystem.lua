@@ -318,14 +318,15 @@ function PlotSystem.Setup()
 			Material = Enum.Material.Grass,
 			Color = Color3.fromRGB(95, 180, 95),
 		}, plot)
+		local deckY = 8
 		for _, cx in ipairs({ -1, 1 }) do
 			for _, cz in ipairs({ -1, 1 }) do
 				newPart({
 					Name = "CornerPost",
-					Size = Vector3.new(1.2, 4, 1.2),
+					Size = Vector3.new(1.2, deckY + 1, 1.2),
 					Position = Vector3.new(
 						x + cx * (PLOT_SIZE / 2 - 0.6),
-						2.5,
+						(deckY + 1) / 2,
 						z + cz * (PLOT_SIZE / 2 - 0.6)
 					),
 					Anchored = true,
@@ -335,10 +336,38 @@ function PlotSystem.Setup()
 			end
 		end
 
+		-- Showcase lives on the upper deck; work stays on the grass below.
+		newPart({
+			Name = "UpperDeck",
+			Size = Vector3.new(PLOT_SIZE, 1, 18),
+			Position = Vector3.new(x, deckY, z - 6),
+			Anchored = true,
+			Material = Enum.Material.WoodPlanks,
+			Color = Color3.fromRGB(150, 115, 80),
+		}, plot)
+		newPart({
+			Name = "DeckRailFront",
+			Size = Vector3.new(PLOT_SIZE, 1.2, 0.4),
+			Position = Vector3.new(x, deckY + 1.1, z - 15),
+			Anchored = true,
+			Material = Enum.Material.Wood,
+			Color = Color3.fromRGB(120, 85, 55),
+		}, plot)
+		for i = 1, 8 do
+			newPart({
+				Name = "Stair_" .. i,
+				Size = Vector3.new(5, 1, 2),
+				Position = Vector3.new(x + PLOT_SIZE / 2 - 2.5, i, z + 10 - i * 2),
+				Anchored = true,
+				Material = Enum.Material.Wood,
+				Color = Color3.fromRGB(160, 130, 90),
+			}, plot)
+		end
+
 		local sign = newPart({
 			Name = "OwnerSign",
 			Size = Vector3.new(8, 4, 0.6),
-			Position = Vector3.new(x, 4, z + PLOT_SIZE / 2 - 1.5),
+			Position = Vector3.new(x, deckY + 3, z - 14.2),
 			Anchored = true,
 			Color = Color3.fromRGB(150, 110, 70),
 			Material = Enum.Material.Wood,
@@ -369,7 +398,7 @@ function PlotSystem.Setup()
 			newPart({
 				Name = "Pedestal_" .. slot,
 				Size = Vector3.new(3, 1.2, 3),
-				Position = Vector3.new(px, 1.6, pz),
+				Position = Vector3.new(px, deckY + 1.1, pz),
 				Anchored = true,
 				Color = Color3.fromRGB(205, 205, 210),
 				Material = Enum.Material.Marble,
