@@ -48,8 +48,13 @@ GRASS = (0.28, 0.52, 0.24)
 
 
 def material(name: str, color: tuple, metallic: float = 0.0, roughness: float = 0.5, emission: float = 0.0):
+	# Unique name so FBX slots survive Roblox Import 3D (duplicate names collapse to white).
 	mat = bpy.data.materials.new(name)
 	mat.use_nodes = True
+	# Viewport / legacy FBX diffuse — Studio often reads this when Principled fails.
+	mat.diffuse_color = (color[0], color[1], color[2], 1.0)
+	mat.metallic = metallic
+	mat.roughness = roughness
 	bsdf = mat.node_tree.nodes.get("Principled BSDF")
 	bsdf.inputs["Base Color"].default_value = (color[0], color[1], color[2], 1.0)
 	bsdf.inputs["Metallic"].default_value = metallic
@@ -331,13 +336,18 @@ def ground_and_export(prop_name: str, objects: list):
 		bake_anim=False,
 		use_mesh_modifiers=True,
 	)
-	bpy.ops.export_scene.gltf(
+	gltf_kwargs = dict(
 		filepath=glb_path,
 		export_format="GLB",
 		use_selection=True,
 		export_apply=True,
 		export_yup=True,
 	)
+	# Blender 4 packaging sometimes lacks Draco; skip compression when available.
+	try:
+		bpy.ops.export_scene.gltf(**gltf_kwargs, export_draco_mesh_compression_enable=False)
+	except TypeError:
+		bpy.ops.export_scene.gltf(**gltf_kwargs)
 	print(f"[make_props] {prop_name} -> {fbx_path}")
 
 

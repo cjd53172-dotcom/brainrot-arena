@@ -1496,7 +1496,7 @@ function PlotSystem.Setup()
 		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 		gui.PixelsPerStud = 50
 		gui.LightInfluence = 0
-		gui.Brightness = 1.15
+		gui.Brightness = 1.35
 		gui.MaxDistance = 200
 		gui.Parent = part
 		local label = Instance.new("TextLabel")
@@ -1509,8 +1509,9 @@ function PlotSystem.Setup()
 		label.TextScaled = false
 		label.TextSize = if title then 56 else 48
 		label.LineHeight = 1.15
-		label.TextColor3 = Color3.fromRGB(255, 230, 140)
-		label.TextStrokeTransparency = 0.15
+		-- Cream on near-black for readable contrast (was washed out on gold trim).
+		label.TextColor3 = Color3.fromRGB(255, 244, 210)
+		label.TextStrokeTransparency = 0.05
 		label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 		label.TextWrapped = false
 		label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
@@ -1531,7 +1532,7 @@ function PlotSystem.Setup()
 		Position = Vector3.new(boardX, arenaTopY + 12, boardZ),
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(22, 18, 14),
+		Color = Color3.fromRGB(18, 14, 12),
 	}, plaza)
 	sitOnLocalGround(frame, boardX, boardZ, 0.6)
 	frame.Material = Enum.Material.Slate
@@ -1541,17 +1542,33 @@ function PlotSystem.Setup()
 		Position = Vector3.new(boardX, frame.Position.Y + frame.Size.Y * 0.5 + 2.9, boardZ),
 		Anchored = true,
 		Material = Enum.Material.Slate,
-		Color = Color3.fromRGB(48, 32, 16),
+		Color = Color3.fromRGB(28, 20, 14),
 	}, plaza)
+	-- Gold is a thin border BEHIND the boards only — never a slab in front of the text.
+	local trimMidY = (frame.Position.Y + header.Position.Y) / 2
+	local trimH = frame.Size.Y + header.Size.Y + 1.4
+	local trimZ = frame.Position.Z - 0.85
 	newPart({
 		Name = "ChampionTrim",
-		Size = Vector3.new(34.2, frame.Size.Y + header.Size.Y + 1.4, 0.45),
-		Position = Vector3.new(frame.Position.X, (frame.Position.Y + header.Position.Y) / 2, frame.Position.Z + 0.7),
+		Size = Vector3.new(34.2, trimH, 0.35),
+		Position = Vector3.new(frame.Position.X, trimMidY, trimZ),
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.Metal,
 		Color = Color3.fromRGB(214, 170, 72),
 	}, plaza)
+	-- Side rails (gold accent without covering SurfaceGui text)
+	for _, sx in ipairs({ -16.9, 16.9 }) do
+		newPart({
+			Name = "ChampionTrimRail",
+			Size = Vector3.new(0.45, trimH, 1.6),
+			Position = Vector3.new(frame.Position.X + sx, trimMidY, frame.Position.Z),
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(214, 170, 72),
+		}, plaza)
+	end
 	for _, sx in ipairs({ -16.6, 16.6 }) do
 		newPart({
 			Name = "ChampionPillar",
