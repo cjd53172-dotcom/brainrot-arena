@@ -90,6 +90,7 @@ local function sync()
 		"XSFSync", -- plugin source left in SSS by mistake
 		"ClientUI",
 		"Portal", -- old renamed XSFReturn copy
+		"Systems", -- hub Systems folder (must never live in XSF place)
 	}
 	for _, name in ipairs(junkNames) do
 		local junk = ServerScriptService:FindFirstChild(name)
