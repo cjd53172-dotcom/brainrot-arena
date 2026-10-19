@@ -32,6 +32,12 @@ local FILES: { { string } } = {
 	{ "Minigames/XSFExpandArena.lua", "XSFExpandArena" },
 }
 
+-- Only works as a Local Plugin (plugin global). If pasted into ServerScriptService, bail.
+if not plugin then
+	warn("[XSFSync] This file is a PLUGIN. Delete it from ServerScriptService. Use Plugins → XSF Sync from GitHub.")
+	return
+end
+
 local toolbar = plugin:CreateToolbar("XSF Shooter")
 local button = toolbar:CreateButton(
 	"XSF Sync from GitHub",
