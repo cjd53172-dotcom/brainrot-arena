@@ -110,7 +110,21 @@ local WeatherSystem = require(Systems:WaitForChild("WeatherSystem"))
 local AchievementSystem = require(Systems:WaitForChild("AchievementSystem"))
 local LeaderboardSystem = require(Systems:WaitForChild("LeaderboardSystem"))
 local WorldDesign = require(Systems:WaitForChild("WorldDesign"))
-local ShooterRotation = require(Systems:WaitForChild("ShooterRotation"))
+-- Soft-load so a missing ShooterRotation (old BrainrotSync plugin) does not freeze the whole hub.
+local ShooterRotation: any = nil
+do
+	local mod = Systems:FindFirstChild("ShooterRotation") or Systems:WaitForChild("ShooterRotation", 5)
+	if mod and mod:IsA("ModuleScript") then
+		local ok, result = pcall(require, mod)
+		if ok then
+			ShooterRotation = result
+		else
+			warn("[GameServer] ShooterRotation require failed: " .. tostring(result))
+		end
+	else
+		warn("[GameServer] ShooterRotation module missing — update Brainrot Sync plugin (needs 19 files). Hub will boot without shooter portals.")
+	end
+end
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- Shiny rate (0-1). 0.004 = about 1 in 250. Lower = rarer. (Applies to everything that
@@ -1381,13 +1395,16 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	end)
 end
 
--- Shooter portal: one gate that cycles Laser Tag / Orb Blitz (no overlap).
--- Fallback: Workspace.ShooterSeparatePortals = true for one portal per game.
-local shooterOk, shooterErr = pcall(function()
-	ShooterRotation.Setup()
-end)
-if not shooterOk then
-	warn("[GameServer] ShooterRotation failed (continuing): " .. tostring(shooterErr))
+-- Shooter portals (Laser Tag + XSF). Requires Systems.ShooterRotation from Sync.
+if ShooterRotation and type(ShooterRotation.Setup) == "function" then
+	local shooterOk, shooterErr = pcall(function()
+		ShooterRotation.Setup()
+	end)
+	if not shooterOk then
+		warn("[GameServer] ShooterRotation failed (continuing): " .. tostring(shooterErr))
+	end
+else
+	warn("[GameServer] Skipping shooter portals — Sync again after updating BrainrotArenaSync plugin.")
 end
 
 -- Non-shooter Place gates (if any are added later to PLACE_GATES).
