@@ -122,40 +122,11 @@ local function boundsFromPoints(points)
 	return minV, maxV
 end
 
--- Only remove actual doors — leave building walls alone.
-local function openBuilding(spawnPos)
-	local removed = 0
-	for _, d in ipairs(workspace:GetDescendants()) do
-		if d:IsA("BasePart") and d.Anchored then
-			if not d:IsA("SpawnLocation") and d.Name ~= "Baseplate" and d.Name ~= "Terrain" then
-				if not string.find(d.Name, "XSFArena", 1, true) and not string.find(d.Name, "ReturnToArena", 1, true) then
-					local expand = workspace:FindFirstChild("XSFArenaExpand")
-					local skip = expand and d:IsDescendantOf(expand)
-					if not skip then
-						local flat = Vector3.new(d.Position.X - spawnPos.X, 0, d.Position.Z - spawnPos.Z)
-						if flat.Magnitude <= 60 then
-							local n = string.lower(d.Name)
-							local namedDoor = string.find(n, "door", 1, true)
-								or string.find(n, "entrance", 1, true)
-								or string.find(n, "exit", 1, true)
-							-- Only destroy parts that are clearly doors by name,
-							-- or very door-sized slabs (not long courtyard walls).
-							if namedDoor or looksLikeDoor(d) then
-								local size = d.Size
-								local long = math.max(size.X, size.Z)
-								-- Skip long wall segments (courtyard fences / building walls)
-								if namedDoor or long <= 12 then
-									d:Destroy()
-									removed = removed + 1
-								end
-							end
-						end
-					end
-				end
-			end
-		end
-	end
-	log("removed doors only=" .. tostring(removed) .. " (walls kept)")
+-- Do NOT auto-delete building parts (walls were getting wiped).
+-- Players spawn on outdoor FFA pads, so they are never trapped inside.
+-- To open a door yourself in Studio: select the door part → Delete.
+local function openBuilding(_spawnPos)
+	log("building walls left untouched (spawn outside instead of cutting doors)")
 end
 
 local function removeDummies(dummies)
