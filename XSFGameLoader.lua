@@ -20,8 +20,8 @@
 
 	Updates: push to GitHub, restart the XSF server (or Play again).
 
-	Optional Workspace attribute:
-	  XSFGitRef = "main"   -- or a branch name while testing a PR
+	Until the shooter PR merges to main, GIT_REF points at the PR branch.
+	After merge, change GIT_REF to "main".
 ]]
 
 local HttpService = game:GetService("HttpService")
@@ -29,6 +29,9 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local HUB_PLACE_ID = 92909397469421
 local XSF_PLACE_ID = 105098537406613
+
+-- Branch/tag to pull from. "main" after PR #4 merges.
+local GIT_REF = "cursor/shooter-portal-cycle-9893"
 
 print("[XSFGameLoader] PlaceId=" .. tostring(game.PlaceId))
 
@@ -43,13 +46,8 @@ if game.PlaceId ~= 0 and game.PlaceId ~= XSF_PLACE_ID then
 	warn("[XSFGameLoader] Unexpected PlaceId " .. tostring(game.PlaceId) .. " — expected XSF " .. tostring(XSF_PLACE_ID) .. ". Continuing anyway.")
 end
 
-local gitRef = workspace:GetAttribute("XSFGitRef")
-if type(gitRef) ~= "string" or gitRef == "" then
-	gitRef = "main"
-end
-
 local BASE_URL = "https://raw.githubusercontent.com/cjd53172-dotcom/brainrot-arena/"
-	.. tostring(gitRef)
+	.. GIT_REF
 	.. "/src/"
 
 -- XSF-only files. Never add hub GameServer / BrainrotData here.
