@@ -115,6 +115,55 @@ local placed = Instance.new("Folder")
 placed.Name = "BlenderPropsPlaced"
 placed.Parent = workspace
 
+local COLOR_RULES = {
+	{ "Flame", Color3.fromRGB(255, 140, 40), Enum.Material.Neon },
+	{ "Lantern", Color3.fromRGB(255, 186, 80), Enum.Material.Neon },
+	{ "Lamp", Color3.fromRGB(255, 196, 110), Enum.Material.Neon },
+	{ "Gem", Color3.fromRGB(80, 170, 255), Enum.Material.Neon },
+	{ "Gold", Color3.fromRGB(228, 184, 72), Enum.Material.Metal },
+	{ "Banner", Color3.fromRGB(180, 40, 48), Enum.Material.Fabric },
+	{ "Water", Color3.fromRGB(42, 120, 168), Enum.Material.Glass },
+	{ "Steel", Color3.fromRGB(180, 186, 196), Enum.Material.Metal },
+	{ "Metal", Color3.fromRGB(140, 144, 150), Enum.Material.Metal },
+	{ "Blade", Color3.fromRGB(190, 196, 205), Enum.Material.Metal },
+	{ "Rock", Color3.fromRGB(108, 102, 96), Enum.Material.Slate },
+	{ "Stone", Color3.fromRGB(120, 114, 108), Enum.Material.Concrete },
+	{ "Wall", Color3.fromRGB(150, 142, 132), Enum.Material.Marble },
+	{ "Arch", Color3.fromRGB(160, 152, 142), Enum.Material.Marble },
+	{ "Floor", Color3.fromRGB(196, 154, 96), Enum.Material.Sand },
+	{ "Pedestal", Color3.fromRGB(220, 212, 196), Enum.Material.Marble },
+	{ "Grass", Color3.fromRGB(72, 140, 64), Enum.Material.Grass },
+	{ "Lawn", Color3.fromRGB(72, 140, 64), Enum.Material.Grass },
+	{ "Plank", Color3.fromRGB(158, 108, 58), Enum.Material.WoodPlanks },
+	{ "Deck", Color3.fromRGB(158, 108, 58), Enum.Material.WoodPlanks },
+	{ "Wood", Color3.fromRGB(110, 72, 40), Enum.Material.Wood },
+	{ "Haft", Color3.fromRGB(110, 72, 40), Enum.Material.Wood },
+	{ "Piling", Color3.fromRGB(70, 42, 24), Enum.Material.Wood },
+	{ "Post", Color3.fromRGB(78, 50, 30), Enum.Material.Wood },
+	{ "Sign", Color3.fromRGB(36, 24, 16), Enum.Material.Wood },
+	{ "Rope", Color3.fromRGB(196, 170, 120), Enum.Material.Fabric },
+	{ "Wrap", Color3.fromRGB(100, 30, 30), Enum.Material.Fabric },
+	{ "Wheel", Color3.fromRGB(40, 40, 44), Enum.Material.Metal },
+}
+
+local function paintClone(model)
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			for _, rule in ipairs(COLOR_RULES) do
+				if string.find(d.Name, rule[1], 1, true) then
+					d.Color = rule[2]
+					d.Material = rule[3]
+					break
+				end
+			end
+			if d.Color == Color3.new(1, 1, 1) then
+				d.Color = Color3.fromRGB(130, 120, 110)
+				d.Material = Enum.Material.SmoothPlastic
+			end
+		end
+	end
+end
+
 local n = 0
 for name, xz in pairs(SPOTS) do
 	local src = templates:FindFirstChild(name)
@@ -123,6 +172,7 @@ for name, xz in pairs(SPOTS) do
 		clone.Parent = placed
 		fit(clone, TARGETS[name] or 20)
 		sit(clone, xz[1], xz[2], placed)
+		paintClone(clone)
 		n += 1
 		print("[PlaceBlenderProps] placed", name)
 	else
