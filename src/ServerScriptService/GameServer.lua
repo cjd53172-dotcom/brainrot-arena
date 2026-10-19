@@ -99,6 +99,7 @@ local WeatherSystem = require(Systems:WaitForChild("WeatherSystem"))
 local AchievementSystem = require(Systems:WaitForChild("AchievementSystem"))
 local LeaderboardSystem = require(Systems:WaitForChild("LeaderboardSystem"))
 local WorldDesign = require(Systems:WaitForChild("WorldDesign"))
+local BlenderPropPlacer = require(Systems:WaitForChild("BlenderPropPlacer"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- Shiny rate (0-1). 0.004 = about 1 in 250. Lower = rarer. (Applies to everything that
@@ -971,6 +972,9 @@ end
 
 -- // World setup ----------------------------------------------------------------
 PlotSystem.Setup()
+pcall(function()
+	BlenderPropPlacer.Setup()
+end)
 pcall(function()
 	VisualEffects.SetupRobuxShop()
 end)

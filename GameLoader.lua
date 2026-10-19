@@ -45,6 +45,7 @@ local FILES: { { string } } = {
 	{ "ServerScriptService/Systems/AchievementSystem.lua", "ServerScriptService/Systems", "AchievementSystem", "ModuleScript" },
 	{ "ServerScriptService/Systems/LeaderboardSystem.lua", "ServerScriptService/Systems", "LeaderboardSystem", "ModuleScript" },
 	{ "ServerScriptService/Systems/WorldDesign.lua", "ServerScriptService/Systems", "WorldDesign", "ModuleScript" },
+	{ "ServerScriptService/Systems/BlenderPropPlacer.lua", "ServerScriptService/Systems", "BlenderPropPlacer", "ModuleScript" },
 	{ "ServerScriptService/GameServer.lua", "ServerScriptService", "GameServer", "Script" },
 	{ "StarterPlayerScripts/ClientUI.lua", "StarterPlayer/StarterPlayerScripts", "ClientUI", "LocalScript" },
 }
