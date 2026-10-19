@@ -154,7 +154,8 @@ local function openExits(spawnPos: Vector3, toward: Vector3)
 		if d:IsA("SpawnLocation") or d.Name == "Terrain" then
 			continue
 		end
-		if d:IsDescendantOf(workspace:FindFirstChild("XSFArenaExpand") :: Instance) then
+		local expand = workspace:FindFirstChild("XSFArenaExpand")
+		if expand and d:IsDescendantOf(expand) then
 			continue
 		end
 		if string.find(d.Name, "XSFArena", 1, true) or string.find(d.Name, "_OpenedExit", 1, true) then
