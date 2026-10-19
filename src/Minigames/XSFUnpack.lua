@@ -184,9 +184,5 @@ local function unpack()
 	return false
 end
 
-local ok = unpack()
-if ok and script:IsA("BaseScript") and script.Parent then
-	-- One-shot: disable so it doesn't re-run every server start (harmless either way).
-	script.Enabled = false
-	log("disabled this unpacker script (one-shot). You can delete it.")
-end
+unpack()
+-- Stay enabled: Play sessions revert Workspace moves, so Unpack must run every start.

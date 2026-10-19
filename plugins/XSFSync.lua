@@ -117,10 +117,20 @@ local function sync()
 		task.wait(0.05)
 	end
 
+	local names = {}
+	for _, child in ipairs(ServerScriptService:GetChildren()) do
+		table.insert(names, child.Name)
+	end
+	print("[XSFSync] ServerScriptService now has: " .. table.concat(names, ", "))
+
+	if not ServerScriptService:FindFirstChild("XSFArenaFFA") then
+		warn("[XSFSync] XSFArenaFFA MISSING — sync failed. Check HTTP Requests.")
+	end
+
 	if failed > 0 then
 		warn("[XSFSync] " .. tostring(failed) .. " file(s) failed")
 	else
-		print("[XSFSync] Done. You should see XSFArenaFFA (not XSFExpandArena). Press Play.")
+		print("[XSFSync] Done. Confirm Explorer shows XSFArenaFFA, then Press Play.")
 	end
 end
 

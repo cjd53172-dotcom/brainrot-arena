@@ -242,13 +242,16 @@ local function collectSpawns(): { BasePart }
 end
 
 local function placeAtAllSpawns()
-	-- XSFExpandArena owns the 5 FFA return portals — don't double-place.
-	if workspace:GetAttribute("XSFArenaHandlesReturns") == true then
-		print("[XSFReturn] skips gate placement (XSFExpandArena handles 5 return portals). Kill tracking still active.")
-		return
+	-- Wait briefly for XSFArenaFFA to claim return portals.
+	for _ = 1, 20 do
+		if workspace:GetAttribute("XSFArenaHandlesReturns") == true then
+			print("[XSFReturn] skips gate placement (XSFArenaFFA handles 5 return portals). Kill tracking still active.")
+			return
+		end
+		task.wait(0.25)
 	end
 	local spawns = collectSpawns()
-	print("[XSFReturn] spawn pads found: " .. tostring(#spawns))
+	print("[XSFReturn] spawn pads found: " .. tostring(#spawns) .. " (FFA script missing — placing fallback gates)")
 	if #spawns == 0 then
 		placeReturnGate(Vector3.new(0, 20, 0), Vector3.new(0, 0, -1))
 		return
@@ -258,5 +261,4 @@ local function placeAtAllSpawns()
 	end
 end
 
-task.defer(placeAtAllSpawns)
-task.delay(3, placeAtAllSpawns)
+task.spawn(placeAtAllSpawns)

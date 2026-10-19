@@ -17,14 +17,14 @@
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 
-print("[XSFExpandArena] FFA PvP arena setup...")
+print("[XSFArenaFFA] FFA PvP arena setup...")
 
 local HUB_PLACE_ID = 92909397469421
 local PAD = tonumber(workspace:GetAttribute("ArenaPad")) or 32
 local RETURN_PLACE_BY_USER = {}
 
 local function log(msg)
-	print("[XSFExpandArena] " .. msg)
+	print("[XSFArenaFFA] " .. msg)
 end
 
 local function part(name, size, cf, color, parent, material)
@@ -362,6 +362,8 @@ local function buildArena(minV, maxV, floorY)
 end
 
 local function run()
+	-- Let XSFUnpack finish moving XSF_TestMap out of the package first.
+	task.wait(1)
 	workspace:SetAttribute("XSFArenaHandlesReturns", true)
 
 	local spawns = collectSpawns()
@@ -394,7 +396,7 @@ local function run()
 	if not minV or not maxV then
 		minV = Vector3.new(-50, 0, -50)
 		maxV = Vector3.new(50, 0, 50)
-		warn("[XSFExpandArena] no landmarks — default 100x100 arena")
+		warn("[XSFArenaFFA] no landmarks — default 100x100 arena")
 	end
 
 	local floorY = minV.Y
