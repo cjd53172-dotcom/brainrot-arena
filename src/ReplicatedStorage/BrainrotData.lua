@@ -2449,7 +2449,9 @@ BrainrotData.PLACE_GATES = {}
 -- for one portal per game instead of cycling.
 BrainrotData.SHOOTER_ROTATION = {
 	CycleMinutes = 20,
-	SeparatePortals = false,
+	-- Two portals side-by-side so Laser Tag and XSF are both always available.
+	-- Set false (or Workspace.ShooterSeparatePortals = false) to cycle one portal.
+	SeparatePortals = true,
 	SharedPortal = { X = 44, Z = 28 },
 	Games = {
 		{
