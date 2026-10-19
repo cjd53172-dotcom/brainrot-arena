@@ -61,20 +61,6 @@ local function looksLikeDummy(inst)
 	return false
 end
 
-local function looksLikeDoor(partInst)
-	local n = string.lower(partInst.Name)
-	if string.find(n, "door", 1, true)
-		or string.find(n, "gate", 1, true)
-		or string.find(n, "entrance", 1, true)
-		or string.find(n, "exit", 1, true)
-	then
-		return true
-	end
-	local size = partInst.Size
-	local thin = math.min(size.X, size.Z)
-	return thin <= 1.5 and size.Y >= 5 and math.max(size.X, size.Z) >= 3 and math.max(size.X, size.Z) <= 12
-end
-
 local function worldPos(inst)
 	if inst:IsA("BasePart") then
 		return inst.Position
