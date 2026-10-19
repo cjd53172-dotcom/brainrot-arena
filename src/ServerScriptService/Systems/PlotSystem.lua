@@ -678,7 +678,7 @@ local function autoImportPack()
 end
 
 -- // Plot construction ----------------------------------------------------------
-print("[PlotSystem] source 34-pack")
+print("[PlotSystem] source 35-visuals")
 
 function PlotSystem.SetArenaBoardText(text: string)
 	local labels = PlotSystem.ArenaBoardLabels
@@ -878,30 +878,58 @@ function PlotSystem.Setup()
 		plot.Name = "Plot" .. i
 		plot:SetAttribute("Index", i)
 
+		local stone = Color3.fromRGB(124, 116, 106)
+		local stoneDark = Color3.fromRGB(72, 66, 60)
+		local grass = Color3.fromRGB(74, 150, 68)
+		local wood = Color3.fromRGB(128, 82, 44)
+		local woodDark = Color3.fromRGB(78, 48, 28)
+		local plank = Color3.fromRGB(176, 132, 78)
+		local gold = Color3.fromRGB(228, 184, 72)
+		local marble = Color3.fromRGB(232, 226, 214)
+		local halfPlot = PLOT_SIZE / 2
+
 		newPart({
 			Name = "GroundSlab",
-			Size = Vector3.new(PLOT_SIZE + 16, 8, PLOT_SIZE + 16),
+			Size = Vector3.new(PLOT_SIZE + 18, 8, PLOT_SIZE + 18),
 			Position = Vector3.new(x, -3.9, z),
 			Anchored = true,
-			Material = Enum.Material.SmoothPlastic,
-			Color = Color3.fromRGB(110, 110, 118),
+			Material = Enum.Material.Slate,
+			Color = stoneDark,
 		}, plot)
 		newPart({
 			Name = "BaseBorder",
-			Size = Vector3.new(PLOT_SIZE + 2, 1, PLOT_SIZE + 2),
-			Position = Vector3.new(x, 0.4, z),
+			Size = Vector3.new(PLOT_SIZE + 5, 1.2, PLOT_SIZE + 5),
+			Position = Vector3.new(x, 0.32, z),
 			Anchored = true,
-			Material = Enum.Material.SmoothPlastic,
-			Color = Color3.fromRGB(120, 120, 130),
+			Material = Enum.Material.Cobblestone,
+			Color = stone,
 		}, plot)
 		newPart({
 			Name = "Base",
 			Size = Vector3.new(PLOT_SIZE, 1, PLOT_SIZE),
-			Position = Vector3.new(x, 0.6, z),
+			Position = Vector3.new(x, 0.72, z),
 			Anchored = true,
-			Material = Enum.Material.SmoothPlastic,
-			Color = Color3.fromRGB(95, 180, 95),
+			Material = Enum.Material.Grass,
+			Color = grass,
 		}, plot)
+		-- Trim only. No collision, so the lawn is still easy to walk onto.
+		for _, edge in ipairs({
+			{ Vector3.new(PLOT_SIZE + 5, 0.35, 1.15), Vector3.new(x, 1.15, z - halfPlot - 1.4) },
+			{ Vector3.new(PLOT_SIZE + 5, 0.35, 1.15), Vector3.new(x, 1.15, z + halfPlot + 1.4) },
+			{ Vector3.new(1.15, 0.35, PLOT_SIZE + 5), Vector3.new(x - halfPlot - 1.4, 1.15, z) },
+			{ Vector3.new(1.15, 0.35, PLOT_SIZE + 5), Vector3.new(x + halfPlot + 1.4, 1.15, z) },
+		}) do
+			newPart({
+				Name = "Curb",
+				Size = edge[1],
+				Position = edge[2],
+				Anchored = true,
+				CanCollide = false,
+				Material = Enum.Material.Cobblestone,
+				Color = stoneDark,
+			}, plot)
+		end
+
 		local deckY = 8
 		local deckDepth = PLOT_SIZE * 0.55
 		local deckCenterZ = z - PLOT_SIZE * 0.22
@@ -909,75 +937,187 @@ function PlotSystem.Setup()
 		local deckFrontZ = deckCenterZ - deckDepth / 2
 		for _, cx in ipairs({ -1, 1 }) do
 			for _, cz in ipairs({ -1, 1 }) do
+				local px = x + cx * (halfPlot - 0.7)
+				local pz = z + cz * (halfPlot - 0.7)
 				newPart({
 					Name = "CornerPost",
-					Size = Vector3.new(1.2, deckY + 1, 1.2),
-					Position = Vector3.new(
-						x + cx * (PLOT_SIZE / 2 - 0.6),
-						(deckY + 1) / 2,
-						z + cz * (PLOT_SIZE / 2 - 0.6)
-					),
+					Size = Vector3.new(1.35, deckY + 2.2, 1.35),
+					Position = Vector3.new(px, (deckY + 2.2) / 2, pz),
 					Anchored = true,
 					Material = Enum.Material.Wood,
-					Color = Color3.fromRGB(140, 100, 60),
+					Color = woodDark,
+				}, plot)
+				newPart({
+					Name = "PostCap",
+					Size = Vector3.new(1.9, 0.45, 1.9),
+					Position = Vector3.new(px, deckY + 2.35, pz),
+					Anchored = true,
+					CanCollide = false,
+					Material = Enum.Material.Metal,
+					Color = gold,
 				}, plot)
 			end
 		end
+		-- Fence rails around the lawn, with a gap on the south side for the stairs.
+		local railY = 2.15
+		newPart({
+			Name = "FenceN",
+			Size = Vector3.new(PLOT_SIZE - 3, 0.35, 0.35),
+			Position = Vector3.new(x, railY, z - halfPlot + 0.7),
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Wood,
+			Color = wood,
+		}, plot)
+		newPart({
+			Name = "FenceW",
+			Size = Vector3.new(0.35, 0.35, PLOT_SIZE - 3),
+			Position = Vector3.new(x - halfPlot + 0.7, railY, z),
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Wood,
+			Color = wood,
+		}, plot)
+		newPart({
+			Name = "FenceE",
+			Size = Vector3.new(0.35, 0.35, PLOT_SIZE - 3),
+			Position = Vector3.new(x + halfPlot - 0.7, railY, z),
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Wood,
+			Color = wood,
+		}, plot)
+		newPart({
+			Name = "FenceSLeft",
+			Size = Vector3.new(halfPlot - 8, 0.35, 0.35),
+			Position = Vector3.new(x - halfPlot / 2 - 2, railY, z + halfPlot - 0.7),
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Wood,
+			Color = wood,
+		}, plot)
 
-		-- Showcase lives on the upper deck; work stays on the grass below.
 		newPart({
 			Name = "UpperDeck",
 			Size = Vector3.new(PLOT_SIZE - 2, 1, deckDepth),
 			Position = Vector3.new(x, deckY, deckCenterZ),
 			Anchored = true,
 			Material = Enum.Material.WoodPlanks,
-			Color = Color3.fromRGB(150, 115, 80),
+			Color = plank,
+		}, plot)
+		newPart({
+			Name = "DeckTrim",
+			Size = Vector3.new(PLOT_SIZE - 1.2, 0.28, deckDepth + 0.8),
+			Position = Vector3.new(x, deckY - 0.55, deckCenterZ),
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Wood,
+			Color = woodDark,
 		}, plot)
 		newPart({
 			Name = "DeckRailFront",
-			Size = Vector3.new(PLOT_SIZE - 2, 1.2, 0.4),
-			Position = Vector3.new(x, deckY + 1.1, deckFrontZ),
+			Size = Vector3.new(PLOT_SIZE - 4, 1.15, 0.35),
+			Position = Vector3.new(x, deckY + 1.15, deckFrontZ),
 			Anchored = true,
 			Material = Enum.Material.Wood,
-			Color = Color3.fromRGB(120, 85, 55),
+			Color = wood,
 		}, plot)
+		newPart({
+			Name = "DeckRailBack",
+			Size = Vector3.new(PLOT_SIZE - 4, 1.15, 0.35),
+			Position = Vector3.new(x, deckY + 1.15, deckBackZ),
+			Anchored = true,
+			Material = Enum.Material.Wood,
+			Color = wood,
+		}, plot)
+		newPart({
+			Name = "DeckRailSideL",
+			Size = Vector3.new(0.35, 1.15, deckDepth - 1),
+			Position = Vector3.new(x - halfPlot + 1.3, deckY + 1.15, deckCenterZ),
+			Anchored = true,
+			Material = Enum.Material.Wood,
+			Color = wood,
+		}, plot)
+		newPart({
+			Name = "DeckRailSideR",
+			Size = Vector3.new(0.35, 1.15, deckDepth - 1),
+			Position = Vector3.new(x + halfPlot - 1.3, deckY + 1.15, deckCenterZ),
+			Anchored = true,
+			Material = Enum.Material.Wood,
+			Color = wood,
+		}, plot)
+
 		local stairCount = 8
 		local stepDepth = 2.5
-		local stairX = x + PLOT_SIZE / 2 - 3
+		local stairX = x + halfPlot - 3
 		for step = 1, stairCount do
-			-- Last step shares the deck's back edge (same height, no gap).
 			local stairZ = deckBackZ + (stairCount - step) * stepDepth + stepDepth / 2
 			newPart({
 				Name = "Stair_" .. step,
 				Size = Vector3.new(6, 1, stepDepth),
 				Position = Vector3.new(stairX, (deckY / stairCount) * step, stairZ),
 				Anchored = true,
+				Material = Enum.Material.WoodPlanks,
+				Color = plank,
+			}, plot)
+		end
+		for _, side in ipairs({ -1, 1 }) do
+			newPart({
+				Name = "Stringer",
+				Size = Vector3.new(0.4, 0.5, stairCount * stepDepth + 1),
+				Position = Vector3.new(stairX + side * 3.15, deckY * 0.45, deckBackZ + (stairCount * stepDepth) / 2),
+				Anchored = true,
+				CanCollide = false,
 				Material = Enum.Material.Wood,
-				Color = Color3.fromRGB(160, 130, 90),
+				Color = woodDark,
 			}, plot)
 		end
 
 		local sign = newPart({
 			Name = "OwnerSign",
-			Size = Vector3.new(8, 4, 0.6),
-			Position = Vector3.new(x, deckY + 3, deckFrontZ + 0.8),
+			Size = Vector3.new(10, 3.2, 0.35),
+			Position = Vector3.new(x, deckY + 4.4, deckFrontZ - 0.2),
 			Anchored = true,
-			Color = Color3.fromRGB(150, 110, 70),
+			CanCollide = false,
+			Color = Color3.fromRGB(42, 28, 18),
 			Material = Enum.Material.Wood,
 		}, plot)
+		newPart({
+			Name = "SignFrame",
+			Size = Vector3.new(11.2, 4.3, 0.28),
+			Position = Vector3.new(x, deckY + 4.4, deckFrontZ - 0.45),
+			Anchored = true,
+			CanCollide = false,
+			Color = gold,
+			Material = Enum.Material.Metal,
+		}, plot)
+		for _, sx in ipairs({ -5.2, 5.2 }) do
+			newPart({
+				Name = "SignPost",
+				Size = Vector3.new(0.45, 5.5, 0.45),
+				Position = Vector3.new(x + sx, deckY + 2.6, deckFrontZ - 0.2),
+				Anchored = true,
+				Material = Enum.Material.Wood,
+				Color = woodDark,
+			}, plot)
+		end
 
 		local signGui = Instance.new("SurfaceGui")
 		signGui.Face = Enum.NormalId.Back
 		signGui.Parent = sign
 		local signLabel = Instance.new("TextLabel")
-		signLabel.Size = UDim2.new(1, 0, 1, 0)
+		signLabel.Size = UDim2.new(1, -16, 1, -12)
+		signLabel.Position = UDim2.new(0, 8, 0, 6)
 		signLabel.BackgroundTransparency = 1
 		signLabel.Text = "Empty Plot"
 		signLabel.TextScaled = true
-		signLabel.Font = Enum.Font.GothamBold
-		signLabel.TextColor3 = Color3.new(1, 1, 1)
-		signLabel.TextStrokeTransparency = 0.6
+		signLabel.Font = Enum.Font.GothamBlack
+		signLabel.TextColor3 = Color3.fromRGB(255, 236, 196)
+		signLabel.TextStrokeTransparency = 0.35
 		signLabel.Parent = signGui
+		local signGuiFront = signGui:Clone()
+		signGuiFront.Face = Enum.NormalId.Front
+		signGuiFront.Parent = sign
 
 		local pedestals = Instance.new("Folder")
 		pedestals.Name = "Pedestals"
@@ -989,18 +1129,87 @@ function PlotSystem.Setup()
 			local px = x - 16 + col * 8
 			local pz = deckCenterZ - 6 + row * 8
 			newPart({
-				Name = "Pedestal_" .. slot,
-				Size = Vector3.new(3, 1.2, 3),
-				Position = Vector3.new(px, deckY + 1.1, pz),
+				Name = "Plinth_" .. slot,
+				Size = Vector3.new(3.3, 0.7, 3.3),
+				Position = Vector3.new(px, deckY + 0.85, pz),
 				Anchored = true,
-				Color = Color3.fromRGB(205, 205, 210),
+				CanCollide = false,
+				Color = stone,
+				Material = Enum.Material.Cobblestone,
+			}, pedestals)
+			newPart({
+				Name = "Pedestal_" .. slot,
+				Size = Vector3.new(2.35, 0.55, 2.35),
+				Position = Vector3.new(px, deckY + 1.4, pz),
+				Anchored = true,
+				Color = marble,
 				Material = Enum.Material.Marble,
+			}, pedestals)
+			newPart({
+				Name = "PedestalRing_" .. slot,
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.12, 2.05, 2.05),
+				CFrame = CFrame.new(px, deckY + 1.72, pz) * CFrame.Angles(0, 0, math.rad(90)),
+				Anchored = true,
+				CanCollide = false,
+				Color = gold,
+				Material = Enum.Material.Metal,
 			}, pedestals)
 		end
 
 		local stations = Instance.new("Folder")
 		stations.Name = "Stations"
 		stations.Parent = plot
+
+		local function dressStation(station: Model, workId: string, sx: number, sz: number)
+			local function deco(name: string, size: Vector3, pos: Vector3, color: Color3, mat: Enum.Material): Part
+				return newPart({
+					Name = name,
+					Size = size,
+					Position = pos,
+					Anchored = true,
+					CanCollide = false,
+					Color = color,
+					Material = mat,
+				}, station)
+			end
+			local function upright(name: string, height: number, diameter: number, pos: Vector3, color: Color3, mat: Enum.Material): Part
+				return newPart({
+					Name = name,
+					Shape = Enum.PartType.Cylinder,
+					Size = Vector3.new(height, diameter, diameter),
+					CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, math.rad(90)),
+					Anchored = true,
+					CanCollide = false,
+					Color = color,
+					Material = mat,
+				}, station)
+			end
+			if workId == "foraging" then
+				upright("Stump", 1.15, 1.8, Vector3.new(sx, 2.05, sz - 1.7), wood, Enum.Material.Wood)
+				deco("Log", Vector3.new(2.6, 0.65, 0.65), Vector3.new(sx + 0.2, 1.75, sz - 1.45), woodDark, Enum.Material.Wood)
+			elseif workId == "fishing" then
+				upright("Barrel", 1.45, 1.25, Vector3.new(sx - 1.2, 2.15, sz - 1.55), Color3.fromRGB(96, 64, 36), Enum.Material.Wood)
+				deco("Trough", Vector3.new(2.1, 0.7, 1.05), Vector3.new(sx + 0.9, 1.75, sz - 1.55), Color3.fromRGB(62, 96, 122), Enum.Material.Wood)
+				local troughWater = deco("TroughWater", Vector3.new(1.7, 0.16, 0.7), Vector3.new(sx + 0.9, 2.08, sz - 1.55), Color3.fromRGB(90, 180, 220), Enum.Material.Glass)
+				troughWater.Transparency = 0.3
+			elseif workId == "smelting" then
+				deco("Kiln", Vector3.new(2.3, 2.5, 1.7), Vector3.new(sx, 2.65, sz - 1.65), Color3.fromRGB(58, 54, 52), Enum.Material.Slate)
+				local mouth = deco("KilnMouth", Vector3.new(1.1, 0.85, 0.2), Vector3.new(sx, 2.2, sz - 0.75), Color3.fromRGB(255, 108, 28), Enum.Material.Neon)
+				local light = Instance.new("PointLight")
+				light.Color = Color3.fromRGB(255, 140, 40)
+				light.Range = 11
+				light.Brightness = 1.5
+				light.Parent = mouth
+			elseif workId == "gathering" then
+				upright("Basket", 1.05, 1.55, Vector3.new(sx, 1.95, sz - 1.6), Color3.fromRGB(198, 156, 96), Enum.Material.Fabric)
+				deco("Cloth", Vector3.new(2.3, 0.1, 1.5), Vector3.new(sx, 2.65, sz - 1.6), Color3.fromRGB(236, 236, 244), Enum.Material.Fabric)
+			else
+				deco("Ore", Vector3.new(1.7, 1.25, 1.5), Vector3.new(sx - 0.5, 2.0, sz - 1.6), Color3.fromRGB(86, 86, 96), Enum.Material.Slate)
+				deco("PickHaft", Vector3.new(0.16, 2.3, 0.16), Vector3.new(sx + 0.95, 2.5, sz - 1.35), woodDark, Enum.Material.Wood)
+				deco("PickHead", Vector3.new(1.15, 0.28, 0.22), Vector3.new(sx + 0.95, 3.55, sz - 1.35), Color3.fromRGB(176, 180, 188), Enum.Material.Metal)
+			end
+		end
 
 		for sIdx, workId in ipairs(BrainrotData.WORK_ORDER) do
 			local workDef = BrainrotData.WORK_TYPES[workId]
@@ -1012,45 +1221,66 @@ function PlotSystem.Setup()
 
 			newPart({
 				Name = "Platform",
-				Size = Vector3.new(5, 1, 5),
-				Position = Vector3.new(sx, 1, sz),
+				Size = Vector3.new(5.4, 0.7, 5.4),
+				Position = Vector3.new(sx, 1.05, sz),
 				Anchored = true,
 				Color = workDef.Color,
-				Material = Enum.Material.SmoothPlastic,
+				Material = Enum.Material.Slate,
+			}, station)
+			newPart({
+				Name = "PlatformLip",
+				Size = Vector3.new(6, 0.28, 6),
+				Position = Vector3.new(sx, 0.7, sz),
+				Anchored = true,
+				CanCollide = false,
+				Color = stoneDark,
+				Material = Enum.Material.Cobblestone,
 			}, station)
 
 			local signWork = newPart({
 				Name = "WorkSign",
-				Size = Vector3.new(4.4, 2, 0.4),
-				Position = Vector3.new(sx, 3.4, sz + 2.2),
+				Size = Vector3.new(4.2, 1.7, 0.28),
+				Position = Vector3.new(sx, 3.55, sz + 2.35),
 				Anchored = true,
-				Color = Color3.fromRGB(90, 70, 50),
+				CanCollide = false,
+				Color = Color3.fromRGB(36, 24, 16),
 				Material = Enum.Material.Wood,
+			}, station)
+			newPart({
+				Name = "WorkSignFrame",
+				Size = Vector3.new(4.8, 2.25, 0.18),
+				Position = Vector3.new(sx, 3.55, sz + 2.55),
+				Anchored = true,
+				CanCollide = false,
+				Color = gold,
+				Material = Enum.Material.Metal,
 			}, station)
 			local signWorkGui = Instance.new("SurfaceGui")
 			signWorkGui.Face = Enum.NormalId.Back
 			signWorkGui.Parent = signWork
 			local signWorkLabel = Instance.new("TextLabel")
-			signWorkLabel.Size = UDim2.new(1, 0, 1, 0)
+			signWorkLabel.Size = UDim2.new(1, -8, 1, -8)
+			signWorkLabel.Position = UDim2.new(0, 4, 0, 4)
 			signWorkLabel.BackgroundTransparency = 1
 			signWorkLabel.Text = workDef.Name .. "\n" .. workDef.Material
 			signWorkLabel.TextScaled = true
-			signWorkLabel.Font = Enum.Font.GothamBold
-			signWorkLabel.TextColor3 = Color3.new(1, 1, 1)
-			signWorkLabel.TextStrokeTransparency = 0.6
+			signWorkLabel.Font = Enum.Font.GothamBlack
+			signWorkLabel.TextColor3 = Color3.fromRGB(255, 244, 220)
+			signWorkLabel.TextStrokeTransparency = 0.4
 			signWorkLabel.Parent = signWorkGui
 
 			for slot = 1, BrainrotData.STATION_SLOTS do
 				newPart({
 					Name = "WorkerSpot_" .. slot,
-					Size = Vector3.new(2, 0.2, 2),
-					Position = Vector3.new(sx - 1.3 + (slot - 1) * 2.6, 1.6, sz),
+					Size = Vector3.new(1.7, 0.18, 1.7),
+					Position = Vector3.new(sx - 1.2 + (slot - 1) * 2.4, 1.5, sz + 0.35),
 					Anchored = true,
-					Color = Color3.fromRGB(220, 220, 225),
-					Material = Enum.Material.SmoothPlastic,
+					Color = marble,
+					Material = Enum.Material.Marble,
 				}, station)
 			end
 
+			dressStation(station, workId, sx, sz)
 			station.Parent = stations
 		end
 
@@ -1105,36 +1335,81 @@ function PlotSystem.Setup()
 		Size = Vector3.new(ARENA_PAD, 8, ARENA_PAD),
 		Position = Vector3.new(ARENA_X, -3.9, ARENA_Z),
 		Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(110, 110, 118),
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(68, 64, 60),
 	}, arena)
+	-- Block, not a sideways cylinder, so the sand is a floor players can stand on.
 	newPart({
 		Name = "Floor",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(44 * s, 2, 44 * s),
+		Size = Vector3.new(48 * s, 2, 48 * s),
 		Position = Vector3.new(ARENA_X, 1, ARENA_Z),
 		Anchored = true,
-		Color = Color3.fromRGB(200, 170, 120),
+		Color = Color3.fromRGB(196, 154, 96),
 		Material = Enum.Material.Sand,
+	}, arena)
+	newPart({
+		Name = "StoneRing",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.55, 40 * s, 40 * s),
+		CFrame = CFrame.new(ARENA_X, 2.15, ARENA_Z) * CFrame.Angles(0, 0, math.rad(90)),
+		Anchored = true,
+		CanCollide = false,
+		Color = Color3.fromRGB(150, 142, 132),
+		Material = Enum.Material.Cobblestone,
 	}, arena)
 	newPart({
 		Name = "Center",
 		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(12 * s, 2.4, 12 * s),
-		Position = Vector3.new(ARENA_X, 1.2, ARENA_Z),
+		Size = Vector3.new(0.35, 14 * s, 14 * s),
+		CFrame = CFrame.new(ARENA_X, 2.25, ARENA_Z) * CFrame.Angles(0, 0, math.rad(90)),
 		Anchored = true,
-		Color = Color3.fromRGB(180, 60, 60),
-		Material = Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		Color = Color3.fromRGB(168, 42, 42),
+		Material = Enum.Material.Marble,
+	}, arena)
+	newPart({
+		Name = "CenterInlay",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 6 * s, 6 * s),
+		CFrame = CFrame.new(ARENA_X, 2.4, ARENA_Z) * CFrame.Angles(0, 0, math.rad(90)),
+		Anchored = true,
+		CanCollide = false,
+		Color = Color3.fromRGB(232, 190, 80),
+		Material = Enum.Material.Metal,
 	}, arena)
 	for _, side in ipairs({ -1, 1 }) do
+		local gx = ARENA_X + side * 18 * s
+		local gateColor = if side < 0 then Color3.fromRGB(48, 108, 210) else Color3.fromRGB(196, 48, 48)
+		local gateName = if side < 0 then "GateBlue" else "GateRed"
 		newPart({
-			Name = "Gate" .. if side < 0 then "Blue" else "Red",
-			Size = Vector3.new(6 * s, 8 * s, 1 * s),
-			Position = Vector3.new(ARENA_X + side * 16 * s, 5 * s, ARENA_Z),
+			Name = gateName,
+			Size = Vector3.new(8 * s, 1.4 * s, 1.6 * s),
+			Position = Vector3.new(gx, 9.2 * s, ARENA_Z),
 			Anchored = true,
-			Color = if side < 0 then Color3.fromRGB(60, 120, 220) else Color3.fromRGB(220, 60, 60),
-			Material = Enum.Material.SmoothPlastic,
+			Color = gateColor,
+			Material = Enum.Material.Metal,
 		}, arena)
+		for _, oz in ipairs({ -3.2 * s, 3.2 * s }) do
+			newPart({
+				Name = "GatePillar",
+				Size = Vector3.new(1.6 * s, 10 * s, 1.6 * s),
+				Position = Vector3.new(gx, 5 * s, ARENA_Z + oz),
+				Anchored = true,
+				Color = Color3.fromRGB(168, 160, 148),
+				Material = Enum.Material.Marble,
+			}, arena)
+		end
+		for bar = -1, 1 do
+			newPart({
+				Name = "GateBar",
+				Size = Vector3.new(0.35 * s, 7 * s, 0.35 * s),
+				Position = Vector3.new(gx, 3.8 * s, ARENA_Z + bar * 1.6 * s),
+				Anchored = true,
+				CanCollide = false,
+				Color = Color3.fromRGB(40, 40, 46),
+				Material = Enum.Material.Metal,
+			}, arena)
+		end
 	end
 	arena.Parent = plaza
 	liftModel(arena, arenaTopY + 0.4)
@@ -1147,13 +1422,42 @@ function PlotSystem.Setup()
 	-- Outside the colosseum, sitting on the hillside (not the arena-center height).
 	local arenaSign = newPart({
 		Name = "Sign",
-		Size = Vector3.new(16, 5.2, 1),
+		Size = Vector3.new(14, 4.2, 0.4),
 		Position = Vector3.new(ARENA_X - 22, arenaTopY + 8, ARENA_Z + 30 * s + 14),
 		Anchored = true,
-		Color = Color3.fromRGB(90, 70, 50),
+		Color = Color3.fromRGB(36, 24, 16),
 		Material = Enum.Material.Wood,
 	}, plaza)
 	sitOnLocalGround(arenaSign, ARENA_X - 22, ARENA_Z + 30 * s + 14, 0.6)
+	local signPos = arenaSign.Position
+	newPart({
+		Name = "ArenaSignFrame",
+		Size = Vector3.new(15.4, 5.3, 0.25),
+		Position = signPos + Vector3.new(0, 0, 0.3),
+		Anchored = true,
+		CanCollide = false,
+		Color = Color3.fromRGB(214, 170, 72),
+		Material = Enum.Material.Metal,
+	}, plaza)
+	for _, sx in ipairs({ -7.4, 7.4 }) do
+		newPart({
+			Name = "ArenaSignPost",
+			Size = Vector3.new(0.7, signPos.Y - arenaTopY + 2, 0.7),
+			Position = Vector3.new(signPos.X + sx, (signPos.Y + arenaTopY) / 2, signPos.Z),
+			Anchored = true,
+			Color = Color3.fromRGB(78, 50, 30),
+			Material = Enum.Material.Wood,
+		}, plaza)
+		newPart({
+			Name = "ArenaSignCap",
+			Size = Vector3.new(1.2, 0.4, 1.2),
+			Position = signPos + Vector3.new(sx, 2.4, 0),
+			Anchored = true,
+			CanCollide = false,
+			Color = Color3.fromRGB(214, 170, 72),
+			Material = Enum.Material.Metal,
+		}, plaza)
+	end
 	local arenaGui = Instance.new("SurfaceGui")
 	arenaGui.Face = Enum.NormalId.Back
 	arenaGui.Parent = arenaSign
@@ -1230,14 +1534,34 @@ function PlotSystem.Setup()
 		Color = Color3.fromRGB(22, 18, 14),
 	}, plaza)
 	sitOnLocalGround(frame, boardX, boardZ, 0.6)
+	frame.Material = Enum.Material.Slate
 	local header = newPart({
 		Name = "ChampionHeader",
 		Size = Vector3.new(32, 5.4, 1.2),
 		Position = Vector3.new(boardX, frame.Position.Y + frame.Size.Y * 0.5 + 2.9, boardZ),
 		Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(40, 28, 12),
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(48, 32, 16),
 	}, plaza)
+	newPart({
+		Name = "ChampionTrim",
+		Size = Vector3.new(34.2, frame.Size.Y + header.Size.Y + 1.4, 0.45),
+		Position = Vector3.new(frame.Position.X, (frame.Position.Y + header.Position.Y) / 2, frame.Position.Z + 0.7),
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(214, 170, 72),
+	}, plaza)
+	for _, sx in ipairs({ -16.6, 16.6 }) do
+		newPart({
+			Name = "ChampionPillar",
+			Size = Vector3.new(1.6, frame.Size.Y + 8, 1.6),
+			Position = Vector3.new(frame.Position.X + sx, frame.Position.Y + 2, frame.Position.Z),
+			Anchored = true,
+			Material = Enum.Material.Marble,
+			Color = Color3.fromRGB(168, 160, 148),
+		}, plaza)
+	end
 	addBoardFace(header, Enum.NormalId.Front, true)
 	addBoardFace(header, Enum.NormalId.Back, true)
 	addBoardFace(frame, Enum.NormalId.Front, false)

@@ -1143,11 +1143,22 @@ do
 		return p
 	end
 
-	local pad = stallPart("Floor", Vector3.new(8, 0.5, 8), Vector3.new(cx, groundY + 0.25, cz), Color3.fromRGB(70, 55, 40), Enum.Material.WoodPlanks)
-	local counter = stallPart("Counter", Vector3.new(5, 1.4, 2), Vector3.new(cx, groundY + 1.2, cz + 2.2), Color3.fromRGB(120, 85, 50), Enum.Material.Wood)
-	stallPart("Crate", Vector3.new(2.2, 1.6, 2.2), Vector3.new(cx - 2.4, groundY + 1.05, cz + 0.4), Color3.fromRGB(140, 95, 55), Enum.Material.WoodPlanks)
+	local pad = stallPart("Floor", Vector3.new(12, 0.6, 10), Vector3.new(cx, groundY + 0.3, cz), Color3.fromRGB(78, 58, 40), Enum.Material.WoodPlanks)
+	local counter = stallPart("Counter", Vector3.new(7, 1.3, 2), Vector3.new(cx, groundY + 1.15, cz + 2.6), Color3.fromRGB(112, 74, 42), Enum.Material.Wood)
+	stallPart("CounterCloth", Vector3.new(7.2, 0.12, 2.15), Vector3.new(cx, groundY + 1.82, cz + 2.6), Color3.fromRGB(28, 78, 150), Enum.Material.Fabric)
+	stallPart("Crate", Vector3.new(2, 1.4, 2), Vector3.new(cx - 3.6, groundY + 1.0, cz + 1.2), Color3.fromRGB(132, 90, 50), Enum.Material.WoodPlanks)
+	stallPart("Bell", Vector3.new(0.7, 0.55, 0.7), Vector3.new(cx + 2.2, groundY + 2.15, cz + 2.5), Color3.fromRGB(190, 190, 200), Enum.Material.Metal)
+	stallPart("Bar", Vector3.new(3.2, 0.22, 0.22), Vector3.new(cx - 3.4, groundY + 2.3, cz - 0.2), Color3.fromRGB(40, 40, 44), Enum.Material.Metal)
+	stallPart("PlateL", Vector3.new(0.35, 1.1, 1.1), Vector3.new(cx - 4.7, groundY + 2.3, cz - 0.2), Color3.fromRGB(150, 154, 162), Enum.Material.Metal)
+	stallPart("PlateR", Vector3.new(0.35, 1.1, 1.1), Vector3.new(cx - 2.1, groundY + 2.3, cz - 0.2), Color3.fromRGB(150, 154, 162), Enum.Material.Metal)
+	for _, px in ipairs({ cx - 5.2, cx + 5.2 }) do
+		stallPart("Post", Vector3.new(0.45, 6.4, 0.45), Vector3.new(px, groundY + 3.5, cz - 4), Color3.fromRGB(78, 50, 30), Enum.Material.Wood)
+	end
+	stallPart("Awning", Vector3.new(12, 0.28, 8), Vector3.new(cx, groundY + 6.6, cz - 0.4), Color3.fromRGB(32, 96, 180), Enum.Material.Fabric)
+	stallPart("AwningTrim", Vector3.new(12.4, 0.18, 8.3), Vector3.new(cx, groundY + 6.85, cz - 0.4), Color3.fromRGB(214, 170, 72), Enum.Material.Metal)
 
-	local sign = stallPart("Sign", Vector3.new(8, 2.4, 0.4), Vector3.new(cx, groundY + 8.2, cz), Color3.fromRGB(35, 28, 22), Enum.Material.Wood)
+	local sign = stallPart("Sign", Vector3.new(9, 2.2, 0.32), Vector3.new(cx, groundY + 8.2, cz), Color3.fromRGB(28, 22, 16), Enum.Material.Wood)
+	stallPart("SignFrame", Vector3.new(9.8, 2.9, 0.2), Vector3.new(cx, groundY + 8.2, cz + 0.22), Color3.fromRGB(214, 170, 72), Enum.Material.Metal)
 	local signGui = Instance.new("SurfaceGui")
 	signGui.Face = Enum.NormalId.Front
 	signGui.Parent = sign
@@ -1156,9 +1167,12 @@ do
 	signLabel.BackgroundTransparency = 1
 	signLabel.Text = "STAT TRAINER\nSpeed · Jump · Reach · Luck"
 	signLabel.TextScaled = true
-	signLabel.Font = Enum.Font.GothamBold
-	signLabel.TextColor3 = Color3.fromRGB(255, 220, 90)
+	signLabel.Font = Enum.Font.GothamBlack
+	signLabel.TextColor3 = Color3.fromRGB(255, 220, 120)
 	signLabel.Parent = signGui
+	local signBack = signGui:Clone()
+	signBack.Face = Enum.NormalId.Back
+	signBack.Parent = sign
 
 	local promptParent: BasePart = counter
 	local npc: Model? = nil

@@ -356,99 +356,100 @@ function VisualEffects.BuildGoldMine(level: number): Model
 	local model = Instance.new("Model")
 	model.Name = "GoldMine"
 
-	-- Rock base
-	local rock = Instance.new("Part")
-	rock.Size = Vector3.new(10, 6, 8)
-	rock.Shape = Enum.PartType.Ball
-	rock.Color = Color3.fromRGB(100, 95, 90)
-	rock.Material = Enum.Material.Slate
-	rock.Anchored = true
-	rock.Position = Vector3.new(0, 2, 0)
-	rock.Parent = model
-
-	-- Mine entrance (dark opening)
-	local entrance = Instance.new("Part")
-	entrance.Size = Vector3.new(4, 4, 1)
-	entrance.Color = Color3.fromRGB(20, 15, 10)
-	entrance.Anchored = true
-	entrance.Position = Vector3.new(0, 2, 4)
-	entrance.Parent = model
-
-	-- Wooden support beams
-	for _, x in ipairs({ -2.5, 2.5 }) do
-		for _, y in ipairs({ 0.5, 3.5 }) do
-			local beam = Instance.new("Part")
-			beam.Size = Vector3.new(0.5, 0.5, 5)
-			beam.Color = Color3.fromRGB(110, 75, 40)
-			beam.Material = Enum.Material.Wood
-			beam.Anchored = true
-			beam.Position = Vector3.new(x, y, 2)
-			beam.Parent = model
+	local function part(name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, shape: Enum.PartType?): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Material = mat
+		p.Anchored = true
+		if shape then
+			p.Shape = shape
 		end
+		p.Parent = model
+		return p
 	end
 
-	-- Gold veins (glowing spots on rock)
-	local veinCount = 2 + level -- more veins at higher levels
-	for i = 1, veinCount do
-		local vein = Instance.new("Part")
-		vein.Size = Vector3.new(1, 1, 0.5)
-		vein.Color = Color3.fromRGB(255, 200, 60)
-		vein.Material = Enum.Material.Neon
-		vein.Anchored = true
-		local angle = (i / veinCount) * math.pi * 2
-		vein.Position = Vector3.new(
-			math.cos(angle) * 4,
-			2 + math.sin(angle * 2) * 1.5,
-			math.sin(angle) * 3 + 1
-		)
-		vein.Parent = model
+	local rock = part("Rock", Vector3.new(14, 9, 11), CFrame.new(0, 3.2, -1), Color3.fromRGB(92, 88, 82), Enum.Material.Slate, Enum.PartType.Ball)
+	part("RockL", Vector3.new(7, 6, 6), CFrame.new(-5, 2.2, -2), Color3.fromRGB(78, 74, 70), Enum.Material.Slate, Enum.PartType.Ball)
+	part("RockR", Vector3.new(6, 5, 6), CFrame.new(5.2, 1.8, -1.5), Color3.fromRGB(108, 102, 96), Enum.Material.Rock, Enum.PartType.Ball)
+	part("Hill", Vector3.new(16, 3, 12), CFrame.new(0, 1.2, -2), Color3.fromRGB(84, 80, 74), Enum.Material.Slate)
 
+	part("Mouth", Vector3.new(5.2, 4.4, 1.2), CFrame.new(0, 2.4, 3.6), Color3.fromRGB(12, 10, 8), Enum.Material.Slate)
+	part("Lintel", Vector3.new(6.4, 0.7, 1.4), CFrame.new(0, 4.8, 4.1), Color3.fromRGB(92, 58, 32), Enum.Material.Wood)
+	part("PostL", Vector3.new(0.7, 4.6, 0.7), CFrame.new(-2.6, 2.3, 4.1), Color3.fromRGB(78, 48, 26), Enum.Material.Wood)
+	part("PostR", Vector3.new(0.7, 4.6, 0.7), CFrame.new(2.6, 2.3, 4.1), Color3.fromRGB(78, 48, 26), Enum.Material.Wood)
+	part("BraceL", Vector3.new(0.35, 3.2, 0.35), CFrame.new(-1.5, 3.4, 4.15) * CFrame.Angles(0, 0, math.rad(28)), Color3.fromRGB(110, 72, 40), Enum.Material.Wood)
+	part("BraceR", Vector3.new(0.35, 3.2, 0.35), CFrame.new(1.5, 3.4, 4.15) * CFrame.Angles(0, 0, math.rad(-28)), Color3.fromRGB(110, 72, 40), Enum.Material.Wood)
+
+	local veinCount = 3 + level
+	for i = 1, veinCount do
+		local angle = (i / veinCount) * math.pi * 1.4 - 0.4
+		local vein = part(
+			"Vein",
+			Vector3.new(0.7, 0.45, 1.1),
+			CFrame.new(math.cos(angle) * 4.2, 2.4 + math.sin(i) * 1.2, math.sin(angle) * 2.2),
+			Color3.fromRGB(255, 196, 60),
+			Enum.Material.Neon
+		)
 		local glow = Instance.new("PointLight")
-		glow.Color = Color3.fromRGB(255, 200, 80)
-		glow.Range = 6
-		glow.Brightness = 1
+		glow.Color = Color3.fromRGB(255, 190, 70)
+		glow.Range = 7
+		glow.Brightness = 0.8
 		glow.Parent = vein
 	end
 
-	-- Minecart
-	local cart = Instance.new("Part")
-	cart.Name = "Cart"
-	cart.Size = Vector3.new(3, 1.5, 2)
-	cart.Color = Color3.fromRGB(80, 60, 40)
-	cart.Material = Enum.Material.Wood
-	cart.Anchored = true
-	cart.Position = Vector3.new(0, 0.8, 7)
-	cart.Parent = model
-
-	-- Gold in cart
-	local goldPile = Instance.new("Part")
-	goldPile.Size = Vector3.new(2, 0.8, 1.5)
-	goldPile.Shape = Enum.PartType.Ball
-	goldPile.Color = Color3.fromRGB(255, 200, 60)
-	goldPile.Material = Enum.Material.Metal
-	goldPile.Anchored = true
-	goldPile.Position = Vector3.new(0, 1.8, 7)
-	goldPile.Parent = model
-
-	-- Rails
-	for _, x in ipairs({ -1, 1 }) do
-		local rail = Instance.new("Part")
-		rail.Size = Vector3.new(0.3, 0.3, 10)
-		rail.Color = Color3.fromRGB(120, 120, 120)
-		rail.Material = Enum.Material.Metal
-		rail.Anchored = true
-		rail.Position = Vector3.new(x, 0.2, 5)
-		rail.Parent = model
+	for i = 0, 6 do
+		part("Tie", Vector3.new(2.4, 0.22, 0.45), CFrame.new(0, 0.16, 3.2 + i * 1.35), Color3.fromRGB(92, 64, 36), Enum.Material.Wood)
+	end
+	for _, x in ipairs({ -0.7, 0.7 }) do
+		part("Rail", Vector3.new(0.18, 0.18, 10), CFrame.new(x, 0.38, 7.2), Color3.fromRGB(150, 150, 156), Enum.Material.Metal)
 	end
 
-	-- Floating coin particles
+	part("CartBed", Vector3.new(2.6, 0.35, 1.8), CFrame.new(0, 0.85, 8.2), Color3.fromRGB(70, 48, 30), Enum.Material.Wood)
+	part("CartSideL", Vector3.new(0.18, 0.9, 1.8), CFrame.new(-1.2, 1.35, 8.2), Color3.fromRGB(110, 74, 42), Enum.Material.Wood)
+	part("CartSideR", Vector3.new(0.18, 0.9, 1.8), CFrame.new(1.2, 1.35, 8.2), Color3.fromRGB(110, 74, 42), Enum.Material.Wood)
+	part("CartFront", Vector3.new(2.6, 0.9, 0.18), CFrame.new(0, 1.35, 7.35), Color3.fromRGB(110, 74, 42), Enum.Material.Wood)
+	part("CartBack", Vector3.new(2.6, 0.9, 0.18), CFrame.new(0, 1.35, 9.05), Color3.fromRGB(110, 74, 42), Enum.Material.Wood)
+	local goldPile = part("GoldPile", Vector3.new(1.8, 0.7, 1.2), CFrame.new(0, 1.55, 8.2), Color3.fromRGB(255, 196, 64), Enum.Material.Metal, Enum.PartType.Ball)
+	for _, x in ipairs({ -0.85, 0.85 }) do
+		for _, z in ipairs({ 7.7, 8.7 }) do
+			part("Wheel", Vector3.new(0.28, 0.55, 0.55), CFrame.new(x, 0.45, z), Color3.fromRGB(46, 46, 50), Enum.Material.Metal, Enum.PartType.Cylinder)
+		end
+	end
+
+	local lantern = part("Lantern", Vector3.new(0.7, 0.9, 0.7), CFrame.new(-3.1, 4.6, 4.2), Color3.fromRGB(255, 186, 80), Enum.Material.Neon)
+	local lampLight = Instance.new("PointLight")
+	lampLight.Color = Color3.fromRGB(255, 180, 70)
+	lampLight.Range = 16
+	lampLight.Brightness = 1.6
+	lampLight.Parent = lantern
+
+	local sign = part("Sign", Vector3.new(6.5, 2.2, 0.3), CFrame.new(0, 6.4, 4.3), Color3.fromRGB(36, 24, 16), Enum.Material.Wood)
+	part("SignFrame", Vector3.new(7.2, 2.8, 0.2), CFrame.new(0, 6.4, 4.5), Color3.fromRGB(228, 184, 72), Enum.Material.Metal)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.Parent = sign
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "GOLD MINE"
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(255, 220, 120)
+	label.Parent = gui
+	local back = gui:Clone()
+	back.Face = Enum.NormalId.Back
+	back.Parent = sign
+
 	local coins = Instance.new("ParticleEmitter")
-	coins.Texture = "rbxassetid://6834885264" -- coin texture
+	coins.Texture = "rbxassetid://6834885264"
 	coins.Color = ColorSequence.new(Color3.fromRGB(255, 210, 100))
-	coins.Size = NumberSequence.new(0.8)
-	coins.Speed = NumberRange.new(2, 4)
-	coins.Lifetime = NumberRange.new(1.5, 2.5)
-	coins.Rate = 5 + level * 2
+	coins.Size = NumberSequence.new(0.6)
+	coins.Speed = NumberRange.new(1, 3)
+	coins.Lifetime = NumberRange.new(1.2, 2.2)
+	coins.Rate = 4 + level
 	coins.Parent = goldPile
 
 	model.PrimaryPart = rock
@@ -1093,101 +1094,86 @@ function VisualEffects.BuildColosseum(centerPos: Vector3, scale: number?): Model
 	local model = Instance.new("Model")
 	model.Name = "Colosseum"
 	local s = scale or 1
-
-	-- Outer wall (cylinder segments)
-	local wallSegments = 16
 	local radius = 30 * s
+	local stone = Color3.fromRGB(186, 176, 160)
+	local stoneDark = Color3.fromRGB(132, 122, 110)
+	local gold = Color3.fromRGB(214, 170, 72)
+
+	local function block(name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, shape: Enum.PartType?): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Material = mat
+		p.Anchored = true
+		if shape then
+			p.Shape = shape
+		end
+		p.Parent = model
+		return p
+	end
+
+	local wallSegments = 20
 	for i = 1, wallSegments do
 		local angle = (i / wallSegments) * math.pi * 2
-		local wall = Instance.new("Part")
-		wall.Size = Vector3.new(8 * s, 15 * s, 3 * s)
-		wall.Color = Color3.fromRGB(180, 170, 160)
-		wall.Material = Enum.Material.Marble
-		wall.Anchored = true
-		wall.Position = centerPos + Vector3.new(
-			math.cos(angle) * radius,
-			7.5 * s,
-			math.sin(angle) * radius
-		)
-		wall.Orientation = Vector3.new(0, -math.deg(angle) + 90, 0)
-		wall.Parent = model
-
-		-- Arch openings (every other segment is shorter)
-		if i % 2 == 0 then
-			wall.Size = Vector3.new(8 * s, 8 * s, 3 * s)
-			wall.Position = centerPos + Vector3.new(
-				math.cos(angle) * radius,
-				4 * s,
-				math.sin(angle) * radius
-			)
+		local pos = centerPos + Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+		local yaw = CFrame.Angles(0, -angle + math.rad(90), 0)
+		local arched = i % 2 == 0
+		local height = if arched then 7 * s else 16 * s
+		local y = if arched then 3.5 * s else 8 * s
+		block("Wall", Vector3.new(7.2 * s, height, 2.4 * s), CFrame.new(pos + Vector3.new(0, y, 0)) * yaw, if arched then stoneDark else stone, Enum.Material.Marble)
+		if arched then
+			block("ArchCrown", Vector3.new(7.2 * s, 2.2 * s, 2.6 * s), CFrame.new(pos + Vector3.new(0, 9.2 * s, 0)) * yaw, stone, Enum.Material.Marble)
 		end
+		block("Cornice", Vector3.new(7.4 * s, 1.1 * s, 3.2 * s), CFrame.new(pos + Vector3.new(0, 16.6 * s, 0)) * yaw, stoneDark, Enum.Material.Cobblestone)
 	end
 
-	-- Floor (sand)
-	local floor = Instance.new("Part")
-	floor.Name = "ArenaFloor"
-	floor.Size = Vector3.new(radius * 2, 1, radius * 2)
-	floor.Shape = Enum.PartType.Cylinder
-	floor.Color = Color3.fromRGB(220, 190, 140)
-	floor.Material = Enum.Material.Sand
-	floor.Anchored = true
-	floor.Position = centerPos
-	floor.Parent = model
+	local floor = block(
+		"ArenaFloor",
+		Vector3.new(1.2, radius * 1.7, radius * 1.7),
+		CFrame.new(centerPos + Vector3.new(0, 0.4, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.fromRGB(214, 176, 112),
+		Enum.Material.Sand,
+		Enum.PartType.Cylinder
+	)
+	floor.CanCollide = false
+	block(
+		"InnerRing",
+		Vector3.new(0.35, radius * 1.15, radius * 1.15),
+		CFrame.new(centerPos + Vector3.new(0, 1.15, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.fromRGB(120, 36, 36),
+		Enum.Material.Marble,
+		Enum.PartType.Cylinder
+	).CanCollide = false
 
-	-- Center emblem
-	local emblem = Instance.new("Part")
-	emblem.Size = Vector3.new(10 * s, 0.5 * s, 10 * s)
-	emblem.Shape = Enum.PartType.Cylinder
-	emblem.Color = Color3.fromRGB(200, 50, 50)
-	emblem.Material = Enum.Material.Marble
-	emblem.Anchored = true
-	emblem.Position = centerPos + Vector3.new(0, 0.8 * s, 0)
-	emblem.Parent = model
-
-	-- Torches around the rim
 	for i = 1, 8 do
 		local angle = (i / 8) * math.pi * 2
-		local torchPos = centerPos + Vector3.new(
-			math.cos(angle) * (radius - 3 * s),
-			0,
-			math.sin(angle) * (radius - 3 * s)
-		)
-		-- Simple torch
-		local post = Instance.new("Part")
-		post.Size = Vector3.new(0.8 * s, 6 * s, 0.8 * s)
-		post.Color = Color3.fromRGB(90, 60, 35)
-		post.Material = Enum.Material.Wood
-		post.Anchored = true
-		post.Position = torchPos + Vector3.new(0, 3 * s, 0)
-		post.Parent = model
-
+		local torchPos = centerPos + Vector3.new(math.cos(angle) * (radius - 4 * s), 0, math.sin(angle) * (radius - 4 * s))
+		local post = block("TorchPost", Vector3.new(0.7 * s, 7 * s, 0.7 * s), CFrame.new(torchPos + Vector3.new(0, 3.5 * s, 0)), Color3.fromRGB(70, 46, 28), Enum.Material.Wood)
+		local bowl = block("TorchBowl", Vector3.new(0.45 * s, 1.5 * s, 1.5 * s), CFrame.new(torchPos + Vector3.new(0, 7.2 * s, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(48, 48, 52), Enum.Material.Metal, Enum.PartType.Cylinder)
 		local flame = Instance.new("Fire")
-		flame.Size = 10
-		flame.Parent = post
-
+		flame.Size = 6
+		flame.Heat = 8
+		flame.Color = Color3.fromRGB(255, 150, 40)
+		flame.SecondaryColor = Color3.fromRGB(255, 80, 20)
+		flame.Parent = bowl
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 150, 50)
-		light.Range = 15
-		light.Brightness = 2
-		light.Parent = post
+		light.Range = 18
+		light.Brightness = 1.6
+		light.Parent = bowl
+		post.CanCollide = false
 	end
 
-	-- Banners
 	for i = 1, 4 do
-		local angle = (i / 4) * math.pi * 2 + math.pi/4
-		local bannerPos = centerPos + Vector3.new(
-			math.cos(angle) * (radius - 1 * s),
-			12 * s,
-			math.sin(angle) * (radius - 1 * s)
-		)
-		local banner = Instance.new("Part")
-		banner.Size = Vector3.new(3 * s, 6 * s, 0.3 * s)
-		banner.Color = Color3.fromRGB(180, 40, 40)
-		banner.Material = Enum.Material.Fabric
-		banner.Anchored = true
-		banner.Position = bannerPos
-		banner.Orientation = Vector3.new(0, -math.deg(angle) + 90, 0)
-		banner.Parent = model
+		local angle = (i / 4) * math.pi * 2 + math.pi / 4
+		local bannerPos = centerPos + Vector3.new(math.cos(angle) * (radius - 1.2 * s), 12 * s, math.sin(angle) * (radius - 1.2 * s))
+		local yaw = CFrame.Angles(0, -angle + math.rad(90), 0)
+		local clothColor = if i % 2 == 0 then Color3.fromRGB(170, 36, 36) else Color3.fromRGB(36, 72, 150)
+		block("BannerPole", Vector3.new(0.35 * s, 8 * s, 0.35 * s), CFrame.new(bannerPos + Vector3.new(0, 1 * s, 0)), Color3.fromRGB(60, 40, 24), Enum.Material.Wood).CanCollide = false
+		block("Banner", Vector3.new(0.2 * s, 5.5 * s, 3.2 * s), CFrame.new(bannerPos) * yaw, clothColor, Enum.Material.Fabric).CanCollide = false
+		block("BannerTrim", Vector3.new(0.22 * s, 0.35 * s, 3.3 * s), CFrame.new(bannerPos + Vector3.new(0, -2.6 * s, 0)) * yaw, gold, Enum.Material.Metal).CanCollide = false
 	end
 
 	model.PrimaryPart = floor
@@ -1199,111 +1185,64 @@ end
 function VisualEffects.BuildFishingSpot(): Model
 	local model = Instance.new("Model")
 	model.Name = "FishingSpot"
+	local wood = Color3.fromRGB(118, 78, 42)
+	local woodDark = Color3.fromRGB(72, 46, 26)
+	local rope = Color3.fromRGB(196, 170, 120)
 
-	-- Dock planks (wider)
-	for i = 1, 6 do
-		local plank = Instance.new("Part")
-		plank.Size = Vector3.new(4, 0.4, 1.2)
-		plank.Color = Color3.fromRGB(110, 75, 40)
-		plank.Material = Enum.Material.WoodPlanks
-		plank.Anchored = true
-		plank.Position = Vector3.new(0, 1, (i - 3.5) * 1.3)
-		plank.Parent = model
+	local function part(name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, shape: Enum.PartType?): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Material = mat
+		p.Anchored = true
+		if shape then
+			p.Shape = shape
+		end
+		p.Parent = model
+		return p
 	end
 
-	-- Support posts
-	for _, x in ipairs({ -1.7, 1.7 }) do
-		for _, z in ipairs({ -3.5, 3.5 }) do
-			local post = Instance.new("Part")
-			post.Size = Vector3.new(0.6, 4, 0.6)
-			post.Color = Color3.fromRGB(80, 55, 30)
-			post.Material = Enum.Material.Wood
-			post.Anchored = true
-			post.Position = Vector3.new(x, 0, z)
-			post.Parent = model
+	for i = 1, 9 do
+		local z = (i - 5) * 1.35
+		part("Plank", Vector3.new(5.2, 0.28, 1.15), CFrame.new(0, 1.15, z), if i % 2 == 0 then wood else Color3.fromRGB(138, 92, 50), Enum.Material.WoodPlanks)
+	end
+	part("StringerL", Vector3.new(0.4, 0.45, 12.4), CFrame.new(-2.2, 0.85, 0), woodDark, Enum.Material.Wood)
+	part("StringerR", Vector3.new(0.4, 0.45, 12.4), CFrame.new(2.2, 0.85, 0), woodDark, Enum.Material.Wood)
+
+	for _, x in ipairs({ -2.15, 2.15 }) do
+		for _, z in ipairs({ -5.2, -1.6, 2.2, 5.4 }) do
+			part("Piling", Vector3.new(0.55, 6.5, 0.55), CFrame.new(x, -1.4, z), woodDark, Enum.Material.Wood)
+		end
+	end
+	for _, x in ipairs({ -2.35, 2.35 }) do
+		part("RopeRail", Vector3.new(0.16, 0.16, 11.5), CFrame.new(x, 2.35, 0.2), rope, Enum.Material.Fabric)
+		part("RopeRailLow", Vector3.new(0.12, 0.12, 11.5), CFrame.new(x, 1.85, 0.2), rope, Enum.Material.Fabric)
+		for _, z in ipairs({ -5, -1.5, 2, 5.2 }) do
+			part("RailPost", Vector3.new(0.28, 1.7, 0.28), CFrame.new(x, 1.9, z), wood, Enum.Material.Wood)
 		end
 	end
 
-	-- Railings (back and sides, open front for casting)
-	for _, x in ipairs({ -1.8, 1.8 }) do
-		-- Side rails
-		local rail = Instance.new("Part")
-		rail.Size = Vector3.new(0.25, 0.25, 7)
-		rail.Color = Color3.fromRGB(90, 60, 35)
-		rail.Material = Enum.Material.Wood
-		rail.Anchored = true
-		rail.Position = Vector3.new(x, 2.5, 0)
-		rail.Parent = model
-		-- Rail posts
-		for _, z in ipairs({ -3, 0, 3 }) do
-			local rpost = Instance.new("Part")
-			rpost.Size = Vector3.new(0.25, 1.8, 0.25)
-			rpost.Color = Color3.fromRGB(90, 60, 35)
-			rpost.Anchored = true
-			rpost.Position = Vector3.new(x, 1.8, z)
-			rpost.Parent = model
-		end
-	end
-	-- Back rail
-	local backRail = Instance.new("Part")
-	backRail.Size = Vector3.new(4, 0.25, 0.25)
-	backRail.Color = Color3.fromRGB(90, 60, 35)
-	backRail.Anchored = true
-	backRail.Position = Vector3.new(0, 2.5, -3.5)
-	backRail.Parent = model
-
-	-- Lantern on post
-	local lampPost = Instance.new("Part")
-	lampPost.Size = Vector3.new(0.4, 4, 0.4)
-	lampPost.Color = Color3.fromRGB(70, 70, 80)
-	lampPost.Material = Enum.Material.Metal
-	lampPost.Anchored = true
-	lampPost.Position = Vector3.new(-1.8, 3, -3.2)
-	lampPost.Parent = model
-
-	local lamp = Instance.new("Part")
-	lamp.Size = Vector3.new(0.8, 1, 0.8)
-	lamp.Color = Color3.fromRGB(255, 200, 100)
-	lamp.Material = Enum.Material.Neon
-	lamp.Anchored = true
-	lamp.Position = Vector3.new(-1.8, 5.2, -3.2)
-	lamp.Parent = model
-
+	local lampPost = part("LampPost", Vector3.new(0.35, 4.2, 0.35), CFrame.new(-2.2, 3.1, -5.3), Color3.fromRGB(58, 58, 64), Enum.Material.Metal)
+	local lamp = part("Lamp", Vector3.new(0.7, 0.9, 0.7), CFrame.new(-2.2, 5.3, -5.3), Color3.fromRGB(255, 196, 110), Enum.Material.Glass)
+	lamp.Transparency = 0.15
 	local lampLight = Instance.new("PointLight")
-	lampLight.Color = Color3.fromRGB(255, 190, 100)
-	lampLight.Range = 12
-	lampLight.Brightness = 1.5
+	lampLight.Color = Color3.fromRGB(255, 186, 100)
+	lampLight.Range = 16
+	lampLight.Brightness = 1.6
 	lampLight.Parent = lamp
+	lampPost.CanCollide = false
 
-	-- Bucket
-	local bucket = Instance.new("Part")
-	bucket.Size = Vector3.new(1, 1.2, 1)
-	bucket.Shape = Enum.PartType.Cylinder
-	bucket.Color = Color3.fromRGB(120, 120, 130)
-	bucket.Material = Enum.Material.Metal
-	bucket.Anchored = true
-	bucket.Position = Vector3.new(1.2, 1.7, 2.5)
-	bucket.Parent = model
+	part("Crate", Vector3.new(1.5, 1.15, 1.35), CFrame.new(-1.35, 1.85, 3.4), Color3.fromRGB(132, 90, 48), Enum.Material.WoodPlanks)
+	part("Bucket", Vector3.new(1.05, 0.9, 0.9), CFrame.new(1.45, 1.7, 2.6) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(120, 126, 134), Enum.Material.Metal, Enum.PartType.Cylinder)
+	part("Coil", Vector3.new(0.28, 0.9, 0.9), CFrame.new(1.5, 1.4, -2.4) * CFrame.Angles(0, 0, math.rad(90)), rope, Enum.Material.Fabric, Enum.PartType.Cylinder)
+	part("Rod", Vector3.new(0.12, 3.4, 0.12), CFrame.new(2.05, 2.6, 1.2) * CFrame.Angles(0, 0, math.rad(18)), Color3.fromRGB(92, 60, 32), Enum.Material.Wood)
 
-	-- Crate with fish
-	local crate = Instance.new("Part")
-	crate.Size = Vector3.new(1.5, 1.5, 1.5)
-	crate.Color = Color3.fromRGB(130, 90, 50)
-	crate.Material = Enum.Material.WoodPlanks
-	crate.Anchored = true
-	crate.Position = Vector3.new(-1.2, 1.9, 2.8)
-	crate.Parent = model
-
-	-- Sign
-	local sign = Instance.new("Part")
-	sign.Name = "DockSign"
-	sign.Size = Vector3.new(4, 2, 0.4)
-	sign.Color = Color3.fromRGB(60, 40, 20)
-	sign.Material = Enum.Material.Wood
-	sign.Anchored = true
-	sign.Position = Vector3.new(0, 4.5, -3.8)
-	sign.Parent = model
-
+	local sign = part("DockSign", Vector3.new(4.6, 1.8, 0.28), CFrame.new(0, 4.3, -5.6), Color3.fromRGB(36, 24, 16), Enum.Material.Wood)
+	part("DockSignFrame", Vector3.new(5.3, 2.4, 0.18), CFrame.new(0, 4.3, -5.75), Color3.fromRGB(214, 170, 72), Enum.Material.Metal)
+	part("SignPostL", Vector3.new(0.3, 3.4, 0.3), CFrame.new(-2.3, 3.2, -5.6), woodDark, Enum.Material.Wood)
+	part("SignPostR", Vector3.new(0.3, 3.4, 0.3), CFrame.new(2.3, 3.2, -5.6), woodDark, Enum.Material.Wood)
 	local signGui = Instance.new("SurfaceGui")
 	signGui.Face = Enum.NormalId.Front
 	signGui.Parent = sign
@@ -1311,45 +1250,31 @@ function VisualEffects.BuildFishingSpot(): Model
 	signLabel.Size = UDim2.new(1, 0, 1, 0)
 	signLabel.BackgroundTransparency = 1
 	signLabel.Text = "CAST LINE HERE"
-	signLabel.Font = Enum.Font.GothamBold
+	signLabel.Font = Enum.Font.GothamBlack
 	signLabel.TextScaled = true
-	signLabel.TextColor3 = Color3.new(1, 1, 1)
-	signLabel.TextStrokeTransparency = 0.5
+	signLabel.TextColor3 = Color3.fromRGB(255, 236, 200)
+	signLabel.TextStrokeTransparency = 0.45
 	signLabel.Parent = signGui
+	local signBack = signGui:Clone()
+	signBack.Face = Enum.NormalId.Back
+	signBack.Parent = sign
 
-	local castPad = Instance.new("Part")
-	castPad.Name = "CastPad"
-	castPad.Size = Vector3.new(4, 0.5, 7)
-	castPad.Color = Color3.fromRGB(110, 75, 40)
-	castPad.Material = Enum.Material.WoodPlanks
+	local castPad = part("CastPad", Vector3.new(5, 0.4, 11.5), CFrame.new(0, 1.35, 0.2), wood, Enum.Material.WoodPlanks)
 	castPad.Transparency = 1
-	castPad.Anchored = true
 	castPad.CanCollide = false
-	castPad.Position = Vector3.new(0, 1.2, 0)
-	castPad.Parent = model
 	model.PrimaryPart = castPad
 
-	-- Water (larger, animated waves)
-	local water = Instance.new("Part")
-	water.Name = "Water"
-	water.Size = Vector3.new(20, 0.5, 16)
-	water.Color = Color3.fromRGB(50, 130, 180)
-	water.Material = Enum.Material.Water
-	water.Transparency = 0.25
-	water.Anchored = true
+	local water = part("Water", Vector3.new(22, 0.45, 18), CFrame.new(0, 0.15, 11), Color3.fromRGB(42, 120, 168), Enum.Material.Water)
+	water.Transparency = 0.28
 	water.CanCollide = false
-	water.Position = Vector3.new(0, 0.2, 10)
-	water.Parent = model
-
-	-- Animated wave particles
 	local waves = Instance.new("ParticleEmitter")
 	waves.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	waves.Color = ColorSequence.new(Color3.fromRGB(150, 210, 255))
-	waves.Size = NumberSequence.new(0.5)
-	waves.Transparency = NumberSequence.new(0.7)
-	waves.Speed = NumberRange.new(1, 2)
-	waves.Lifetime = NumberRange.new(2, 3)
-	waves.Rate = 8
+	waves.Color = ColorSequence.new(Color3.fromRGB(170, 220, 255))
+	waves.Size = NumberSequence.new(0.45)
+	waves.Transparency = NumberSequence.new(0.65)
+	waves.Speed = NumberRange.new(0.4, 1.4)
+	waves.Lifetime = NumberRange.new(2, 3.5)
+	waves.Rate = 10
 	waves.Parent = water
 
 	return model
@@ -1358,50 +1283,50 @@ end
 function VisualEffects.BuildFishingLandmark(): Model
 	local model = Instance.new("Model")
 	model.Name = "FishingLandmark"
+	local wood = Color3.fromRGB(92, 60, 32)
+	local gold = Color3.fromRGB(214, 170, 72)
 
-	local post = Instance.new("Part")
-	post.Name = "Post"
-	post.Size = Vector3.new(1.4, 18, 1.4)
-	post.Color = Color3.fromRGB(80, 55, 30)
-	post.Material = Enum.Material.Wood
-	post.Anchored = true
-	post.Position = Vector3.new(0, 9, 0)
-	post.Parent = model
+	local function part(name: string, size: Vector3, cf: CFrame, color: Color3, mat: Enum.Material, shape: Enum.PartType?): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Material = mat
+		p.Anchored = true
+		if shape then
+			p.Shape = shape
+		end
+		p.Parent = model
+		return p
+	end
 
-	local board = Instance.new("Part")
-	board.Name = "Board"
-	board.Size = Vector3.new(28, 10, 1.2)
-	board.Color = Color3.fromRGB(30, 90, 150)
-	board.Material = Enum.Material.SmoothPlastic
-	board.Anchored = true
-	board.Position = Vector3.new(0, 16, 0)
-	board.Parent = model
+	part("PostL", Vector3.new(1.1, 16, 1.1), CFrame.new(-8, 8, 0), wood, Enum.Material.Wood)
+	part("PostR", Vector3.new(1.1, 16, 1.1), CFrame.new(8, 8, 0), wood, Enum.Material.Wood)
+	part("CapL", Vector3.new(1.8, 0.6, 1.8), CFrame.new(-8, 16.3, 0), gold, Enum.Material.Metal)
+	part("CapR", Vector3.new(1.8, 0.6, 1.8), CFrame.new(8, 16.3, 0), gold, Enum.Material.Metal)
+	part("Beam", Vector3.new(18, 1.1, 1.2), CFrame.new(0, 15.2, 0), Color3.fromRGB(62, 40, 22), Enum.Material.Wood)
+	local board = part("Board", Vector3.new(14, 6.2, 0.45), CFrame.new(0, 11.2, 0), Color3.fromRGB(24, 78, 120), Enum.Material.Wood)
+	part("Frame", Vector3.new(15.2, 7.2, 0.28), CFrame.new(0, 11.2, -0.35), gold, Enum.Material.Metal)
+	part("FishBody", Vector3.new(2.4, 1.1, 0.4), CFrame.new(0, 8.6, -0.4), Color3.fromRGB(90, 170, 210), Enum.Material.SmoothPlastic)
+	part("FishTail", Vector3.new(0.9, 1.2, 0.25), CFrame.new(1.5, 8.6, -0.4), Color3.fromRGB(70, 140, 190), Enum.Material.SmoothPlastic)
 
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.Parent = board
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = "FISHING"
-	label.Font = Enum.Font.GothamBlack
-	label.TextScaled = true
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextStrokeTransparency = 0.4
-	label.Parent = gui
-
-	local guiBack = Instance.new("SurfaceGui")
-	guiBack.Face = Enum.NormalId.Back
-	guiBack.Parent = board
-	local labelBack = Instance.new("TextLabel")
-	labelBack.Size = UDim2.new(1, 0, 1, 0)
-	labelBack.BackgroundTransparency = 1
-	labelBack.Text = "FISHING"
-	labelBack.Font = Enum.Font.GothamBlack
-	labelBack.TextScaled = true
-	labelBack.TextColor3 = Color3.fromRGB(255, 255, 255)
-	labelBack.TextStrokeTransparency = 0.4
-	labelBack.Parent = guiBack
+	local function paint(face: Enum.NormalId)
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.Parent = board
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.Text = "FISHING"
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.TextStrokeTransparency = 0.35
+		label.Parent = gui
+	end
+	paint(Enum.NormalId.Front)
+	paint(Enum.NormalId.Back)
 
 	model.PrimaryPart = board
 	return model
@@ -2357,69 +2282,100 @@ function VisualEffects.SetupRobuxShop()
 		local origin = CFrame.new()
 		local root: BasePart
 		if itemId == "skateboard" then
-			root = addPart(model, "Deck", Vector3.new(3.1, 0.1, 0.9), origin, Color3.fromRGB(28, 26, 32), Enum.Material.SmoothPlastic)
-			addPart(model, "Grip", Vector3.new(2.85, 0.04, 0.78), origin * CFrame.new(0, 0.07, 0), Color3.fromRGB(18, 18, 20), Enum.Material.Fabric)
-			addPart(model, "Stripe", Vector3.new(2.4, 0.03, 0.18), origin * CFrame.new(0, 0.09, 0), Color3.fromRGB(255, 70, 90), Enum.Material.Neon)
-			addPart(model, "Nose", Vector3.new(0.45, 0.1, 0.88), origin * CFrame.new(1.7, 0.12, 0) * CFrame.Angles(0, 0, math.rad(-18)), Color3.fromRGB(28, 26, 32), Enum.Material.SmoothPlastic)
-			addPart(model, "Tail", Vector3.new(0.45, 0.1, 0.88), origin * CFrame.new(-1.7, 0.12, 0) * CFrame.Angles(0, 0, math.rad(18)), Color3.fromRGB(28, 26, 32), Enum.Material.SmoothPlastic)
-			for _, x in ipairs({ -0.95, 0.95 }) do
-				addPart(model, "Truck", Vector3.new(0.35, 0.16, 0.72), origin * CFrame.new(x, -0.14, 0), Color3.fromRGB(160, 165, 175), Enum.Material.Metal)
-				for _, z in ipairs({ -0.28, 0.28 }) do
-					addPart(model, "Wheel", Vector3.new(0.28, 0.34, 0.34), origin * CFrame.new(x, -0.32, z) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(245, 90, 40), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+			root = addPart(model, "Deck", Vector3.new(2.7, 0.16, 0.92), origin, Color3.fromRGB(214, 86, 42), Enum.Material.Wood)
+			addPart(model, "Grip", Vector3.new(2.35, 0.04, 0.72), origin * CFrame.new(0, 0.1, 0), Color3.fromRGB(28, 28, 32), Enum.Material.Fabric)
+			addPart(model, "Stripe", Vector3.new(2.2, 0.03, 0.16), origin * CFrame.new(0, -0.09, 0), Color3.fromRGB(255, 214, 70), Enum.Material.Neon)
+			addPart(model, "Nose", Vector3.new(0.55, 0.16, 0.9), origin * CFrame.new(1.55, 0.16, 0) * CFrame.Angles(0, 0, math.rad(-22)), Color3.fromRGB(214, 86, 42), Enum.Material.Wood)
+			addPart(model, "Tail", Vector3.new(0.55, 0.16, 0.9), origin * CFrame.new(-1.55, 0.16, 0) * CFrame.Angles(0, 0, math.rad(22)), Color3.fromRGB(36, 36, 42), Enum.Material.Wood)
+			for _, x in ipairs({ -0.85, 0.85 }) do
+				addPart(model, "Truck", Vector3.new(0.42, 0.16, 0.7), origin * CFrame.new(x, -0.16, 0), Color3.fromRGB(186, 190, 198), Enum.Material.Metal)
+				addPart(model, "Axle", Vector3.new(0.86, 0.12, 0.12), origin * CFrame.new(x, -0.28, 0) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(90, 92, 98), Enum.Material.Metal, Enum.PartType.Cylinder)
+				for _, z in ipairs({ -0.34, 0.34 }) do
+					addPart(model, "Wheel", Vector3.new(0.22, 0.42, 0.42), origin * CFrame.new(x, -0.32, z) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(32, 32, 36), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+					addPart(model, "Hub", Vector3.new(0.1, 0.18, 0.18), origin * CFrame.new(x, -0.32, z) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(220, 80, 40), Enum.Material.Metal, Enum.PartType.Cylinder)
 				end
 			end
 		elseif itemId == "magic_carpet" then
-			root = addPart(model, "Rug", Vector3.new(4.6, 0.12, 2.6), origin, Color3.fromRGB(165, 28, 58), Enum.Material.Fabric)
-			addPart(model, "GoldTrim", Vector3.new(4.75, 0.08, 2.75), origin * CFrame.new(0, -0.02, 0), Color3.fromRGB(220, 175, 55), Enum.Material.Metal)
-			addPart(model, "Medallion", Vector3.new(1.4, 0.06, 1.4), origin * CFrame.new(0, 0.08, 0), Color3.fromRGB(255, 210, 80), Enum.Material.Neon)
-			addPart(model, "Inner", Vector3.new(3.4, 0.05, 1.6), origin * CFrame.new(0, 0.07, 0), Color3.fromRGB(95, 20, 110), Enum.Material.Fabric)
-			for i = -2, 2 do
-				addPart(model, "TasselF", Vector3.new(0.08, 0.55, 0.08), origin * CFrame.new(i * 0.85, -0.28, 1.4), Color3.fromRGB(220, 175, 55), Enum.Material.Fabric)
-				addPart(model, "TasselB", Vector3.new(0.08, 0.55, 0.08), origin * CFrame.new(i * 0.85, -0.28, -1.4), Color3.fromRGB(220, 175, 55), Enum.Material.Fabric)
+			root = addPart(model, "Rug", Vector3.new(4.4, 0.14, 2.5), origin, Color3.fromRGB(150, 28, 58), Enum.Material.Fabric)
+			addPart(model, "Border", Vector3.new(4.7, 0.08, 2.8), origin * CFrame.new(0, -0.04, 0), Color3.fromRGB(212, 168, 62), Enum.Material.Metal)
+			addPart(model, "Field", Vector3.new(3.5, 0.05, 1.7), origin * CFrame.new(0, 0.08, 0), Color3.fromRGB(86, 18, 110), Enum.Material.Fabric)
+			addPart(model, "Medallion", Vector3.new(1.15, 0.06, 1.15), origin * CFrame.new(0, 0.12, 0), Color3.fromRGB(255, 206, 80), Enum.Material.Neon)
+			for _, x in ipairs({ -1.1, 1.1 }) do
+				addPart(model, "Stripe", Vector3.new(0.28, 0.05, 1.55), origin * CFrame.new(x, 0.1, 0), Color3.fromRGB(230, 190, 90), Enum.Material.Fabric)
 			end
+			for i = -3, 3 do
+				addPart(model, "Tassel", Vector3.new(0.1, 0.7, 0.1), origin * CFrame.new(i * 0.62, -0.38, 1.35), Color3.fromRGB(230, 190, 80), Enum.Material.Fabric)
+				addPart(model, "TasselB", Vector3.new(0.1, 0.7, 0.1), origin * CFrame.new(i * 0.62, -0.38, -1.35), Color3.fromRGB(230, 190, 80), Enum.Material.Fabric)
+			end
+			addPart(model, "CurlL", Vector3.new(0.7, 0.28, 2.2), origin * CFrame.new(-2.15, 0.18, 0) * CFrame.Angles(0, 0, math.rad(28)), Color3.fromRGB(150, 28, 58), Enum.Material.Fabric)
+			addPart(model, "CurlR", Vector3.new(0.7, 0.28, 2.2), origin * CFrame.new(2.15, 0.18, 0) * CFrame.Angles(0, 0, math.rad(-28)), Color3.fromRGB(150, 28, 58), Enum.Material.Fabric)
+			local glow = Instance.new("PointLight")
+			glow.Color = Color3.fromRGB(255, 190, 80)
+			glow.Range = 8
+			glow.Brightness = 0.6
+			glow.Parent = root
 		elseif itemId == "airplane" then
 			root = addPart(model, "CabinCore", Vector3.new(1, 1, 1), origin, Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
 			root.Transparency = 1
-			-- Open cockpit along character look (-Z): hull around the legs, torso and head out the top.
-			addPart(model, "Floor", Vector3.new(3.4, 0.28, 8.5), origin * CFrame.new(0, -2.05, -0.4), Color3.fromRGB(70, 80, 95), Enum.Material.Metal)
-			addPart(model, "Seat", Vector3.new(1.5, 0.9, 1.4), origin * CFrame.new(0, -1.45, 0.2), Color3.fromRGB(50, 55, 70), Enum.Material.Fabric)
-			addPart(model, "WallL", Vector3.new(0.18, 1.7, 8.2), origin * CFrame.new(-1.7, -1.15, -0.3), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
-			addPart(model, "WallR", Vector3.new(0.18, 1.7, 8.2), origin * CFrame.new(1.7, -1.15, -0.3), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
-			addPart(model, "Dash", Vector3.new(3.2, 1.1, 0.35), origin * CFrame.new(0, -0.85, -2.6), Color3.fromRGB(80, 88, 100), Enum.Material.Metal)
-			local wind = addPart(model, "Windshield", Vector3.new(2.8, 1.4, 0.12), origin * CFrame.new(0, 0.15, -2.85), Color3.fromRGB(160, 220, 255), Enum.Material.Glass)
-			wind.Transparency = 0.4
-			addPart(model, "RearDeck", Vector3.new(3.2, 0.2, 3.2), origin * CFrame.new(0, -0.35, 3.4), Color3.fromRGB(235, 238, 245), Enum.Material.SmoothPlastic)
-			addPart(model, "Nose", Vector3.new(2.2, 2.2, 2.2), origin * CFrame.new(0, -0.7, -5.4), Color3.fromRGB(230, 70, 70), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
-			addPart(model, "Cowl", Vector3.new(2.0, 1.8, 1.8), origin * CFrame.new(0, -0.7, -4.2), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
-			addPart(model, "TailBoom", Vector3.new(1.0, 1.0, 3.4), origin * CFrame.new(0, -0.5, 5.6), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
-			addPart(model, "TailFin", Vector3.new(0.16, 2.8, 1.5), origin * CFrame.new(0, 0.9, 6.8), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
-			addPart(model, "TailWing", Vector3.new(3.6, 0.16, 1.2), origin * CFrame.new(0, -0.35, 6.7), Color3.fromRGB(55, 105, 190), Enum.Material.SmoothPlastic)
-			addPart(model, "Wing", Vector3.new(16, 0.22, 2.6), origin * CFrame.new(0, -1.35, -0.2), Color3.fromRGB(45, 90, 175), Enum.Material.SmoothPlastic)
-			addPart(model, "Stripe", Vector3.new(0.35, 0.12, 8.4), origin * CFrame.new(0, -1.2, -0.2), Color3.fromRGB(255, 210, 70), Enum.Material.Neon)
-			addPart(model, "Prop", Vector3.new(0.32, 3.4, 0.18), origin * CFrame.new(0, -0.7, -6.5), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
+			addPart(model, "Floor", Vector3.new(2.6, 0.28, 7.4), origin * CFrame.new(0, -2.05, -0.2), Color3.fromRGB(62, 70, 82), Enum.Material.Metal)
+			addPart(model, "Fuselage", Vector3.new(2.2, 1.5, 6.2), origin * CFrame.new(0, -1.15, 0.4), Color3.fromRGB(236, 238, 244), Enum.Material.SmoothPlastic)
+			addPart(model, "Seat", Vector3.new(1.4, 0.7, 1.3), origin * CFrame.new(0, -1.5, 0.3), Color3.fromRGB(48, 52, 64), Enum.Material.Fabric)
+			local wind = addPart(model, "Windshield", Vector3.new(2.1, 1.15, 0.12), origin * CFrame.new(0, -0.35, -2.4) * CFrame.Angles(math.rad(-18), 0, 0), Color3.fromRGB(170, 220, 255), Enum.Material.Glass)
+			wind.Transparency = 0.35
+			addPart(model, "Nose", Vector3.new(1.7, 1.5, 2.4), origin * CFrame.new(0, -1.05, -4.6), Color3.fromRGB(210, 48, 48), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+			addPart(model, "Cowl", Vector3.new(1.5, 1.3, 1.2), origin * CFrame.new(0, -1.0, -3.6), Color3.fromRGB(40, 40, 46), Enum.Material.Metal)
+			addPart(model, "Wing", Vector3.new(13.5, 0.18, 2.3), origin * CFrame.new(0, -1.45, -0.4), Color3.fromRGB(196, 42, 42), Enum.Material.SmoothPlastic)
+			addPart(model, "WingTipL", Vector3.new(0.2, 0.7, 2.1), origin * CFrame.new(-6.7, -1.15, -0.4), Color3.fromRGB(255, 210, 70), Enum.Material.SmoothPlastic)
+			addPart(model, "WingTipR", Vector3.new(0.2, 0.7, 2.1), origin * CFrame.new(6.7, -1.15, -0.4), Color3.fromRGB(255, 210, 70), Enum.Material.SmoothPlastic)
+			addPart(model, "Stripe", Vector3.new(0.28, 0.08, 6.4), origin * CFrame.new(0, -0.35, 0.2), Color3.fromRGB(255, 206, 60), Enum.Material.Neon)
+			addPart(model, "TailBoom", Vector3.new(0.9, 0.8, 2.8), origin * CFrame.new(0, -0.85, 4.6), Color3.fromRGB(236, 238, 244), Enum.Material.SmoothPlastic)
+			addPart(model, "TailFin", Vector3.new(0.16, 2.2, 1.3), origin * CFrame.new(0, 0.35, 5.7), Color3.fromRGB(196, 42, 42), Enum.Material.SmoothPlastic)
+			addPart(model, "TailWing", Vector3.new(3.8, 0.14, 1.05), origin * CFrame.new(0, -0.7, 5.6), Color3.fromRGB(196, 42, 42), Enum.Material.SmoothPlastic)
+			addPart(model, "GearL", Vector3.new(0.15, 0.9, 0.15), origin * CFrame.new(-1.1, -2.4, -1.2), Color3.fromRGB(40, 40, 44), Enum.Material.Metal)
+			addPart(model, "GearR", Vector3.new(0.15, 0.9, 0.15), origin * CFrame.new(1.1, -2.4, -1.2), Color3.fromRGB(40, 40, 44), Enum.Material.Metal)
+			addPart(model, "GearWheelL", Vector3.new(0.18, 0.45, 0.45), origin * CFrame.new(-1.1, -2.85, -1.2) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(24, 24, 28), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+			addPart(model, "GearWheelR", Vector3.new(0.18, 0.45, 0.45), origin * CFrame.new(1.1, -2.85, -1.2) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(24, 24, 28), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+			addPart(model, "PropHub", Vector3.new(0.4, 0.4, 0.4), origin * CFrame.new(0, -1.0, -5.7), Color3.fromRGB(40, 40, 44), Enum.Material.Metal, Enum.PartType.Ball)
+			addPart(model, "PropA", Vector3.new(0.14, 3.6, 0.2), origin * CFrame.new(0, -1.0, -5.95), Color3.fromRGB(230, 230, 236), Enum.Material.Metal)
+			addPart(model, "PropB", Vector3.new(3.6, 0.14, 0.2), origin * CFrame.new(0, -1.0, -5.95), Color3.fromRGB(40, 40, 46), Enum.Material.Metal)
 		elseif itemId == "sword" then
-			root = addPart(model, "Handle", Vector3.new(0.22, 0.85, 0.22), origin * CFrame.new(0, -0.9, 0), Color3.fromRGB(70, 45, 28), Enum.Material.Wood)
-			addPart(model, "Wrap", Vector3.new(0.24, 0.7, 0.24), origin * CFrame.new(0, -0.85, 0), Color3.fromRGB(120, 40, 40), Enum.Material.Fabric)
-			addPart(model, "Pommel", Vector3.new(0.38, 0.38, 0.38), origin * CFrame.new(0, -1.4, 0), Color3.fromRGB(210, 175, 70), Enum.Material.Metal, Enum.PartType.Ball)
-			addPart(model, "Guard", Vector3.new(0.9, 0.14, 0.22), origin * CFrame.new(0, -0.42, 0), Color3.fromRGB(210, 175, 70), Enum.Material.Metal)
-			addPart(model, "Blade", Vector3.new(0.16, 2.7, 0.06), origin * CFrame.new(0, 0.95, 0), Color3.fromRGB(225, 230, 240), Enum.Material.Metal)
-			addPart(model, "Fuller", Vector3.new(0.04, 2.3, 0.07), origin * CFrame.new(0, 0.9, 0), Color3.fromRGB(160, 170, 185), Enum.Material.Metal)
-			addPart(model, "Tip", Vector3.new(0.14, 0.35, 0.05), origin * CFrame.new(0, 2.4, 0), Color3.fromRGB(240, 245, 255), Enum.Material.Metal)
-		elseif itemId == "mace" then
-			root = addPart(model, "Handle", Vector3.new(0.22, 2.15, 0.22), origin, Color3.fromRGB(75, 48, 28), Enum.Material.Wood)
-			addPart(model, "Ring", Vector3.new(0.32, 0.12, 0.32), origin * CFrame.new(0, 0.95, 0), Color3.fromRGB(190, 155, 60), Enum.Material.Metal)
-			addPart(model, "Head", Vector3.new(1.05, 1.05, 1.05), origin * CFrame.new(0, 1.45, 0), Color3.fromRGB(125, 128, 138), Enum.Material.Metal, Enum.PartType.Ball)
-			for i = 0, 5 do
-				local ang = i * math.pi / 3
-				addPart(model, "Spike", Vector3.new(0.16, 0.55, 0.16), origin * CFrame.new(math.cos(ang) * 0.55, 1.45, math.sin(ang) * 0.55) * CFrame.Angles(0, 0, math.rad(55)), Color3.fromRGB(90, 92, 100), Enum.Material.Metal)
+			root = addPart(model, "Handle", Vector3.new(0.22, 0.9, 0.22), origin * CFrame.new(0, -0.95, 0), Color3.fromRGB(62, 40, 24), Enum.Material.Wood)
+			for i = 0, 3 do
+				addPart(model, "Wrap", Vector3.new(0.26, 0.12, 0.26), origin * CFrame.new(0, -1.2 + i * 0.18, 0), Color3.fromRGB(120, 28, 32), Enum.Material.Fabric)
 			end
-			addPart(model, "TopSpike", Vector3.new(0.16, 0.5, 0.16), origin * CFrame.new(0, 2.05, 0), Color3.fromRGB(90, 92, 100), Enum.Material.Metal)
+			addPart(model, "Pommel", Vector3.new(0.4, 0.4, 0.4), origin * CFrame.new(0, -1.5, 0), Color3.fromRGB(212, 170, 64), Enum.Material.Metal, Enum.PartType.Ball)
+			addPart(model, "Gem", Vector3.new(0.18, 0.18, 0.18), origin * CFrame.new(0, -1.5, 0.16), Color3.fromRGB(80, 180, 255), Enum.Material.Neon, Enum.PartType.Ball)
+			addPart(model, "Guard", Vector3.new(1.15, 0.16, 0.22), origin * CFrame.new(0, -0.42, 0), Color3.fromRGB(212, 170, 64), Enum.Material.Metal)
+			addPart(model, "QuillonL", Vector3.new(0.22, 0.22, 0.22), origin * CFrame.new(-0.55, -0.28, 0), Color3.fromRGB(212, 170, 64), Enum.Material.Metal, Enum.PartType.Ball)
+			addPart(model, "QuillonR", Vector3.new(0.22, 0.22, 0.22), origin * CFrame.new(0.55, -0.28, 0), Color3.fromRGB(212, 170, 64), Enum.Material.Metal, Enum.PartType.Ball)
+			addPart(model, "Blade", Vector3.new(0.28, 2.55, 0.08), origin * CFrame.new(0, 0.95, 0), Color3.fromRGB(214, 222, 232), Enum.Material.Metal)
+			addPart(model, "Fuller", Vector3.new(0.08, 2.2, 0.05), origin * CFrame.new(0, 0.9, 0.03), Color3.fromRGB(140, 150, 165), Enum.Material.Metal)
+			addPart(model, "Edge", Vector3.new(0.06, 2.4, 0.04), origin * CFrame.new(0.12, 0.95, 0), Color3.fromRGB(245, 248, 255), Enum.Material.Metal)
+			addPart(model, "Tip", Vector3.new(0.22, 0.45, 0.06), origin * CFrame.new(0, 2.35, 0), Color3.fromRGB(236, 240, 248), Enum.Material.Metal)
+		elseif itemId == "mace" then
+			root = addPart(model, "Handle", Vector3.new(0.24, 2.2, 0.24), origin, Color3.fromRGB(70, 44, 26), Enum.Material.Wood)
+			for i = 0, 4 do
+				addPart(model, "Grip", Vector3.new(0.3, 0.1, 0.3), origin * CFrame.new(0, -0.7 + i * 0.16, 0), Color3.fromRGB(40, 40, 44), Enum.Material.Fabric)
+			end
+			addPart(model, "Butt", Vector3.new(0.4, 0.28, 0.4), origin * CFrame.new(0, -1.15, 0), Color3.fromRGB(160, 130, 60), Enum.Material.Metal)
+			addPart(model, "Collar", Vector3.new(0.4, 0.2, 0.4), origin * CFrame.new(0, 0.85, 0), Color3.fromRGB(190, 155, 60), Enum.Material.Metal)
+			addPart(model, "Head", Vector3.new(0.95, 0.95, 0.95), origin * CFrame.new(0, 1.4, 0), Color3.fromRGB(132, 136, 146), Enum.Material.Metal, Enum.PartType.Ball)
+			for i = 0, 7 do
+				local ang = i * math.pi / 4
+				addPart(model, "Flange", Vector3.new(0.12, 0.7, 0.42), origin * CFrame.new(math.cos(ang) * 0.48, 1.4, math.sin(ang) * 0.48) * CFrame.Angles(0, -ang, math.rad(90)), Color3.fromRGB(168, 172, 182), Enum.Material.Metal)
+			end
+			addPart(model, "TopSpike", Vector3.new(0.16, 0.45, 0.16), origin * CFrame.new(0, 2.0, 0), Color3.fromRGB(90, 92, 100), Enum.Material.Metal)
 		else
-			root = addPart(model, "Haft", Vector3.new(0.2, 2.3, 0.2), origin, Color3.fromRGB(92, 58, 32), Enum.Material.Wood)
-			addPart(model, "Collar", Vector3.new(0.28, 0.16, 0.28), origin * CFrame.new(0, 0.85, 0), Color3.fromRGB(80, 82, 90), Enum.Material.Metal)
-			addPart(model, "Bit", Vector3.new(1.35, 0.85, 0.12), origin * CFrame.new(0.45, 1.15, 0), Color3.fromRGB(150, 155, 165), Enum.Material.Metal)
-			addPart(model, "Edge", Vector3.new(0.12, 0.95, 0.05), origin * CFrame.new(1.12, 1.15, 0), Color3.fromRGB(230, 235, 245), Enum.Material.Metal)
-			addPart(model, "Poll", Vector3.new(0.35, 0.55, 0.22), origin * CFrame.new(-0.25, 1.15, 0), Color3.fromRGB(120, 124, 132), Enum.Material.Metal)
+			root = addPart(model, "Haft", Vector3.new(0.22, 2.5, 0.22), origin, Color3.fromRGB(96, 62, 34), Enum.Material.Wood)
+			for i = 0, 3 do
+				addPart(model, "Wrap", Vector3.new(0.28, 0.1, 0.28), origin * CFrame.new(0, -0.55 + i * 0.16, 0), Color3.fromRGB(92, 28, 28), Enum.Material.Fabric)
+			end
+			addPart(model, "Langet", Vector3.new(0.18, 0.9, 0.12), origin * CFrame.new(0.05, 0.7, 0), Color3.fromRGB(120, 124, 132), Enum.Material.Metal)
+			addPart(model, "Collar", Vector3.new(0.36, 0.2, 0.28), origin * CFrame.new(0, 0.95, 0), Color3.fromRGB(70, 72, 78), Enum.Material.Metal)
+			addPart(model, "Bit", Vector3.new(1.15, 1.15, 0.16), origin * CFrame.new(0.55, 1.35, 0), Color3.fromRGB(168, 172, 180), Enum.Material.Metal)
+			addPart(model, "Beard", Vector3.new(0.55, 0.7, 0.14), origin * CFrame.new(0.35, 0.85, 0), Color3.fromRGB(150, 154, 162), Enum.Material.Metal)
+			addPart(model, "Edge", Vector3.new(0.1, 1.25, 0.06), origin * CFrame.new(1.1, 1.35, 0), Color3.fromRGB(236, 240, 248), Enum.Material.Metal)
+			addPart(model, "Poll", Vector3.new(0.4, 0.45, 0.28), origin * CFrame.new(-0.15, 1.35, 0), Color3.fromRGB(90, 92, 98), Enum.Material.Metal)
 		end
 		finishModel(model, root)
 		return model
@@ -2657,34 +2613,52 @@ function VisualEffects.SetupRobuxShop()
 		p.Parent = stall
 		return p
 	end
-	local floor = anchored("Floor", Vector3.new(10, 0.6, 8), Vector3.new(cx, gy + 0.3, cz), Color3.fromRGB(70, 50, 36), Enum.Material.WoodPlanks)
+	local floor = anchored("Floor", Vector3.new(18, 0.7, 10), Vector3.new(cx, gy + 0.35, cz), Color3.fromRGB(92, 64, 40), Enum.Material.WoodPlanks)
 	stall.PrimaryPart = floor
-	anchored("Awning", Vector3.new(10, 0.4, 8), Vector3.new(cx, gy + 7.6, cz), Color3.fromRGB(180, 40, 50), Enum.Material.Fabric)
-	anchored("PostL", Vector3.new(0.5, 7.2, 0.5), Vector3.new(cx - 4.5, gy + 3.9, cz - 3.5), Color3.fromRGB(90, 65, 40), Enum.Material.Wood)
-	anchored("PostR", Vector3.new(0.5, 7.2, 0.5), Vector3.new(cx + 4.5, gy + 3.9, cz - 3.5), Color3.fromRGB(90, 65, 40), Enum.Material.Wood)
-	anchored("Counter", Vector3.new(8, 1.2, 2), Vector3.new(cx, gy + 1.1, cz + 2.2), Color3.fromRGB(120, 85, 50), Enum.Material.Wood)
-	local sign = anchored("Sign", Vector3.new(8, 2.2, 0.4), Vector3.new(cx, gy + 8.8, cz), Color3.fromRGB(28, 22, 18), Enum.Material.Wood)
+	anchored("Rug", Vector3.new(16, 0.12, 8), Vector3.new(cx, gy + 0.75, cz), Color3.fromRGB(120, 28, 40), Enum.Material.Fabric)
+	for stripe = -4, 4 do
+		anchored("AwningStripe", Vector3.new(1.5, 0.28, 9.2), Vector3.new(cx + stripe * 1.7, gy + 7.4, cz - 0.4), if stripe % 2 == 0 then Color3.fromRGB(186, 36, 48) else Color3.fromRGB(245, 236, 220), Enum.Material.Fabric)
+	end
+	anchored("Valence", Vector3.new(16.5, 0.7, 0.35), Vector3.new(cx, gy + 6.7, cz - 4.6), Color3.fromRGB(150, 28, 40), Enum.Material.Fabric)
+	for _, px in ipairs({ cx - 8.2, cx + 8.2 }) do
+		for _, pz in ipairs({ cz - 4.4, cz + 4.4 }) do
+			anchored("Post", Vector3.new(0.55, 7.2, 0.55), Vector3.new(px, gy + 3.9, pz), Color3.fromRGB(78, 50, 30), Enum.Material.Wood)
+			anchored("PostCap", Vector3.new(0.9, 0.35, 0.9), Vector3.new(px, gy + 7.6, pz), Color3.fromRGB(214, 170, 72), Enum.Material.Metal)
+		end
+	end
+	anchored("Counter", Vector3.new(15, 1.15, 1.8), Vector3.new(cx, gy + 1.15, cz + 3.2), Color3.fromRGB(110, 72, 42), Enum.Material.Wood)
+	anchored("CounterCloth", Vector3.new(15.2, 0.12, 2), Vector3.new(cx, gy + 1.75, cz + 3.2), Color3.fromRGB(150, 28, 42), Enum.Material.Fabric)
+	local lantern = anchored("Lantern", Vector3.new(0.7, 0.9, 0.7), Vector3.new(cx, gy + 6.2, cz - 3.6), Color3.fromRGB(255, 196, 110), Enum.Material.Neon)
+	local shopLight = Instance.new("PointLight")
+	shopLight.Color = Color3.fromRGB(255, 190, 90)
+	shopLight.Range = 18
+	shopLight.Brightness = 1.4
+	shopLight.Parent = lantern
+	local sign = anchored("Sign", Vector3.new(10, 2.4, 0.35), Vector3.new(cx, gy + 9.1, cz), Color3.fromRGB(32, 22, 16), Enum.Material.Wood)
+	anchored("SignFrame", Vector3.new(11, 3.2, 0.22), Vector3.new(cx, gy + 9.1, cz + 0.25), Color3.fromRGB(214, 170, 72), Enum.Material.Metal)
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
 	gui.Parent = sign
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.new(1, 0, 1, 0)
 	title.BackgroundTransparency = 1
-	title.Text = "ROBUX SHOP"
+	title.Text = "RIDES & WEAPONS"
 	title.TextScaled = true
 	title.Font = Enum.Font.GothamBlack
-	title.TextColor3 = Color3.fromRGB(255, 220, 90)
+	title.TextColor3 = Color3.fromRGB(255, 220, 120)
 	title.Parent = gui
 	local back = gui:Clone()
 	back.Face = Enum.NormalId.Back
 	back.Parent = sign
 	for i, item in ipairs(catalog()) do
-		local px = cx - 3.5 + (i - 1) * 1.4
+		local px = cx - 7.5 + (i - 1) * 3
+		anchored("Plinth", Vector3.new(2.3, 1.15, 2.3), Vector3.new(px, gy + 1.35, cz - 1.4), Color3.fromRGB(48, 36, 26), Enum.Material.Wood)
+		anchored("PlinthTop", Vector3.new(2.05, 0.18, 2.05), Vector3.new(px, gy + 1.95, cz - 1.4), Color3.fromRGB(214, 170, 72), Enum.Material.Metal)
 		local vis = buildItemModel(item.Id)
-		vis:ScaleTo(if item.Id == "airplane" then 0.18 else 0.42)
+		vis:ScaleTo(if item.Id == "airplane" then 0.2 else 0.48)
 		local root = vis.PrimaryPart
 		if root then
-			vis:PivotTo(CFrame.new(px, gy + 2.15, cz - 2.15) * CFrame.Angles(0, math.rad(25), 0))
+			vis:PivotTo(CFrame.new(px, gy + 3.15, cz - 1.4) * CFrame.Angles(0, math.rad(20), 0))
 			root.Anchored = true
 		end
 		vis.Parent = stall
