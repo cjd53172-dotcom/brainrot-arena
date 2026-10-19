@@ -331,13 +331,18 @@ def ground_and_export(prop_name: str, objects: list):
 		bake_anim=False,
 		use_mesh_modifiers=True,
 	)
-	bpy.ops.export_scene.gltf(
+	gltf_kwargs = dict(
 		filepath=glb_path,
 		export_format="GLB",
 		use_selection=True,
 		export_apply=True,
 		export_yup=True,
 	)
+	# Blender 4 packaging sometimes lacks Draco; skip compression when available.
+	try:
+		bpy.ops.export_scene.gltf(**gltf_kwargs, export_draco_mesh_compression_enable=False)
+	except TypeError:
+		bpy.ops.export_scene.gltf(**gltf_kwargs)
 	print(f"[make_props] {prop_name} -> {fbx_path}")
 
 
