@@ -693,7 +693,7 @@ refreshCollectionPanel = function()
 	local function playableRoster(): { any }
 		local rows = {}
 		for _, def in ipairs(BrainrotData.ROSTER) do
-			if type(def.Id) == "string" and string.sub(def.Id, 1, 5) ~= "gate_" and def.Id ~= "laser_tag" and def.Display ~= nil then
+			if type(def.Id) == "string" and string.sub(def.Id, 1, 5) ~= "gate_" and def.Id ~= "laser_tag" and def.Id ~= "orb_blitz" and def.Display ~= nil then
 				table.insert(rows, def)
 			end
 		end

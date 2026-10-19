@@ -45,6 +45,7 @@ local FILES: { { string } } = {
 	{ "ServerScriptService/Systems/AchievementSystem.lua", "ServerScriptService/Systems", "AchievementSystem", "ModuleScript" },
 	{ "ServerScriptService/Systems/LeaderboardSystem.lua", "ServerScriptService/Systems", "LeaderboardSystem", "ModuleScript" },
 	{ "ServerScriptService/Systems/WorldDesign.lua", "ServerScriptService/Systems", "WorldDesign", "ModuleScript" },
+	{ "ServerScriptService/Systems/ShooterRotation.lua", "ServerScriptService/Systems", "ShooterRotation", "ModuleScript" },
 	{ "ServerScriptService/GameServer.lua", "ServerScriptService", "GameServer", "Script" },
 	{ "StarterPlayerScripts/ClientUI.lua", "StarterPlayer/StarterPlayerScripts", "ClientUI", "LocalScript" },
 }
@@ -93,7 +94,8 @@ end
 -- Install order matters: modules before the scripts that require them.
 -- GameServer (Script) goes last so it starts after all modules exist.
 -- ClientUI (LocalScript) can go any time before players join.
-local installOrder = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18, 13, 12 }
+-- Modules before GameServer (18); ClientUI (19) last among scripts; Weather (13) before Sound (12).
+local installOrder = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18, 19, 13, 12 }
 
 print("[GameLoader] Installing Brainrot Arena from " .. BASE_URL)
 local failed = 0

@@ -2441,15 +2441,37 @@ BrainrotData.MONETIZED_SHOP = {
 	},
 }
 
-BrainrotData.PLACE_GATES = {
-	{
-		Id = "laser_tag",
-		Name = "Laser Tag",
-		PlaceId = 84198140833268,
-		Color = Color3.fromRGB(40, 220, 70),
-		X = 44,
-		Z = 28,
-		Attribute = "LaserTagPlaceId",
+-- Legacy single-gate list (non-shooter minigames). Shooter titles use SHOOTER_ROTATION.
+BrainrotData.PLACE_GATES = {}
+
+-- One plaza portal that cycles shooter Places so they never overlap.
+-- Set Workspace.ShooterSeparatePortals = true (or SeparatePortals = true below)
+-- for one portal per game instead of cycling.
+-- Orb Blitz PlaceId stays 0 until you publish that Place; then paste it here
+-- or set Workspace.OrbBlitzPlaceId.
+BrainrotData.SHOOTER_ROTATION = {
+	CycleMinutes = 20,
+	SeparatePortals = false,
+	SharedPortal = { X = 44, Z = 28 },
+	Games = {
+		{
+			Id = "laser_tag",
+			Name = "Laser Tag",
+			PlaceId = 84198140833268,
+			Color = Color3.fromRGB(40, 220, 70),
+			Attribute = "LaserTagPlaceId",
+			KillStore = "LaserTagKills_v1",
+			BoardTitle = "LASER TAG KILLS",
+		},
+		{
+			Id = "orb_blitz",
+			Name = "Orb Blitz",
+			PlaceId = 0,
+			Color = Color3.fromRGB(255, 120, 40),
+			Attribute = "OrbBlitzPlaceId",
+			KillStore = "OrbBlitzKills_v1",
+			BoardTitle = "ORB BLITZ KILLS",
+		},
 	},
 }
 
