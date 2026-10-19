@@ -129,27 +129,43 @@ function LeaderboardSystem.GetPlayerRank(player: Player): any
 	return { Rank = 0, Wins = sessionWins[player.UserId] or 0 }
 end
 
--- Laser Tag kills (same DataStore as the Laser Tag place script).
-local laserStore: OrderedDataStore? = nil
-pcall(function()
-	laserStore = DataStoreService:GetOrderedDataStore("LaserTagKills_v1")
-end)
-local laserCache: { any } = {}
-local laserCacheAt = 0
+-- Minigame kill boards (Laser Tag, Orb Blitz, …) — same OrderedDataStore names
+-- as the scripts pasted into each minigame Place.
+local minigameStores: { [string]: OrderedDataStore } = {}
+local minigameCache: { [string]: { any } } = {}
+local minigameCacheAt: { [string]: number } = {}
 
-function LeaderboardSystem.GetLaserTagTop(n: number): { any }
+local function getMinigameStore(storeName: string): OrderedDataStore?
+	local existing = minigameStores[storeName]
+	if existing then
+		return existing
+	end
+	local store: OrderedDataStore? = nil
+	pcall(function()
+		store = DataStoreService:GetOrderedDataStore(storeName)
+	end)
+	if store then
+		minigameStores[storeName] = store
+	end
+	return store
+end
+
+function LeaderboardSystem.GetMinigameTop(storeName: string, n: number): { any }
 	n = math.max(1, n)
-	if os.time() - laserCacheAt < 12 and #laserCache >= n then
+	local cached = minigameCache[storeName]
+	local cachedAt = minigameCacheAt[storeName] or 0
+	if cached and os.time() - cachedAt < 12 and #cached >= n then
 		local slice = {}
 		for i = 1, n do
-			slice[i] = laserCache[i]
+			slice[i] = cached[i]
 		end
 		return slice
 	end
 	local result = {}
-	if laserStore then
+	local store = getMinigameStore(storeName)
+	if store then
 		pcall(function()
-			local pages = (laserStore :: OrderedDataStore):GetSortedAsync(false, n)
+			local pages = store:GetSortedAsync(false, n)
 			for _, item in ipairs(pages:GetCurrentPage()) do
 				local userId = tonumber(item.key)
 				if userId then
@@ -170,9 +186,13 @@ function LeaderboardSystem.GetLaserTagTop(n: number): { any }
 			end
 		end)
 	end
-	laserCache = result
-	laserCacheAt = os.time()
+	minigameCache[storeName] = result
+	minigameCacheAt[storeName] = os.time()
 	return result
+end
+
+function LeaderboardSystem.GetLaserTagTop(n: number): { any }
+	return LeaderboardSystem.GetMinigameTop("LaserTagKills_v1", n)
 end
 
 return LeaderboardSystem

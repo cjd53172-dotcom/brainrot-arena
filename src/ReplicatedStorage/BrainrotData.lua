@@ -2441,15 +2441,37 @@ BrainrotData.MONETIZED_SHOP = {
 	},
 }
 
-BrainrotData.PLACE_GATES = {
-	{
-		Id = "laser_tag",
-		Name = "Laser Tag",
-		PlaceId = 84198140833268,
-		Color = Color3.fromRGB(40, 220, 70),
-		X = 44,
-		Z = 28,
-		Attribute = "LaserTagPlaceId",
+-- Legacy single-gate list (non-shooter minigames). Shooter titles use SHOOTER_ROTATION.
+BrainrotData.PLACE_GATES = {}
+
+-- One plaza portal that cycles shooter Places so they never overlap.
+-- Set Workspace.ShooterSeparatePortals = true (or SeparatePortals = true below)
+-- for one portal per game instead of cycling.
+BrainrotData.SHOOTER_ROTATION = {
+	CycleMinutes = 20,
+	-- Two portals side-by-side so Laser Tag and XSF are both always available.
+	-- Set false (or Workspace.ShooterSeparatePortals = false) to cycle one portal.
+	SeparatePortals = true,
+	SharedPortal = { X = 44, Z = 28 },
+	Games = {
+		{
+			Id = "laser_tag",
+			Name = "Laser Tag",
+			PlaceId = 84198140833268,
+			Color = Color3.fromRGB(40, 220, 70),
+			Attribute = "LaserTagPlaceId",
+			KillStore = "LaserTagKills_v1",
+			BoardTitle = "LASER TAG KILLS",
+		},
+		{
+			Id = "xsf",
+			Name = "XSF Shooter",
+			PlaceId = 105098537406613,
+			Color = Color3.fromRGB(220, 90, 40),
+			Attribute = "XSFPlaceId",
+			KillStore = "XSFKills_v1",
+			BoardTitle = "XSF KILLS",
+		},
 	},
 }
 

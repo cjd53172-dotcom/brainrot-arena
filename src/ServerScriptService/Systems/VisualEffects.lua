@@ -339,6 +339,7 @@ function VisualEffects.BuildPlacePortal(gateName: string, color: Color3): Model
 	signGui.Face = Enum.NormalId.Front
 	signGui.Parent = sign
 	local signLabel = Instance.new("TextLabel")
+	signLabel.Name = "GateSignLabel"
 	signLabel.Size = UDim2.new(1, 0, 1, 0)
 	signLabel.BackgroundTransparency = 1
 	signLabel.Text = "MINIGAME\n" .. gateName

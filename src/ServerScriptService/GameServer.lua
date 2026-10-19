@@ -9,12 +9,13 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
--- Laser Tag is a different Place. Never build plots there.
+-- Shooter Places are separate. Never build hub plots there.
 local HUB_PLACE_ID = 92909397469421
 local LASER_TAG_PLACE_ID = 84198140833268
+local XSF_PLACE_ID = 105098537406613
 print("[GameServer] PlaceId=" .. tostring(game.PlaceId))
-if game.PlaceId == LASER_TAG_PLACE_ID then
-	warn("[GameServer] Laser Tag place. Hub world skipped. Do not Sync GitHub here.")
+if game.PlaceId == LASER_TAG_PLACE_ID or game.PlaceId == XSF_PLACE_ID then
+	warn("[GameServer] Shooter place " .. tostring(game.PlaceId) .. ". Hub world skipped. Do not Sync GitHub here.")
 	return
 end
 
@@ -41,6 +42,9 @@ do
 	local sss = game:GetService("ServerScriptService")
 	strip(sss, "ReturnToArena")
 	strip(sss, "LaserTagOrbs")
+	strip(sss, "OrbBlitz")
+	strip(sss, "OrbBlitzReturn")
+	strip(sss, "XSFReturn")
 	strip(sss, "orbs")
 	strip(sss, "Blaster")
 	strip(sss, "Gameplay")
@@ -58,6 +62,13 @@ do
 		strip(scripts, "FreecamInput")
 		strip(scripts, "FreecamInputContext")
 		strip(scripts, "FreecamToggleContext")
+	end
+	-- XSF kit left in hub by mistake
+	local xsf = workspace:FindFirstChild("XSF_Release")
+	if xsf then
+		disableScripts(xsf)
+		print("[GameServer] removing XSF leftover " .. xsf:GetFullName())
+		xsf:Destroy()
 	end
 end
 
@@ -99,6 +110,7 @@ local WeatherSystem = require(Systems:WaitForChild("WeatherSystem"))
 local AchievementSystem = require(Systems:WaitForChild("AchievementSystem"))
 local LeaderboardSystem = require(Systems:WaitForChild("LeaderboardSystem"))
 local WorldDesign = require(Systems:WaitForChild("WorldDesign"))
+local ShooterRotation = require(Systems:WaitForChild("ShooterRotation"))
 local BrainrotData = require(ReplicatedStorage:WaitForChild("BrainrotData"))
 
 -- Shiny rate (0-1). 0.004 = about 1 in 250. Lower = rarer. (Applies to everything that
@@ -1369,19 +1381,33 @@ for i, zoneId in ipairs(BrainrotData.ZONE_ORDER) do
 	end)
 end
 
--- Minigame gates: teleport to another Place in this Experience (Laser Tag, etc.).
+-- Shooter portal: one gate that cycles Laser Tag / Orb Blitz (no overlap).
+-- Fallback: Workspace.ShooterSeparatePortals = true for one portal per game.
+local shooterOk, shooterErr = pcall(function()
+	ShooterRotation.Setup()
+end)
+if not shooterOk then
+	warn("[GameServer] ShooterRotation failed (continuing): " .. tostring(shooterErr))
+end
+
+-- Non-shooter Place gates (if any are added later to PLACE_GATES).
 local placeGatesOk, placeGatesErr = pcall(function()
-do
 	local lastHop: { [number]: number } = {}
+	local shooterIds: { [string]: boolean } = {}
+	local rotation = BrainrotData.SHOOTER_ROTATION
+	if type(rotation) == "table" and type(rotation.Games) == "table" then
+		for _, g in ipairs(rotation.Games) do
+			if type(g.Id) == "string" then
+				shooterIds[g.Id] = true
+			end
+		end
+	end
 	for _, gate in ipairs(BrainrotData.PLACE_GATES or {}) do
+		if shooterIds[gate.Id] then
+			continue
+		end
 		local portal = VisualEffects.BuildPlacePortal(gate.Name, gate.Color)
-		if gate.Id == "laser_tag" then
-			portal:ScaleTo(2)
-		end
 		PlotSystem.SitOnTerrain(portal, gate.X, gate.Z)
-		if gate.Id == "laser_tag" then
-			portal:PivotTo(portal:GetPivot() * CFrame.Angles(0, math.pi, 0))
-		end
 		portal.Parent = workspace
 		print("[GameServer] Place gate " .. tostring(gate.Id) .. " at " .. tostring(gate.X) .. ", " .. tostring(gate.Z))
 
@@ -1406,13 +1432,13 @@ do
 			local hintEvent = CachedRemotes["ShowHint"]
 			if dest <= 0 then
 				if hintEvent then
-					hintEvent:FireClient(player, "Laser Tag isn't linked yet. Publish the Laser Tag template as a Place in this experience, then set PlaceId (or Workspace.LaserTagPlaceId).")
+					hintEvent:FireClient(player, tostring(gate.Name) .. " isn't linked yet. Publish it as a Place, then set PlaceId.")
 				end
 				return
 			end
 			if dest == game.PlaceId then
 				if hintEvent then
-					hintEvent:FireClient(player, "That minigame is this same place — publish Laser Tag as a second Place.")
+					hintEvent:FireClient(player, "That minigame is this same place — publish it as a second Place.")
 				end
 				return
 			end
@@ -1438,90 +1464,13 @@ do
 		prompt.ActionText = "Enter"
 		prompt.ObjectText = gate.Name
 		prompt.HoldDuration = 0.2
-		prompt.MaxActivationDistance = if gate.Id == "laser_tag" then 22 else 14
+		prompt.MaxActivationDistance = 14
 		prompt.RequiresLineOfSight = false
 		prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 		prompt.KeyboardKeyCode = Enum.KeyCode.E
 		prompt.Parent = portal:FindFirstChild("PortalSurface") or portal:FindFirstChildWhichIsA("BasePart")
 		prompt.Triggered:Connect(hop)
-
-		if gate.Id == "laser_tag" then
-			local pivot = portal:GetPivot()
-			local frame = Instance.new("Part")
-			frame.Name = "LaserTagKillBoard"
-			frame.Size = Vector3.new(26, 26, 0.8)
-			frame.Anchored = true
-			frame.CanCollide = true
-			frame.Color = Color3.fromRGB(12, 28, 16)
-			frame.Material = Enum.Material.SmoothPlastic
-			frame.CFrame = pivot * CFrame.new(28, 15, 0)
-			frame.Parent = portal
-			local header = Instance.new("Part")
-			header.Name = "LaserTagKillHeader"
-			header.Size = Vector3.new(26, 4, 0.8)
-			header.Anchored = true
-			header.CanCollide = false
-			header.Color = Color3.fromRGB(22, 70, 32)
-			header.Material = Enum.Material.SmoothPlastic
-			header.CFrame = pivot * CFrame.new(28, 30.2, 0)
-			header.Parent = portal
-			local listLabels: { TextLabel } = {}
-			local function face(part: BasePart, title: boolean, normal: Enum.NormalId): TextLabel
-				local gui = Instance.new("SurfaceGui")
-				gui.Face = normal
-				gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-				gui.PixelsPerStud = 50
-				gui.LightInfluence = 0
-				gui.Brightness = 1.2
-				gui.MaxDistance = 180
-				gui.Parent = part
-				local label = Instance.new("TextLabel")
-				label.Size = UDim2.new(1, -20, 1, -20)
-				label.Position = UDim2.new(0, 10, 0, 10)
-				label.BackgroundTransparency = 1
-				label.Text = if title then "LASER TAG KILLS" else "Play Laser Tag to post kills.\nKills save across visits."
-				label.Font = if title then Enum.Font.GothamBlack else Enum.Font.GothamBold
-				label.TextScaled = false
-				label.TextSize = if title then 52 else 48
-				label.LineHeight = 1.15
-				label.TextColor3 = Color3.fromRGB(200, 255, 180)
-				label.TextStrokeTransparency = 0.2
-				label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-				label.TextWrapped = false
-				label.TextYAlignment = if title then Enum.TextYAlignment.Center else Enum.TextYAlignment.Top
-				label.Parent = gui
-				return label
-			end
-			face(header, true, Enum.NormalId.Front)
-			face(header, true, Enum.NormalId.Back)
-			table.insert(listLabels, face(frame, false, Enum.NormalId.Front))
-			table.insert(listLabels, face(frame, false, Enum.NormalId.Back))
-			print("[GameServer] Laser kill board next to portal")
-
-			local function paintLaserBoard()
-				local top = LeaderboardSystem.GetLaserTagTop(15)
-				local text = "Play Laser Tag to post kills.\nKills save across visits."
-				if #top > 0 then
-					local lines = {}
-					for i, row in ipairs(top) do
-						table.insert(lines, string.format("%d.  %s   —   %d", i, tostring(row.Name), tonumber(row.Kills) or 0))
-					end
-					text = table.concat(lines, "\n")
-				end
-				for _, label in ipairs(listLabels) do
-					label.Text = text
-				end
-			end
-			paintLaserBoard()
-			task.spawn(function()
-				while frame.Parent do
-					task.wait(15)
-					paintLaserBoard()
-				end
-			end)
-		end
 	end
-end
 end)
 if not placeGatesOk then
 	warn("[GameServer] Place gates failed (continuing): " .. tostring(placeGatesErr))
@@ -2800,6 +2749,8 @@ do
 			if type(row.Id) == "string"
 				and string.sub(row.Id, 1, 5) ~= "gate_"
 				and row.Id ~= "laser_tag"
+				and row.Id ~= "orb_blitz"
+				and row.Id ~= "xsf"
 				and row.Display ~= nil
 			then
 				table.insert(out, row)
