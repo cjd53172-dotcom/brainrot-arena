@@ -1,10 +1,9 @@
 --[[
-	XSFArenaFFA_v3 — free-for-all PvP layout for the XSF Shooter Arena place.
-	(Replaces broken XSFExpandArena — delete that old script if it still exists.)
+	XSFArenaFFA — free-for-all PvP layout for the XSF Shooter Arena place.
 
 	Every server start:
-	  1. Opens / removes building doors + blocking walls so you can leave
-	  2. Deletes training dummies / targets
+	  1. Deletes training dummies / targets ONLY
+	  2. Does NOT touch the building (walls/doors) — edit those in Studio yourself
 	  3. Disables the old indoor SpawnLocation
 	  4. Builds a fight floor with cover
 	  5. Places 5 spread-out FFA spawn pads
