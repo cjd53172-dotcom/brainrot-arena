@@ -47,8 +47,10 @@ local button = toolbar:CreateButton(
 button.ClickableWhenViewportHidden = true
 
 local function fetch(path: string): string?
+	-- Cache-bust so GitHub raw does not serve a stale ExpandArena.
+	local url = BASE_URL .. path .. "?t=" .. tostring(os.time())
 	local ok, result = pcall(function()
-		return HttpService:GetAsync(BASE_URL .. path)
+		return HttpService:GetAsync(url)
 	end)
 	if not ok or type(result) ~= "string" or #result < 80 then
 		warn("[XSFSync] failed to fetch " .. path .. ": " .. tostring(result))
