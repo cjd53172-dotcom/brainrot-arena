@@ -172,6 +172,13 @@ local function movePrompts(fromModel: Instance?, toModel: Model)
 end
 
 function BlenderPropPlacer.Setup()
+	-- Off by default: procedural Roblox props look better than these FBX imports.
+	-- Set Workspace attribute UseBlenderProps = true to opt in later.
+	if workspace:GetAttribute("UseBlenderProps") ~= true then
+		print("[BlenderPropPlacer] skipped (set Workspace.UseBlenderProps = true to enable)")
+		return
+	end
+
 	local templates = ServerStorage:FindFirstChild("BlenderProps")
 	if not (templates and templates:IsA("Folder")) then
 		local inWorld = workspace:FindFirstChild("BlenderProps")

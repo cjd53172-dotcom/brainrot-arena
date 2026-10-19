@@ -5,6 +5,13 @@
 	Requires: ServerStorage.BlenderProps (drag folder there in Edit mode, Save).
 ]]
 
+-- DISABLED by default — Blender FBX imports looked worse than the original props.
+-- To re-enable later: set Workspace attribute UseBlenderProps = true
+if workspace:GetAttribute("UseBlenderProps") ~= true then
+	print("[PlaceBlenderProps] disabled (original props kept)")
+	return
+end
+
 task.wait(4) -- after GameLoader builds plaza / shop / docks / mine
 
 local ServerStorage = game:GetService("ServerStorage")
