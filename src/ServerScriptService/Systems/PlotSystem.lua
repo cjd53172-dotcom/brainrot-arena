@@ -1290,6 +1290,18 @@ function PlotSystem.Setup()
 		liftModel(plot, topY + 0.4)
 	end
 
+	local oldPlaza = workspace:FindFirstChild("Plaza")
+	if oldPlaza then
+		oldPlaza:Destroy()
+	end
+	-- Also strip leftover gold leaderboard slabs from older builds / Blender tests.
+	for _, name in ipairs({ "ChampionTrim", "ChampionTrimRail", "ArenaSignFrame", "BlenderPropsPlaced" }) do
+		local leftover = workspace:FindFirstChild(name, true)
+		while leftover do
+			leftover:Destroy()
+			leftover = workspace:FindFirstChild(name, true)
+		end
+	end
 	local plaza = Instance.new("Folder")
 	plaza.Name = "Plaza"
 	plaza.Parent = workspace
@@ -1430,15 +1442,23 @@ function PlotSystem.Setup()
 	}, plaza)
 	sitOnLocalGround(arenaSign, ARENA_X - 22, ARENA_Z + 30 * s + 14, 0.6)
 	local signPos = arenaSign.Position
-	newPart({
-		Name = "ArenaSignFrame",
-		Size = Vector3.new(15.4, 5.3, 0.25),
-		Position = signPos + Vector3.new(0, 0, 0.3),
-		Anchored = true,
-		CanCollide = false,
-		Color = Color3.fromRGB(214, 170, 72),
-		Material = Enum.Material.Metal,
-	}, plaza)
+	-- Thin gold border only (no solid gold plate covering the sign face).
+	local gold = Color3.fromRGB(214, 170, 72)
+	local function signRail(name: string, size: Vector3, pos: Vector3)
+		newPart({
+			Name = name,
+			Size = size,
+			Position = pos,
+			Anchored = true,
+			CanCollide = false,
+			Color = gold,
+			Material = Enum.Material.Metal,
+		}, plaza)
+	end
+	signRail("ArenaSignRailTop", Vector3.new(15.2, 0.35, 0.35), signPos + Vector3.new(0, 2.3, 0))
+	signRail("ArenaSignRailBot", Vector3.new(15.2, 0.35, 0.35), signPos + Vector3.new(0, -2.3, 0))
+	signRail("ArenaSignRailL", Vector3.new(0.35, 4.6, 0.35), signPos + Vector3.new(-7.5, 0, 0))
+	signRail("ArenaSignRailR", Vector3.new(0.35, 4.6, 0.35), signPos + Vector3.new(7.5, 0, 0))
 	for _, sx in ipairs({ -7.4, 7.4 }) do
 		newPart({
 			Name = "ArenaSignPost",
@@ -1454,12 +1474,14 @@ function PlotSystem.Setup()
 			Position = signPos + Vector3.new(sx, 2.4, 0),
 			Anchored = true,
 			CanCollide = false,
-			Color = Color3.fromRGB(214, 170, 72),
+			Color = gold,
 			Material = Enum.Material.Metal,
 		}, plaza)
 	end
 	local arenaGui = Instance.new("SurfaceGui")
 	arenaGui.Face = Enum.NormalId.Back
+	arenaGui.LightInfluence = 0
+	arenaGui.Brightness = 1.3
 	arenaGui.Parent = arenaSign
 	local arenaLabel = Instance.new("TextLabel")
 	arenaLabel.Size = UDim2.new(1, 0, 1, 0)
@@ -1467,11 +1489,14 @@ function PlotSystem.Setup()
 	arenaLabel.Text = "⚔ ARENA ⚔\nBattle the rivals!"
 	arenaLabel.TextScaled = true
 	arenaLabel.Font = Enum.Font.GothamBold
-	arenaLabel.TextColor3 = Color3.new(1, 1, 1)
-	arenaLabel.TextStrokeTransparency = 0.6
+	arenaLabel.TextColor3 = Color3.fromRGB(255, 244, 210)
+	arenaLabel.TextStrokeTransparency = 0.1
+	arenaLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 	arenaLabel.Parent = arenaGui
 	local arenaGuiFront = Instance.new("SurfaceGui")
 	arenaGuiFront.Face = Enum.NormalId.Front
+	arenaGuiFront.LightInfluence = 0
+	arenaGuiFront.Brightness = 1.3
 	arenaGuiFront.Parent = arenaSign
 	local arenaLabelFront = arenaLabel:Clone()
 	arenaLabelFront.Parent = arenaGuiFront
@@ -1544,36 +1569,29 @@ function PlotSystem.Setup()
 		Material = Enum.Material.Slate,
 		Color = Color3.fromRGB(28, 20, 14),
 	}, plaza)
-	-- Gold is a thin border BEHIND the boards only — never a slab in front of the text.
+	-- Gold accent = thin frame rails only (no solid gold backplate).
+	local gold = Color3.fromRGB(214, 170, 72)
 	local trimMidY = (frame.Position.Y + header.Position.Y) / 2
-	local trimH = frame.Size.Y + header.Size.Y + 1.4
-	local trimZ = frame.Position.Z - 0.85
-	newPart({
-		Name = "ChampionTrim",
-		Size = Vector3.new(34.2, trimH, 0.35),
-		Position = Vector3.new(frame.Position.X, trimMidY, trimZ),
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.Metal,
-		Color = Color3.fromRGB(214, 170, 72),
-	}, plaza)
-	-- Side rails (gold accent without covering SurfaceGui text)
-	for _, sx in ipairs({ -16.9, 16.9 }) do
+	local trimH = frame.Size.Y + header.Size.Y + 0.8
+	local function champRail(name: string, size: Vector3, pos: Vector3)
 		newPart({
-			Name = "ChampionTrimRail",
-			Size = Vector3.new(0.45, trimH, 1.6),
-			Position = Vector3.new(frame.Position.X + sx, trimMidY, frame.Position.Z),
+			Name = name,
+			Size = size,
+			Position = pos,
 			Anchored = true,
 			CanCollide = false,
 			Material = Enum.Material.Metal,
-			Color = Color3.fromRGB(214, 170, 72),
+			Color = gold,
 		}, plaza)
 	end
+	champRail("ChampionRailTop", Vector3.new(33.2, 0.4, 1.4), Vector3.new(frame.Position.X, header.Position.Y + header.Size.Y * 0.5 + 0.25, frame.Position.Z))
+	champRail("ChampionRailBot", Vector3.new(33.2, 0.4, 1.4), Vector3.new(frame.Position.X, frame.Position.Y - frame.Size.Y * 0.5 - 0.25, frame.Position.Z))
 	for _, sx in ipairs({ -16.6, 16.6 }) do
+		champRail("ChampionRailSide", Vector3.new(0.4, trimH, 1.4), Vector3.new(frame.Position.X + sx, trimMidY, frame.Position.Z))
 		newPart({
 			Name = "ChampionPillar",
 			Size = Vector3.new(1.6, frame.Size.Y + 8, 1.6),
-			Position = Vector3.new(frame.Position.X + sx, frame.Position.Y + 2, frame.Position.Z),
+			Position = Vector3.new(frame.Position.X + sx, frame.Position.Y + 2, frame.Position.Z - 1.2),
 			Anchored = true,
 			Material = Enum.Material.Marble,
 			Color = Color3.fromRGB(168, 160, 148),
