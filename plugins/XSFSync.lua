@@ -2,39 +2,33 @@
 --[[
 	XSFSync — Studio PLUGIN for the XSF Shooter Arena place only.
 
-	Install once:
-	  1. In Studio (any place), create a Script, paste THIS whole file
-	  2. Right-click the Script → Save as Local Plugin…
-	  3. Delete the temporary Script from the place
-	  4. Restart Studio if the toolbar button does not appear
+	Install / update plugin:
+	  1. Create a Script, paste THIS whole file
+	  2. Right-click → Save as Local Plugin… (into Roblox/Plugins)
+	  3. Delete the temporary Script
+	  4. Restart Studio if needed
 
-	Use:
-	  Open XSF Shooter Arena → Plugins tab → "XSF Sync from GitHub"
-	  Then press Play.
-
-	This does NOT pull Brainrot hub code. Use the separate "Brainrot Arena"
-	plugin only in the hub place.
+	Use in XSF place: Plugins → XSF Sync from GitHub → Play
 ]]
 
 local HttpService = game:GetService("HttpService")
 local ServerScriptService = game:GetService("ServerScriptService")
-local Selection = game:GetService("Selection")
 
 local HUB_PLACE_ID = 92909397469421
 local XSF_PLACE_ID = 105098537406613
 local GIT_REF = "cursor/shooter-portal-cycle-9893"
 local BASE_URL = "https://raw.githubusercontent.com/cjd53172-dotcom/brainrot-arena/" .. GIT_REF .. "/src/"
 
+-- New FFA script name so a stale XSFExpandArena cannot stick around.
 local FILES: { { string } } = {
 	{ "Minigames/XSFUnpack.lua", "XSFUnpack" },
 	{ "Minigames/XSFReturn.lua", "XSFReturn" },
 	{ "Minigames/XSFArenaBoot.lua", "XSFArenaBoot" },
-	{ "Minigames/XSFExpandArena.lua", "XSFExpandArena" },
+	{ "Minigames/XSFArenaFFA.lua", "XSFArenaFFA" },
 }
 
--- Only works as a Local Plugin (plugin global). If pasted into ServerScriptService, bail.
 if not plugin then
-	warn("[XSFSync] This file is a PLUGIN. Delete it from ServerScriptService. Use Plugins → XSF Sync from GitHub.")
+	warn("[XSFSync] This file is a PLUGIN. Delete it from ServerScriptService.")
 	return
 end
 
@@ -47,8 +41,7 @@ local button = toolbar:CreateButton(
 button.ClickableWhenViewportHidden = true
 
 local function fetch(path: string): string?
-	-- Cache-bust so GitHub raw does not serve a stale ExpandArena.
-	local url = BASE_URL .. path .. "?t=" .. tostring(os.time())
+	local url = BASE_URL .. path .. "?t=" .. tostring(os.time()) .. "&v=3"
 	local ok, result = pcall(function()
 		return HttpService:GetAsync(url)
 	end)
@@ -67,32 +60,30 @@ local function install(name: string, source: string)
 	local scr = Instance.new("Script")
 	scr.Name = name
 	scr.Source = source
+	scr.Enabled = true
 	scr.Parent = ServerScriptService
-	print("[XSFSync] installed " .. name .. " (" .. tostring(#source) .. " chars)")
+	local marker = string.sub(source, 1, 40)
+	print("[XSFSync] installed " .. name .. " (" .. tostring(#source) .. " chars) start=" .. marker)
 end
 
 local function sync()
-	local placeId = game.PlaceId
-	print("[XSFSync] PlaceId=" .. tostring(placeId) .. " ref=" .. GIT_REF)
+	print("[XSFSync] PlaceId=" .. tostring(game.PlaceId) .. " ref=" .. GIT_REF)
 
-	if placeId == HUB_PLACE_ID then
-		warn("[XSFSync] You are in Brainrot Arena hub. Use the Brainrot Arena plugin here, not XSF Sync.")
+	if game.PlaceId == HUB_PLACE_ID then
+		warn("[XSFSync] Hub place — use Brainrot Arena plugin, not XSF Sync.")
 		return
 	end
-	if placeId ~= 0 and placeId ~= XSF_PLACE_ID then
-		warn("[XSFSync] Unexpected place " .. tostring(placeId) .. " — expected XSF " .. tostring(XSF_PLACE_ID) .. ". Syncing XSF glue anyway.")
-	end
 
-	-- Remove leftover hub / broken installer scripts from this place
 	local junkNames = {
 		"XSFGameLoader",
 		"XSFGameLoaderlua",
 		"GameLoader",
 		"GameServer",
-		"XSFSync", -- plugin source left in SSS by mistake
+		"XSFSync",
 		"ClientUI",
-		"Portal", -- old renamed XSFReturn copy
-		"Systems", -- hub Systems folder (must never live in XSF place)
+		"Portal",
+		"Systems",
+		"XSFExpandArena", -- old broken script — replaced by XSFArenaFFA
 	}
 	for _, name in ipairs(junkNames) do
 		local junk = ServerScriptService:FindFirstChild(name)
@@ -101,17 +92,17 @@ local function sync()
 			junk:Destroy()
 		end
 	end
+
 	local sps = game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts")
 	if sps then
 		local cui = sps:FindFirstChild("ClientUI")
 		if cui then
-			warn("[XSFSync] removing hub ClientUI from StarterPlayerScripts")
+			warn("[XSFSync] removing hub ClientUI")
 			cui:Destroy()
 		end
 	end
 	local bd = game:GetService("ReplicatedStorage"):FindFirstChild("BrainrotData")
 	if bd then
-		warn("[XSFSync] removing hub BrainrotData")
 		bd:Destroy()
 	end
 
@@ -127,9 +118,9 @@ local function sync()
 	end
 
 	if failed > 0 then
-		warn("[XSFSync] " .. tostring(failed) .. " file(s) failed. Check HTTP is allowed in Game Settings → Security.")
+		warn("[XSFSync] " .. tostring(failed) .. " file(s) failed")
 	else
-		print("[XSFSync] Done. Press Play — FFA arena, 5 spawns, 5 return portals. Hub code was NOT pulled.")
+		print("[XSFSync] Done. You should see XSFArenaFFA (not XSFExpandArena). Press Play.")
 	end
 end
 
@@ -140,4 +131,4 @@ button.Click:Connect(function()
 	end
 end)
 
-print("[XSFSync] Plugin loaded. Open XSF Shooter Arena → Plugins → XSF Sync from GitHub.")
+print("[XSFSync] Plugin loaded (v3). Plugins → XSF Sync from GitHub.")
