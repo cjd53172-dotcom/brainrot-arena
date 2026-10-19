@@ -81,13 +81,35 @@ local function sync()
 		warn("[XSFSync] Unexpected place " .. tostring(placeId) .. " — expected XSF " .. tostring(XSF_PLACE_ID) .. ". Syncing XSF glue anyway.")
 	end
 
-	-- Remove duplicate broken loaders that try (and fail) to write Source at runtime
-	for _, name in ipairs({ "XSFGameLoader", "XSFGameLoaderlua", "GameLoader", "GameServer" }) do
+	-- Remove leftover hub / broken installer scripts from this place
+	local junkNames = {
+		"XSFGameLoader",
+		"XSFGameLoaderlua",
+		"GameLoader",
+		"GameServer",
+		"XSFSync", -- plugin source left in SSS by mistake
+		"ClientUI",
+		"Portal", -- old renamed XSFReturn copy
+	}
+	for _, name in ipairs(junkNames) do
 		local junk = ServerScriptService:FindFirstChild(name)
 		if junk then
-			warn("[XSFSync] removing " .. name .. " (runtime Source writes are blocked; use this plugin instead)")
+			warn("[XSFSync] removing " .. name)
 			junk:Destroy()
 		end
+	end
+	local sps = game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts")
+	if sps then
+		local cui = sps:FindFirstChild("ClientUI")
+		if cui then
+			warn("[XSFSync] removing hub ClientUI from StarterPlayerScripts")
+			cui:Destroy()
+		end
+	end
+	local bd = game:GetService("ReplicatedStorage"):FindFirstChild("BrainrotData")
+	if bd then
+		warn("[XSFSync] removing hub BrainrotData")
+		bd:Destroy()
 	end
 
 	local failed = 0

@@ -1,4 +1,3 @@
---!strict
 --[[
 	XSFExpandArena — free-for-all PvP layout for the XSF Shooter Arena place.
 
@@ -21,20 +20,13 @@ print("[XSFExpandArena] FFA PvP arena setup...")
 
 local HUB_PLACE_ID = 92909397469421
 local PAD = tonumber(workspace:GetAttribute("ArenaPad")) or 32
-local RETURN_PLACE_BY_USER: { [number]: number } = {}
+local RETURN_PLACE_BY_USER = {}
 
-local function log(msg: string)
+local function log(msg)
 	print("[XSFExpandArena] " .. msg)
 end
 
-local function part(
-	name: string,
-	size: Vector3,
-	cf: CFrame,
-	color: Color3,
-	parent: Instance,
-	material: Enum.Material?
-): Part
+local function part(name, size, cf, color, parent, material)
 	local p = Instance.new("Part")
 	p.Name = name
 	p.Size = size
@@ -49,7 +41,7 @@ local function part(
 	return p
 end
 
-local function looksLikeDummy(inst: Instance): boolean
+local function looksLikeDummy(inst)
 	local n = string.lower(inst.Name)
 	if string.find(n, "dummy", 1, true)
 		or string.find(n, "target", 1, true)
@@ -68,7 +60,7 @@ local function looksLikeDummy(inst: Instance): boolean
 	return false
 end
 
-local function looksLikeDoor(partInst: BasePart): boolean
+local function looksLikeDoor(partInst)
 	local n = string.lower(partInst.Name)
 	if string.find(n, "door", 1, true)
 		or string.find(n, "gate", 1, true)
@@ -77,24 +69,23 @@ local function looksLikeDoor(partInst: BasePart): boolean
 	then
 		return true
 	end
-	-- Thin tall slabs are often doors / wall panels
 	local size = partInst.Size
 	local thin = math.min(size.X, size.Z)
 	return thin <= 1.5 and size.Y >= 5 and math.max(size.X, size.Z) >= 3 and math.max(size.X, size.Z) <= 12
 end
 
-local function worldPos(inst: Instance): Vector3?
+local function worldPos(inst)
 	if inst:IsA("BasePart") then
 		return inst.Position
 	end
 	if inst:IsA("Model") then
 		local ok, cf = pcall(function()
-			return (inst :: Model):GetPivot()
+			return inst:GetPivot()
 		end)
 		if ok and cf then
 			return cf.Position
 		end
-		local pp = (inst :: Model).PrimaryPart or inst:FindFirstChildWhichIsA("BasePart", true)
+		local pp = inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart", true)
 		if pp and pp:IsA("BasePart") then
 			return pp.Position
 		end
@@ -102,8 +93,8 @@ local function worldPos(inst: Instance): Vector3?
 	return nil
 end
 
-local function collectSpawns(): { BasePart }
-	local out: { BasePart } = {}
+local function collectSpawns()
+	local out = {}
 	for _, d in ipairs(workspace:GetDescendants()) do
 		if d:IsA("SpawnLocation") then
 			table.insert(out, d)
@@ -112,12 +103,12 @@ local function collectSpawns(): { BasePart }
 	return out
 end
 
-local function collectDummies(): { Instance }
-	local out: { Instance } = {}
-	local seen: { [Instance]: boolean } = {}
+local function collectDummies()
+	local out = {}
+	local seen = {}
 	for _, d in ipairs(workspace:GetDescendants()) do
 		if looksLikeDummy(d) then
-			local root: Instance = d
+			local root = d
 			if d:IsA("BasePart") and d.Parent and looksLikeDummy(d.Parent) then
 				root = d.Parent
 			end
@@ -130,9 +121,9 @@ local function collectDummies(): { Instance }
 	return out
 end
 
-local function boundsFromPoints(points: { Vector3 }): (Vector3, Vector3)?
+local function boundsFromPoints(points)
 	if #points == 0 then
-		return nil
+		return nil, nil
 	end
 	local minV = points[1]
 	local maxV = points[1]
@@ -144,57 +135,48 @@ local function boundsFromPoints(points: { Vector3 }): (Vector3, Vector3)?
 	return minV, maxV
 end
 
--- Remove doors + open wall panels around the starter building (all sides).
-local function openBuilding(spawnPos: Vector3)
+local function openBuilding(spawnPos)
 	local removed = 0
 	local opened = 0
 	for _, d in ipairs(workspace:GetDescendants()) do
-		if not d:IsA("BasePart") or not d.Anchored then
-			continue
-		end
-		if d:IsA("SpawnLocation") or d.Name == "Baseplate" or d.Name == "Terrain" then
-			continue
-		end
-		if string.find(d.Name, "XSFArena", 1, true) or string.find(d.Name, "ReturnToArena", 1, true) then
-			continue
-		end
-		local expand = workspace:FindFirstChild("XSFArenaExpand")
-		if expand and d:IsDescendantOf(expand) then
-			continue
-		end
-
-		local flat = Vector3.new(d.Position.X - spawnPos.X, 0, d.Position.Z - spawnPos.Z)
-		if flat.Magnitude > 60 then
-			continue
-		end
-
-		if looksLikeDoor(d) then
-			d:Destroy()
-			removed += 1
-			continue
-		end
-
-		-- Perimeter walls of the courtyard / building: thin + tall near spawn
-		local size = d.Size
-		local thin = math.min(size.X, size.Y, size.Z)
-		if d.CanCollide and thin <= 2.5 and size.Y >= 4 and flat.Magnitude >= 4 and flat.Magnitude <= 50 then
-			d.CanCollide = false
-			d.Transparency = math.max(d.Transparency, 0.9)
-			d.Name = d.Name .. "_OpenedExit"
-			opened += 1
+		if d:IsA("BasePart") and d.Anchored then
+			if not d:IsA("SpawnLocation") and d.Name ~= "Baseplate" and d.Name ~= "Terrain" then
+				if not string.find(d.Name, "XSFArena", 1, true) and not string.find(d.Name, "ReturnToArena", 1, true) then
+					local expand = workspace:FindFirstChild("XSFArenaExpand")
+					local skip = expand and d:IsDescendantOf(expand)
+					if not skip then
+						local flat = Vector3.new(d.Position.X - spawnPos.X, 0, d.Position.Z - spawnPos.Z)
+						if flat.Magnitude <= 60 then
+							if looksLikeDoor(d) then
+								d:Destroy()
+								removed = removed + 1
+							else
+								local size = d.Size
+								local thin = math.min(size.X, size.Y, size.Z)
+								if d.CanCollide and thin <= 2.5 and size.Y >= 4 and flat.Magnitude >= 4 and flat.Magnitude <= 50 then
+									d.CanCollide = false
+									d.Transparency = math.max(d.Transparency, 0.9)
+									d.Name = d.Name .. "_OpenedExit"
+									opened = opened + 1
+								end
+							end
+						end
+					end
+				end
+			end
 		end
 	end
 	log("removed doors=" .. tostring(removed) .. " opened wall panels=" .. tostring(opened))
 end
 
-local function removeDummies(dummies: { Instance })
+local function removeDummies(dummies)
 	for _, d in ipairs(dummies) do
 		d:Destroy()
 	end
 	log("removed training dummies/targets: " .. tostring(#dummies))
 end
 
-local function disableOldSpawns(spawns: { BasePart }, folder: Folder)
+local function disableOldSpawns(spawns, folder)
 	for _, s in ipairs(spawns) do
 		if s.Parent and not s:IsDescendantOf(folder) then
 			s.Enabled = false
@@ -206,11 +188,11 @@ local function disableOldSpawns(spawns: { BasePart }, folder: Folder)
 	log("disabled old indoor spawn pads: " .. tostring(#spawns))
 end
 
-local function hubIdFor(player: Player): number
+local function hubIdFor(player)
 	return RETURN_PLACE_BY_USER[player.UserId] or HUB_PLACE_ID
 end
 
-local function goHome(player: Player)
+local function goHome(player)
 	local placeId = hubIdFor(player)
 	if placeId <= 0 then
 		return
@@ -231,7 +213,7 @@ Players.PlayerRemoving:Connect(function(player)
 	RETURN_PLACE_BY_USER[player.UserId] = nil
 end)
 
-local function placeReturnPortal(parent: Instance, at: Vector3, index: number)
+local function placeReturnPortal(parent, at, index)
 	local gate = Instance.new("Part")
 	gate.Name = "ReturnToArena_" .. tostring(index)
 	gate.Size = Vector3.new(5, 10, 1)
@@ -276,7 +258,7 @@ local function placeReturnPortal(parent: Instance, at: Vector3, index: number)
 	prompt.Triggered:Connect(goHome)
 end
 
-local function buildArena(minV: Vector3, maxV: Vector3, floorY: number): Folder
+local function buildArena(minV, maxV, floorY)
 	local old = workspace:FindFirstChild("XSFArenaExpand")
 	if old then
 		old:Destroy()
@@ -310,10 +292,14 @@ local function buildArena(minV: Vector3, maxV: Vector3, floorY: number): Folder
 		Enum.Material.Concrete
 	)
 
-	-- Outer walls with wide gaps on all four sides (open arena feel)
 	local gap = 18
-	local function splitWall(name: string, alongX: boolean, edge: number)
-		local long = if alongX then width else depth
+	local function splitWall(name, alongX, edge)
+		local long
+		if alongX then
+			long = width
+		else
+			long = depth
+		end
 		local seg = (long - gap) * 0.5
 		if alongX then
 			part(name .. "L", Vector3.new(seg, wallH, wallT), CFrame.new(cx - gap * 0.5 - seg * 0.5, y + wallH * 0.5, edge), wallColor, folder)
@@ -328,7 +314,6 @@ local function buildArena(minV: Vector3, maxV: Vector3, floorY: number): Folder
 	splitWall("WallW", false, minX - wallT * 0.5)
 	splitWall("WallE", false, maxX + wallT * 0.5)
 
-	-- Cover for FFA fights
 	local coverColor = Color3.fromRGB(90, 70, 50)
 	local rng = Random.new(42)
 	for i = 1, 12 do
@@ -340,7 +325,6 @@ local function buildArena(minV: Vector3, maxV: Vector3, floorY: number): Folder
 		part("Cover" .. tostring(i), Vector3.new(w, h, dpth), CFrame.new(x, y + h * 0.5, z), coverColor, folder, Enum.Material.Wood)
 	end
 
-	-- 5 FFA spawns: 4 corners + mid-edge (not center — less spawn camping)
 	local pads = {
 		Vector3.new(minX + 12, y + 1, minZ + 12),
 		Vector3.new(maxX - 12, y + 1, minZ + 12),
@@ -363,7 +347,6 @@ local function buildArena(minV: Vector3, maxV: Vector3, floorY: number): Folder
 		spawn.CFrame = CFrame.new(pos)
 		spawn.Parent = folder
 
-		-- Return portal just beside each spawn (offset inward so it isn't on the pad)
 		local inward = Vector3.new(cx - pos.X, 0, cz - pos.Z)
 		if inward.Magnitude < 1 then
 			inward = Vector3.new(0, 0, 8)
@@ -384,7 +367,7 @@ local function run()
 	local dummies = collectDummies()
 	log("old spawns=" .. tostring(#spawns) .. " dummies=" .. tostring(#dummies))
 
-	local points: { Vector3 } = {}
+	local points = {}
 	for _, s in ipairs(spawns) do
 		table.insert(points, s.Position)
 	end
@@ -413,8 +396,12 @@ local function run()
 		warn("[XSFExpandArena] no landmarks — default 100x100 arena")
 	end
 
-	local floorY = if #spawns > 0 then spawns[1].Position.Y - 0.5 else minV.Y
-	local spawnPos = if #spawns > 0 then spawns[1].Position else Vector3.new(0, floorY, 0)
+	local floorY = minV.Y
+	local spawnPos = Vector3.new(0, floorY, 0)
+	if #spawns > 0 then
+		floorY = spawns[1].Position.Y - 0.5
+		spawnPos = spawns[1].Position
+	end
 
 	removeDummies(dummies)
 	openBuilding(spawnPos)
