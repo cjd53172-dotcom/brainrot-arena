@@ -14,9 +14,10 @@ Upload the MP4s in `videos/`. Replace the placeholder bed audio with a trending 
 **Caption**
 They added brainrot to Roblox and I’m not okay 😭
 
-Catch pets. Battle. Flex your showcase.
+▶ Play free: https://www.roblox.com/games/92909397469421
+Search **Brainrot Arena** on Roblox.
 
-Search **Brainrot Arena** on Roblox — free to play.
+Catch pets. Battle. Flex your showcase.
 
 #BrainrotArena #Roblox #ItalianBrainrot #RobloxShorts #Brainrot
 
@@ -39,7 +40,10 @@ Search **Brainrot Arena** on Roblox — free to play.
 **Caption**
 Cappuccino Assassino vs Bombardiro Crocodilo — who takes it?
 
-Drop your pick in the comments ⬇️ then go battle it yourself in **Brainrot Arena** on Roblox.
+▶ Play free: https://www.roblox.com/games/92909397469421
+Search **Brainrot Arena** on Roblox.
+
+Drop your pick in the comments ⬇️ then go battle it yourself.
 
 #BrainrotArena #BombardiroCrocodilo #CappuccinoAssassino #Roblox #VS
 
@@ -61,9 +65,10 @@ Drop your pick in the comments ⬇️ then go battle it yourself in **Brainrot A
 **Caption**
 POV: the egg pops and it’s a Legendary 🐐🪐
 
-Eggs. Battles. Brainrot gods.
+▶ Play free: https://www.roblox.com/games/92909397469421
+Search **Brainrot Arena** on Roblox.
 
-Play **Brainrot Arena** on Roblox.
+Eggs. Battles. Brainrot gods.
 
 #BrainrotArena #Roblox #LegendaryPull #ItalianBrainrot
 
@@ -85,9 +90,10 @@ Play **Brainrot Arena** on Roblox.
 **Caption**
 Collecting brainrots like it’s a full-time job 💼🍌🍉
 
-Common → Rare → Epic → chaos.
+▶ Play free: https://www.roblox.com/games/92909397469421
+Search **Brainrot Arena** on Roblox.
 
-**Brainrot Arena** on Roblox. Search it.
+Common → Rare → Epic → chaos.
 
 #BrainrotArena #Roblox #Collection #ItalianBrainrot #Shorts
 

@@ -44,8 +44,9 @@ SHORTS = {
         "title": "They put brainrot on Roblox 💀 #Shorts",
         "description": (
             "They added brainrot to Roblox and I’m not okay 😭\n\n"
-            "Catch pets. Battle. Flex your showcase.\n"
-            "Search Brainrot Arena on Roblox — free to play.\n\n"
+            "▶ Play free: https://www.roblox.com/games/92909397469421\n"
+            "Search Brainrot Arena on Roblox.\n\n"
+            "Catch pets. Battle. Flex your showcase.\n\n"
             "#BrainrotArena #Roblox #ItalianBrainrot #RobloxShorts #Brainrot #Shorts"
         ),
         "tags": [
