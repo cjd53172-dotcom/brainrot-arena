@@ -20,9 +20,20 @@ end
 
 -- If Laser Tag scripts/tools were pasted into the hub, strip them so maps do not merge.
 do
+	local function disableScripts(inst: Instance)
+		if inst:IsA("BaseScript") then
+			(inst :: BaseScript).Disabled = true
+		end
+		for _, d in ipairs(inst:GetDescendants()) do
+			if d:IsA("BaseScript") then
+				(d :: BaseScript).Disabled = true
+			end
+		end
+	end
 	local function strip(parent: Instance, name: string)
 		local inst = parent:FindFirstChild(name)
 		if inst then
+			disableScripts(inst)
 			print("[GameServer] removing Laser Tag leftover " .. inst:GetFullName())
 			inst:Destroy()
 		end
@@ -34,6 +45,8 @@ do
 	strip(sss, "Blaster")
 	strip(sss, "Gameplay")
 	strip(sss, "Utility")
+	strip(ReplicatedStorage, "Gameplay")
+	strip(ReplicatedStorage, "Blaster")
 	local pack = game:GetService("StarterPack")
 	strip(pack, "AutoBlaster")
 	strip(pack, "Blaster")
