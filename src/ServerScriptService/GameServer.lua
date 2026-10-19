@@ -973,9 +973,6 @@ end
 -- // World setup ----------------------------------------------------------------
 PlotSystem.Setup()
 pcall(function()
-	BlenderPropPlacer.Setup()
-end)
-pcall(function()
 	VisualEffects.SetupRobuxShop()
 end)
 
@@ -1705,6 +1702,11 @@ do
 		end
 	end
 end
+
+-- Swap in Blender props after legacy plaza / mine / docks exist.
+pcall(function()
+	BlenderPropPlacer.Setup()
+end)
 
 -- // Fishing System Core Logic Pipeline -------------------------------------------
 local function pushFishingState(player: Player, state: string, reward: any?, openPanel: boolean?)
