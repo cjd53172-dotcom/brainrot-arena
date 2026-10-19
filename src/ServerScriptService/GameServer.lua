@@ -9,12 +9,13 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
--- Laser Tag is a different Place. Never build plots there.
+-- Shooter Places are separate. Never build hub plots there.
 local HUB_PLACE_ID = 92909397469421
 local LASER_TAG_PLACE_ID = 84198140833268
+local XSF_PLACE_ID = 105098537406613
 print("[GameServer] PlaceId=" .. tostring(game.PlaceId))
-if game.PlaceId == LASER_TAG_PLACE_ID then
-	warn("[GameServer] Laser Tag place. Hub world skipped. Do not Sync GitHub here.")
+if game.PlaceId == LASER_TAG_PLACE_ID or game.PlaceId == XSF_PLACE_ID then
+	warn("[GameServer] Shooter place " .. tostring(game.PlaceId) .. ". Hub world skipped. Do not Sync GitHub here.")
 	return
 end
 
@@ -43,6 +44,7 @@ do
 	strip(sss, "LaserTagOrbs")
 	strip(sss, "OrbBlitz")
 	strip(sss, "OrbBlitzReturn")
+	strip(sss, "XSFReturn")
 	strip(sss, "orbs")
 	strip(sss, "Blaster")
 	strip(sss, "Gameplay")
@@ -60,6 +62,13 @@ do
 		strip(scripts, "FreecamInput")
 		strip(scripts, "FreecamInputContext")
 		strip(scripts, "FreecamToggleContext")
+	end
+	-- XSF kit left in hub by mistake
+	local xsf = workspace:FindFirstChild("XSF_Release")
+	if xsf then
+		disableScripts(xsf)
+		print("[GameServer] removing XSF leftover " .. xsf:GetFullName())
+		xsf:Destroy()
 	end
 end
 
@@ -2741,6 +2750,7 @@ do
 				and string.sub(row.Id, 1, 5) ~= "gate_"
 				and row.Id ~= "laser_tag"
 				and row.Id ~= "orb_blitz"
+				and row.Id ~= "xsf"
 				and row.Display ~= nil
 			then
 				table.insert(out, row)

@@ -2447,8 +2447,6 @@ BrainrotData.PLACE_GATES = {}
 -- One plaza portal that cycles shooter Places so they never overlap.
 -- Set Workspace.ShooterSeparatePortals = true (or SeparatePortals = true below)
 -- for one portal per game instead of cycling.
--- Orb Blitz PlaceId stays 0 until you publish that Place; then paste it here
--- or set Workspace.OrbBlitzPlaceId.
 BrainrotData.SHOOTER_ROTATION = {
 	CycleMinutes = 20,
 	SeparatePortals = false,
@@ -2464,13 +2462,13 @@ BrainrotData.SHOOTER_ROTATION = {
 			BoardTitle = "LASER TAG KILLS",
 		},
 		{
-			Id = "orb_blitz",
-			Name = "Orb Blitz",
-			PlaceId = 0,
-			Color = Color3.fromRGB(255, 120, 40),
-			Attribute = "OrbBlitzPlaceId",
-			KillStore = "OrbBlitzKills_v1",
-			BoardTitle = "ORB BLITZ KILLS",
+			Id = "xsf",
+			Name = "XSF Shooter",
+			PlaceId = 105098537406613,
+			Color = Color3.fromRGB(220, 90, 40),
+			Attribute = "XSFPlaceId",
+			KillStore = "XSFKills_v1",
+			BoardTitle = "XSF KILLS",
 		},
 	},
 }
