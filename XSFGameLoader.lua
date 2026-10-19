@@ -130,9 +130,9 @@ for _, entry in ipairs(FILES) do
 end
 
 if failed > 0 then
-	warn("[XSFGameLoader] " .. tostring(failed) .. " file(s) failed. If ref is main before merge, set Workspace.XSFGitRef = \"cursor/shooter-portal-cycle-9893\"")
+	warn("[XSFGameLoader] " .. tostring(failed) .. " file(s) failed from ref " .. GIT_REF)
 else
-	print("[XSFGameLoader] XSF glue installed. Hub Brainrot code was not pulled.")
+	print("[XSFGameLoader] XSF glue installed from " .. GIT_REF .. ". Hub Brainrot code was not pulled.")
 end
 
 print("[XSFGameLoader] Done. This loader stays in the XSF place only.")
