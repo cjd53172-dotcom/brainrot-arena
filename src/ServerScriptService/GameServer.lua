@@ -9,19 +9,43 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
--- Laser Tag is a different Place. Never build plots there, even if Studio
--- reports PlaceId 0 or GitHub scripts were synced by mistake.
+-- Laser Tag is a different Place. Never build plots there.
 local HUB_PLACE_ID = 92909397469421
 local LASER_TAG_PLACE_ID = 84198140833268
 print("[GameServer] PlaceId=" .. tostring(game.PlaceId))
-local laserScripts = script.Parent:FindFirstChild("ReturnToArena") or script.Parent:FindFirstChild("LaserTagOrbs")
-if game.PlaceId == LASER_TAG_PLACE_ID or laserScripts then
-	warn("[GameServer] Laser Tag place/scripts detected. Hub world skipped. Delete GameServer from Laser Tag; delete ReturnToArena from the hub.")
+if game.PlaceId == LASER_TAG_PLACE_ID then
+	warn("[GameServer] Laser Tag place. Hub world skipped. Do not Sync GitHub here.")
 	return
 end
-if game.PlaceId ~= 0 and game.PlaceId ~= HUB_PLACE_ID then
-	warn("[GameServer] PlaceId " .. tostring(game.PlaceId) .. " is not Brainrot Arena hub. Hub world skipped.")
-	return
+
+-- If Laser Tag scripts/tools were pasted into the hub, strip them so maps do not merge.
+do
+	local function strip(parent: Instance, name: string)
+		local inst = parent:FindFirstChild(name)
+		if inst then
+			print("[GameServer] removing Laser Tag leftover " .. inst:GetFullName())
+			inst:Destroy()
+		end
+	end
+	local sss = game:GetService("ServerScriptService")
+	strip(sss, "ReturnToArena")
+	strip(sss, "LaserTagOrbs")
+	strip(sss, "orbs")
+	strip(sss, "Blaster")
+	strip(sss, "Gameplay")
+	strip(sss, "Utility")
+	local pack = game:GetService("StarterPack")
+	strip(pack, "AutoBlaster")
+	strip(pack, "Blaster")
+	strip(game:GetService("StarterGui"), "GameplayGui")
+	local sp = game:GetService("StarterPlayer")
+	strip(sp, "FreecamInput")
+	local scripts = sp:FindFirstChild("StarterPlayerScripts")
+	if scripts then
+		strip(scripts, "FreecamInput")
+		strip(scripts, "FreecamInputContext")
+		strip(scripts, "FreecamToggleContext")
+	end
 end
 
 -- Toolbox pack Scripts run in Workspace and delete the folder on Play.
