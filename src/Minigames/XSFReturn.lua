@@ -242,6 +242,11 @@ local function collectSpawns(): { BasePart }
 end
 
 local function placeAtAllSpawns()
+	-- XSFExpandArena owns the 5 FFA return portals — don't double-place.
+	if workspace:GetAttribute("XSFArenaHandlesReturns") == true then
+		print("[XSFReturn] skips gate placement (XSFExpandArena handles 5 return portals). Kill tracking still active.")
+		return
+	end
 	local spawns = collectSpawns()
 	print("[XSFReturn] spawn pads found: " .. tostring(#spawns))
 	if #spawns == 0 then

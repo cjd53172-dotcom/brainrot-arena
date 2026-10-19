@@ -1,32 +1,27 @@
 --!strict
 --[[
-	XSFExpandArena — paste into ServerScriptService of the XSF Shooter Arena place.
+	XSFExpandArena — free-for-all PvP layout for the XSF Shooter Arena place.
 
-	Fixes the "stuck in the starter building" problem and expands a fight floor
-	across the training-dummy / target range so players have room for PvP.
+	Every server start:
+	  1. Opens / removes building doors + blocking walls so you can leave
+	  2. Deletes training dummies / targets
+	  3. Disables the old indoor SpawnLocation
+	  4. Builds a fight floor with cover
+	  5. Places 5 spread-out FFA spawn pads
+	  6. Places 5 orange RETURN TO ARENA portals next to those spawns
 
-	Every server start it:
-	  1. Finds spawn pads + training dummies/targets
-	  2. Opens doorway holes in walls between spawn and the range
-	  3. Builds a big ArenaExpand floor + outer walls + cover
-	  4. Adds extra spawn pads around the fight zone
-	  5. Parks dummies at the edges (keeps them as props, out of mid-fight)
-
-	Safe to re-run (destroys previous Workspace.XSFArenaExpand first).
-	Tuning (optional Workspace attributes):
-	  ArenaPad = 24     -- studs of padding past dummies
-	  ArenaKeepDummies = true/false  -- false = delete dummies
+	XSFReturn still records kills; it skips building its own gates when this
+	script sets Workspace.XSFArenaHandlesReturns = true.
 ]]
 
 local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
 
-print("[XSFExpandArena] building PvP arena...")
+print("[XSFExpandArena] FFA PvP arena setup...")
 
-local PAD = tonumber(workspace:GetAttribute("ArenaPad")) or 28
-local KEEP_DUMMIES = workspace:GetAttribute("ArenaKeepDummies")
-if KEEP_DUMMIES == nil then
-	KEEP_DUMMIES = true
-end
+local HUB_PLACE_ID = 92909397469421
+local PAD = tonumber(workspace:GetAttribute("ArenaPad")) or 32
+local RETURN_PLACE_BY_USER: { [number]: number } = {}
 
 local function log(msg: string)
 	print("[XSFExpandArena] " .. msg)
@@ -60,18 +55,32 @@ local function looksLikeDummy(inst: Instance): boolean
 		or string.find(n, "target", 1, true)
 		or string.find(n, "mannequin", 1, true)
 		or string.find(n, "training", 1, true)
-		or string.find(n, "npc", 1, true)
+		or n == "npc"
 	then
 		return true
 	end
 	if inst:IsA("Model") then
 		local hum = inst:FindFirstChildOfClass("Humanoid")
 		if hum and not Players:GetPlayerFromCharacter(inst) then
-			-- Non-player humanoid = likely a range dummy
 			return true
 		end
 	end
 	return false
+end
+
+local function looksLikeDoor(partInst: BasePart): boolean
+	local n = string.lower(partInst.Name)
+	if string.find(n, "door", 1, true)
+		or string.find(n, "gate", 1, true)
+		or string.find(n, "entrance", 1, true)
+		or string.find(n, "exit", 1, true)
+	then
+		return true
+	end
+	-- Thin tall slabs are often doors / wall panels
+	local size = partInst.Size
+	local thin = math.min(size.X, size.Z)
+	return thin <= 1.5 and size.Y >= 5 and math.max(size.X, size.Z) >= 3 and math.max(size.X, size.Z) <= 12
 end
 
 local function worldPos(inst: Instance): Vector3?
@@ -96,7 +105,7 @@ end
 local function collectSpawns(): { BasePart }
 	local out: { BasePart } = {}
 	for _, d in ipairs(workspace:GetDescendants()) do
-		if d:IsA("SpawnLocation") and d:IsDescendantOf(workspace) then
+		if d:IsA("SpawnLocation") then
 			table.insert(out, d)
 		end
 	end
@@ -107,8 +116,7 @@ local function collectDummies(): { Instance }
 	local out: { Instance } = {}
 	local seen: { [Instance]: boolean } = {}
 	for _, d in ipairs(workspace:GetDescendants()) do
-		if looksLikeDummy(d) and not seen[d] then
-			-- Prefer the model root over every child part
+		if looksLikeDummy(d) then
 			local root: Instance = d
 			if d:IsA("BasePart") and d.Parent and looksLikeDummy(d.Parent) then
 				root = d.Parent
@@ -136,59 +144,136 @@ local function boundsFromPoints(points: { Vector3 }): (Vector3, Vector3)?
 	return minV, maxV
 end
 
--- Open thin walls between spawn and the fight area so players can walk out.
-local function openExits(spawnPos: Vector3, toward: Vector3)
-	local dir = toward - spawnPos
-	dir = Vector3.new(dir.X, 0, dir.Z)
-	if dir.Magnitude < 1 then
-		dir = Vector3.new(0, 0, -1)
-	else
-		dir = dir.Unit
-	end
-
+-- Remove doors + open wall panels around the starter building (all sides).
+local function openBuilding(spawnPos: Vector3)
+	local removed = 0
 	local opened = 0
 	for _, d in ipairs(workspace:GetDescendants()) do
-		if not d:IsA("BasePart") or not d.CanCollide or d.Anchored == false then
+		if not d:IsA("BasePart") or not d.Anchored then
 			continue
 		end
-		if d:IsA("SpawnLocation") or d.Name == "Terrain" then
+		if d:IsA("SpawnLocation") or d.Name == "Baseplate" or d.Name == "Terrain" then
+			continue
+		end
+		if string.find(d.Name, "XSFArena", 1, true) or string.find(d.Name, "ReturnToArena", 1, true) then
 			continue
 		end
 		local expand = workspace:FindFirstChild("XSFArenaExpand")
 		if expand and d:IsDescendantOf(expand) then
 			continue
 		end
-		if string.find(d.Name, "XSFArena", 1, true) or string.find(d.Name, "_OpenedExit", 1, true) then
+
+		local flat = Vector3.new(d.Position.X - spawnPos.X, 0, d.Position.Z - spawnPos.Z)
+		if flat.Magnitude > 60 then
 			continue
 		end
 
+		if looksLikeDoor(d) then
+			d:Destroy()
+			removed += 1
+			continue
+		end
+
+		-- Perimeter walls of the courtyard / building: thin + tall near spawn
 		local size = d.Size
 		local thin = math.min(size.X, size.Y, size.Z)
-		local tall = size.Y
-		if thin > 2.8 or tall < 4 then
-			continue
-		end
-
-		local toPart = d.Position - spawnPos
-		local flat = Vector3.new(toPart.X, 0, toPart.Z)
-		if flat.Magnitude > 55 or flat.Magnitude < 2 then
-			continue
-		end
-		-- Roughly in the direction of the range
-		if flat.Unit:Dot(dir) < 0.35 then
-			continue
-		end
-
-		-- Cut a doorway: turn into non-collide + fade, or punch a hole part
-		d.CanCollide = false
-		d.Transparency = math.max(d.Transparency, 0.85)
-		d.Name = d.Name .. "_OpenedExit"
-		opened += 1
-		if opened >= 14 then
-			break
+		if d.CanCollide and thin <= 2.5 and size.Y >= 4 and flat.Magnitude >= 4 and flat.Magnitude <= 50 then
+			d.CanCollide = false
+			d.Transparency = math.max(d.Transparency, 0.9)
+			d.Name = d.Name .. "_OpenedExit"
+			opened += 1
 		end
 	end
-	log("opened exit panels near spawn: " .. tostring(opened))
+	log("removed doors=" .. tostring(removed) .. " opened wall panels=" .. tostring(opened))
+end
+
+local function removeDummies(dummies: { Instance })
+	for _, d in ipairs(dummies) do
+		d:Destroy()
+	end
+	log("removed training dummies/targets: " .. tostring(#dummies))
+end
+
+local function disableOldSpawns(spawns: { BasePart }, folder: Folder)
+	for _, s in ipairs(spawns) do
+		if s.Parent and not s:IsDescendantOf(folder) then
+			s.Enabled = false
+			s.Transparency = 1
+			s.CanCollide = false
+			s.Name = s.Name .. "_DisabledOld"
+		end
+	end
+	log("disabled old indoor spawn pads: " .. tostring(#spawns))
+end
+
+local function hubIdFor(player: Player): number
+	return RETURN_PLACE_BY_USER[player.UserId] or HUB_PLACE_ID
+end
+
+local function goHome(player: Player)
+	local placeId = hubIdFor(player)
+	if placeId <= 0 then
+		return
+	end
+	pcall(function()
+		TeleportService:TeleportAsync(placeId, { player })
+	end)
+end
+
+Players.PlayerAdded:Connect(function(player)
+	local join = player:GetJoinData()
+	local data = join and join.TeleportData
+	if type(data) == "table" and type(data.ReturnPlaceId) == "number" and data.ReturnPlaceId > 0 then
+		RETURN_PLACE_BY_USER[player.UserId] = data.ReturnPlaceId
+	end
+end)
+Players.PlayerRemoving:Connect(function(player)
+	RETURN_PLACE_BY_USER[player.UserId] = nil
+end)
+
+local function placeReturnPortal(parent: Instance, at: Vector3, index: number)
+	local gate = Instance.new("Part")
+	gate.Name = "ReturnToArena_" .. tostring(index)
+	gate.Size = Vector3.new(5, 10, 1)
+	gate.Anchored = true
+	gate.CanCollide = false
+	gate.CanTouch = false
+	gate.Color = Color3.fromRGB(255, 140, 40)
+	gate.Material = Enum.Material.Neon
+	gate.CFrame = CFrame.new(at + Vector3.new(0, 5, 0))
+	gate.Parent = parent
+
+	local light = Instance.new("PointLight")
+	light.Brightness = 2
+	light.Range = 16
+	light.Color = Color3.fromRGB(255, 160, 50)
+	light.Parent = gate
+
+	local sign = Instance.new("BillboardGui")
+	sign.Size = UDim2.new(0, 240, 0, 56)
+	sign.StudsOffset = Vector3.new(0, 7, 0)
+	sign.AlwaysOnTop = true
+	sign.Parent = gate
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextSize = 20
+	label.TextColor3 = Color3.fromRGB(255, 220, 100)
+	label.TextStrokeTransparency = 0.25
+	label.Text = "RETURN TO ARENA"
+	label.Parent = sign
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Return"
+	prompt.ObjectText = "Brainrot Arena"
+	prompt.HoldDuration = 0.35
+	prompt.MaxActivationDistance = 14
+	prompt.RequiresLineOfSight = false
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.Parent = gate
+	prompt.Triggered:Connect(goHome)
 end
 
 local function buildArena(minV: Vector3, maxV: Vector3, floorY: number): Folder
@@ -203,18 +288,18 @@ local function buildArena(minV: Vector3, maxV: Vector3, floorY: number): Folder
 
 	local minX, maxX = minV.X - PAD, maxV.X + PAD
 	local minZ, maxZ = minV.Z - PAD, maxV.Z + PAD
-	-- Enforce a usable fight size even if dummies were clustered
-	local width = math.max(maxX - minX, 90)
-	local depth = math.max(maxZ - minZ, 90)
+	local width = math.max(maxX - minX, 100)
+	local depth = math.max(maxZ - minZ, 100)
 	local cx = (minX + maxX) * 0.5
 	local cz = (minZ + maxZ) * 0.5
 	minX, maxX = cx - width * 0.5, cx + width * 0.5
 	minZ, maxZ = cz - depth * 0.5, cz + depth * 0.5
 
 	local floorThickness = 2
-	local wallH = 14
+	local wallH = 12
 	local wallT = 2
 	local y = floorY
+	local wallColor = Color3.fromRGB(55, 58, 64)
 
 	part(
 		"FightFloor",
@@ -225,111 +310,79 @@ local function buildArena(minV: Vector3, maxV: Vector3, floorY: number): Folder
 		Enum.Material.Concrete
 	)
 
-	-- Outer walls
-	local wallColor = Color3.fromRGB(55, 58, 64)
-	part("WallN", Vector3.new(width + wallT * 2, wallH, wallT), CFrame.new(cx, y + wallH * 0.5, minZ - wallT * 0.5), wallColor, folder)
-	part("WallS", Vector3.new(width + wallT * 2, wallH, wallT), CFrame.new(cx, y + wallH * 0.5, maxZ + wallT * 0.5), wallColor, folder)
-	part("WallW", Vector3.new(wallT, wallH, depth), CFrame.new(minX - wallT * 0.5, y + wallH * 0.5, cz), wallColor, folder)
-	part("WallE", Vector3.new(wallT, wallH, depth), CFrame.new(maxX + wallT * 0.5, y + wallH * 0.5, cz), wallColor, folder)
-
-	-- Door gaps in N/S walls (openings for flow)
-	for _, zSide in ipairs({ minZ, maxZ }) do
-		local door = part(
-			"DoorGapMarker",
-			Vector3.new(12, 8, wallT + 0.4),
-			CFrame.new(cx, y + 4, zSide + (if zSide == minZ then -wallT * 0.5 else wallT * 0.5)),
-			Color3.fromRGB(30, 30, 30),
-			folder,
-			Enum.Material.Neon
-		)
-		door.CanCollide = false
-		door.Transparency = 0.7
-	end
-	-- Actually cut collide holes by shortening walls conceptually: add non-collide overlays only.
-	-- Punch real gaps: destroy center of N/S walls and replace with two segments.
-	for _, wallName in ipairs({ "WallN", "WallS" }) do
-		local wall = folder:FindFirstChild(wallName)
-		if wall and wall:IsA("BasePart") then
-			local z = wall.Position.Z
-			local yMid = wall.Position.Y
-			wall:Destroy()
-			local gap = 14
-			local seg = (width - gap) * 0.5
-			part(wallName .. "L", Vector3.new(seg, wallH, wallT), CFrame.new(cx - gap * 0.5 - seg * 0.5, yMid, z), wallColor, folder)
-			part(wallName .. "R", Vector3.new(seg, wallH, wallT), CFrame.new(cx + gap * 0.5 + seg * 0.5, yMid, z), wallColor, folder)
+	-- Outer walls with wide gaps on all four sides (open arena feel)
+	local gap = 18
+	local function splitWall(name: string, alongX: boolean, edge: number)
+		local long = if alongX then width else depth
+		local seg = (long - gap) * 0.5
+		if alongX then
+			part(name .. "L", Vector3.new(seg, wallH, wallT), CFrame.new(cx - gap * 0.5 - seg * 0.5, y + wallH * 0.5, edge), wallColor, folder)
+			part(name .. "R", Vector3.new(seg, wallH, wallT), CFrame.new(cx + gap * 0.5 + seg * 0.5, y + wallH * 0.5, edge), wallColor, folder)
+		else
+			part(name .. "L", Vector3.new(wallT, wallH, seg), CFrame.new(edge, y + wallH * 0.5, cz - gap * 0.5 - seg * 0.5), wallColor, folder)
+			part(name .. "R", Vector3.new(wallT, wallH, seg), CFrame.new(edge, y + wallH * 0.5, cz + gap * 0.5 + seg * 0.5), wallColor, folder)
 		end
 	end
+	splitWall("WallN", true, minZ - wallT * 0.5)
+	splitWall("WallS", true, maxZ + wallT * 0.5)
+	splitWall("WallW", false, minX - wallT * 0.5)
+	splitWall("WallE", false, maxX + wallT * 0.5)
 
-	-- Cover props for fights
+	-- Cover for FFA fights
 	local coverColor = Color3.fromRGB(90, 70, 50)
 	local rng = Random.new(42)
-	for i = 1, 10 do
-		local x = cx + rng:NextNumber(-width * 0.35, width * 0.35)
-		local z = cz + rng:NextNumber(-depth * 0.35, depth * 0.35)
+	for i = 1, 12 do
+		local x = cx + rng:NextNumber(-width * 0.32, width * 0.32)
+		local z = cz + rng:NextNumber(-depth * 0.32, depth * 0.32)
 		local w = rng:NextNumber(4, 9)
 		local h = rng:NextNumber(3, 6)
-		local d = rng:NextNumber(3, 7)
-		part("Cover" .. tostring(i), Vector3.new(w, h, d), CFrame.new(x, y + h * 0.5, z), coverColor, folder, Enum.Material.Wood)
+		local dpth = rng:NextNumber(3, 7)
+		part("Cover" .. tostring(i), Vector3.new(w, h, dpth), CFrame.new(x, y + h * 0.5, z), coverColor, folder, Enum.Material.Wood)
 	end
 
-	-- Extra spawn pads around the floor (fair PvP)
+	-- 5 FFA spawns: 4 corners + mid-edge (not center — less spawn camping)
 	local pads = {
-		Vector3.new(minX + 10, y + 1, minZ + 10),
-		Vector3.new(maxX - 10, y + 1, minZ + 10),
-		Vector3.new(minX + 10, y + 1, maxZ - 10),
-		Vector3.new(maxX - 10, y + 1, maxZ - 10),
-		Vector3.new(cx, y + 1, cz),
+		Vector3.new(minX + 12, y + 1, minZ + 12),
+		Vector3.new(maxX - 12, y + 1, minZ + 12),
+		Vector3.new(minX + 12, y + 1, maxZ - 12),
+		Vector3.new(maxX - 12, y + 1, maxZ - 12),
+		Vector3.new(cx, y + 1, minZ + 12),
 	}
 	for i, pos in ipairs(pads) do
 		local spawn = Instance.new("SpawnLocation")
-		spawn.Name = "ArenaSpawn_" .. tostring(i)
-		spawn.Size = Vector3.new(6, 1, 6)
+		spawn.Name = "FFASpawn_" .. tostring(i)
+		spawn.Size = Vector3.new(8, 1, 8)
 		spawn.Anchored = true
 		spawn.CanCollide = true
+		spawn.Enabled = true
 		spawn.Neutral = true
 		spawn.Duration = 0
-		spawn.Color = Color3.fromRGB(40, 120, 200)
+		spawn.AllowTeamChangeOnTouch = false
+		spawn.Color = Color3.fromRGB(40, 140, 220)
 		spawn.Material = Enum.Material.Neon
 		spawn.CFrame = CFrame.new(pos)
 		spawn.Parent = folder
+
+		-- Return portal just beside each spawn (offset inward so it isn't on the pad)
+		local inward = Vector3.new(cx - pos.X, 0, cz - pos.Z)
+		if inward.Magnitude < 1 then
+			inward = Vector3.new(0, 0, 8)
+		else
+			inward = inward.Unit * 10
+		end
+		placeReturnPortal(folder, pos + inward, i)
 	end
 
-	log(string.format("fight floor %.0fx%.0f studs at (%.0f, %.0f, %.0f)", width, depth, cx, y, cz))
+	log(string.format("FFA floor %.0fx%.0f | 5 spawns | 5 return portals", width, depth))
 	return folder
 end
 
-local function relocateDummies(dummies: { Instance }, minX: number, maxX: number, minZ: number, maxZ: number, floorY: number)
-	if not KEEP_DUMMIES then
-		for _, d in ipairs(dummies) do
-			d:Destroy()
-		end
-		log("removed " .. tostring(#dummies) .. " dummies")
-		return
-	end
-	-- Park them along the inner edge so mid-floor is clear for players
-	local edge = {
-		Vector3.new(minX + 6, floorY + 3, (minZ + maxZ) * 0.5),
-		Vector3.new(maxX - 6, floorY + 3, (minZ + maxZ) * 0.5),
-		Vector3.new((minX + maxX) * 0.5, floorY + 3, minZ + 6),
-		Vector3.new((minX + maxX) * 0.5, floorY + 3, maxZ - 6),
-	}
-	for i, d in ipairs(dummies) do
-		local dest = edge[((i - 1) % #edge) + 1]
-		if d:IsA("Model") then
-			pcall(function()
-				(d :: Model):PivotTo(CFrame.new(dest))
-			end)
-		elseif d:IsA("BasePart") then
-			d.CFrame = CFrame.new(dest)
-		end
-	end
-	log("parked " .. tostring(#dummies) .. " dummies along arena edges")
-end
-
 local function run()
+	workspace:SetAttribute("XSFArenaHandlesReturns", true)
+
 	local spawns = collectSpawns()
 	local dummies = collectDummies()
-	log("spawns=" .. tostring(#spawns) .. " dummies/targets=" .. tostring(#dummies))
+	log("old spawns=" .. tostring(#spawns) .. " dummies=" .. tostring(#dummies))
 
 	local points: { Vector3 } = {}
 	for _, s in ipairs(spawns) do
@@ -341,14 +394,12 @@ local function run()
 			table.insert(points, p)
 		end
 	end
-
-	-- Also include nearby building parts around first spawn so the floor covers the house
 	if #spawns > 0 then
 		local origin = spawns[1].Position
 		for _, d in ipairs(workspace:GetDescendants()) do
 			if d:IsA("BasePart") and d.Anchored and d.CanCollide then
 				local flat = Vector3.new(d.Position.X - origin.X, 0, d.Position.Z - origin.Z)
-				if flat.Magnitude < 70 then
+				if flat.Magnitude < 80 then
 					table.insert(points, d.Position)
 				end
 			end
@@ -357,53 +408,34 @@ local function run()
 
 	local minV, maxV = boundsFromPoints(points)
 	if not minV or not maxV then
-		-- Fallback: expand around world origin / baseplate
-		minV = Vector3.new(-40, 0, -40)
-		maxV = Vector3.new(40, 0, 40)
-		warn("[XSFExpandArena] no spawns/dummies found — building default 80x80 arena at origin")
+		minV = Vector3.new(-50, 0, -50)
+		maxV = Vector3.new(50, 0, 50)
+		warn("[XSFExpandArena] no landmarks — default 100x100 arena")
 	end
 
-	local floorY = minV.Y
-	if #spawns > 0 then
-		floorY = spawns[1].Position.Y - 0.5
-	end
-
+	local floorY = if #spawns > 0 then spawns[1].Position.Y - 0.5 else minV.Y
 	local spawnPos = if #spawns > 0 then spawns[1].Position else Vector3.new(0, floorY, 0)
-	local toward = Vector3.new((minV.X + maxV.X) * 0.5, floorY, (minV.Z + maxV.Z) * 0.5)
-	-- Prefer direction toward dummies if any
-	if #dummies > 0 then
-		local dp = worldPos(dummies[1])
-		if dp then
-			toward = dp
-		end
-	end
 
-	openExits(spawnPos, toward)
+	removeDummies(dummies)
+	openBuilding(spawnPos)
 	local folder = buildArena(minV, maxV, floorY)
+	disableOldSpawns(spawns, folder)
 
 	local floor = folder:FindFirstChild("FightFloor")
-	local halfW, halfD = 45, 45
+	local cx, cz = 0, 0
 	if floor and floor:IsA("BasePart") then
-		halfW = floor.Size.X * 0.5
-		halfD = floor.Size.Z * 0.5
+		cx = floor.Position.X
+		cz = floor.Position.Z
 	end
-	local cx = (minV.X + maxV.X) * 0.5
-	local cz = (minV.Z + maxV.Z) * 0.5
-	relocateDummies(dummies, cx - halfW, cx + halfW, cz - halfD, cz + halfD, floorY)
-
-	-- Nudge anyone currently stuck inside the old room onto the new floor
 	for _, player in ipairs(Players:GetPlayers()) do
 		local char = player.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		if hrp and hrp:IsA("BasePart") then
-			local p = hrp.Position
-			if (p - spawnPos).Magnitude < 25 then
-				hrp.CFrame = CFrame.new(cx, floorY + 4, cz)
-			end
+			hrp.CFrame = CFrame.new(cx, floorY + 5, cz)
 		end
 	end
 
-	log("done — walk out the opened walls onto the fight floor")
+	log("done — FFA PvP ready (5 spawns + 5 return portals)")
 end
 
 task.defer(run)
