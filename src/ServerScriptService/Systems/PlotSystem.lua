@@ -35,10 +35,11 @@ local ARENA_PAD = 280
 local FUSION_X = WORLD_DX
 local FUSION_Z = WORLD_DZ + 12
 -- One plaza row in front of the plots (west of plot 1, south lawn).
--- Order: Fusion, Stat Trainer (old expedition slot), Quests. Expeditions are portals.
+-- Order: Shop, Fusion, Stat Trainer, Quests. Shooter portals sit left of this row
+-- (Laser Tag ~44, XSF ~72), so PLAZA_X0 must clear the XSF portal + kill board.
 local PLAZA_Z = 28
 local PLAZA_GAP = 24
-local PLAZA_X0 = 68
+local PLAZA_X0 = 110
 PlotSystem.PlazaSpots = {
 	Shop = Vector2.new(PLAZA_X0, PLAZA_Z),
 	Fusion = Vector2.new(PLAZA_X0 + PLAZA_GAP, PLAZA_Z),
