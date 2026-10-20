@@ -1,13 +1,43 @@
 --[[
-	XSFArenaBoot — waits for XSFUnpack, then sets FFA loadout via XSF API.
+	XSFArenaBoot — FFA match rules for the XSF Shooter Arena place.
+
+	  • Double health (200 MaxHealth)
+	  • Tab scoreboard: Kills / Deaths / Unlocks
+	  • Bigger starter loadout (5 hotbar weapons)
+	  • Kill milestones unlock extra guns (kept on respawn)
+	  • Live arena scoreboard board in the world
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local StarterPlayer = game:GetService("StarterPlayer")
+local TextChat = game:GetService("TextChatService")
 
 print("[XSFArenaBoot] waiting for XSFUnpack...")
+
+local MAX_HEALTH = 200
+
+-- First five sit on number keys 1–5.
+local STARTER = { "HK416", "MP5", "USP", "Knife", "M67" }
+
+-- Session kills → unlock weapon (added to loadout + given mid-life).
+local UNLOCKS = {
+	{ Kills = 2, Weapon = "AK47", Label = "AK-47" },
+	{ Kills = 4, Weapon = "M870", Label = "Shotgun" },
+	{ Kills = 6, Weapon = "Deagle", Label = "Desert Eagle" },
+	{ Kills = 8, Weapon = "AWM", Label = "AWM Sniper" },
+	{ Kills = 10, Weapon = "RPG7", Label = "RPG-7" },
+	{ Kills = 12, Weapon = "M249", Label = "M249" },
+}
+
+local sessionKills = {} -- [userId] = number
+local unlocked = {} -- [userId] = { [weaponName] = true }
+local boardLabels = {} -- SurfaceGui TextLabels to refresh
+
+local function log(msg)
+	print("[XSFArenaBoot] " .. msg)
+end
 
 local function waitForXSF(seconds)
 	local deadline = os.clock() + seconds
@@ -29,7 +59,7 @@ if not waitForXSF(20) then
 	return
 end
 
-print("[XSFArenaBoot] XSF folders found — requesting loadout")
+log("XSF folders found — loading match rules")
 
 local XSF = nil
 local deadline = os.clock() + 45
@@ -47,41 +77,350 @@ while os.clock() < deadline do
 end
 
 if not XSF then
-	print("[XSFArenaBoot] XSF API not ready — use GameConfig.Loadout = { \"HK416\", \"USP\", \"M67\" }")
-	return
+	warn("[XSFArenaBoot] XSF API not ready — health/scoreboard still apply; guns need XSF.Server")
 end
 
-local LOADOUT = { "HK416", "USP", "M67" }
+local function ensureLeaderstats(player)
+	local ls = player:FindFirstChild("leaderstats")
+	if not ls then
+		ls = Instance.new("Folder")
+		ls.Name = "leaderstats"
+		ls.Parent = player
+	end
+	local function ensureStat(name)
+		local s = ls:FindFirstChild(name)
+		if not (s and (s:IsA("IntValue") or s:IsA("NumberValue"))) then
+			if s then
+				s:Destroy()
+			end
+			s = Instance.new("IntValue")
+			s.Name = name
+			s.Value = 0
+			s.Parent = ls
+		end
+		return s
+	end
+	return ensureStat("Kills"), ensureStat("Deaths"), ensureStat("Unlocks")
+end
 
-local function give(player)
+local function loadoutFor(player)
+	local list = {}
+	for _, name in ipairs(STARTER) do
+		table.insert(list, name)
+	end
+	local owned = unlocked[player.UserId] or {}
+	for _, row in ipairs(UNLOCKS) do
+		if owned[row.Weapon] then
+			table.insert(list, row.Weapon)
+		end
+	end
+	return list
+end
+
+local function announce(player, text)
+	pcall(function()
+		if TextChat.ChatVersion == Enum.ChatVersion.TextChatService then
+			local channels = TextChat:FindFirstChild("TextChannels")
+			local sys = channels and channels:FindFirstChild("RBXSystem")
+			if sys and sys:IsA("TextChannel") then
+				sys:DisplaySystemMessage(text)
+				return
+			end
+		end
+	end)
+	-- Fallback: attribute toast other UIs can read; also print.
+	player:SetAttribute("XSFUnlockMsg", text)
+	log(text)
+end
+
+local function applyHealth(char)
+	local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 8)
+	if not (hum and hum:IsA("Humanoid")) then
+		return
+	end
+	local function setHp(full)
+		if not hum.Parent then
+			return
+		end
+		hum.MaxHealth = MAX_HEALTH
+		if full or hum.Health <= 0 then
+			hum.Health = MAX_HEALTH
+		elseif hum.Health > MAX_HEALTH then
+			hum.Health = MAX_HEALTH
+		end
+	end
+	setHp(true)
+	-- XSF character setup can reset MaxHealth — re-assert after it settles.
+	task.delay(0.5, function()
+		setHp(true)
+	end)
+	task.delay(2, function()
+		setHp(false)
+	end)
+end
+
+local function giveLoadout(player)
+	if not XSF then
+		return
+	end
+	local list = loadoutFor(player)
 	local ok, err = pcall(function()
-		XSF.SetLoadout(player, LOADOUT)
+		XSF.SetLoadout(player, list)
 	end)
 	if not ok then
 		warn("[XSFArenaBoot] SetLoadout failed: " .. tostring(err))
 	end
 end
 
-Players.PlayerAdded:Connect(function(player)
-	player.CharacterAdded:Connect(function()
-		task.wait(1)
-		if player.Parent then
-			give(player)
-		end
-	end)
-	if player.Character then
-		task.spawn(function()
-			task.wait(1)
-			give(player)
+local function grantUnlock(player, weapon, label, midLife)
+	local uid = player.UserId
+	unlocked[uid] = unlocked[uid] or {}
+	if unlocked[uid][weapon] then
+		return false
+	end
+	unlocked[uid][weapon] = true
+	local _, _, unlockStat = ensureLeaderstats(player)
+	unlockStat.Value = unlockStat.Value + 1
+	announce(player, player.Name .. " unlocked " .. (label or weapon) .. "!")
+	if midLife and XSF and type(XSF.Give) == "function" then
+		pcall(function()
+			XSF.Give(player, weapon)
 		end)
 	end
-end)
+	return true
+end
 
-for _, player in ipairs(Players:GetPlayers()) do
-	task.spawn(function()
-		task.wait(1)
-		give(player)
+local function checkUnlocks(player, kills, midLife)
+	for _, row in ipairs(UNLOCKS) do
+		if kills >= row.Kills then
+			grantUnlock(player, row.Weapon, row.Label, midLife)
+		end
+	end
+end
+
+local function refreshWorldBoard()
+	local rows = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		local ls = player:FindFirstChild("leaderstats")
+		local k = ls and ls:FindFirstChild("Kills")
+		local d = ls and ls:FindFirstChild("Deaths")
+		table.insert(rows, {
+			Name = player.DisplayName ~= "" and player.DisplayName or player.Name,
+			Kills = (k and k.Value) or (sessionKills[player.UserId] or 0),
+			Deaths = (d and d.Value) or 0,
+		})
+	end
+	table.sort(rows, function(a, b)
+		if a.Kills == b.Kills then
+			return a.Deaths < b.Deaths
+		end
+		return a.Kills > b.Kills
+	end)
+	local lines = { "FFA SCOREBOARD", "─────────────" }
+	for i = 1, math.min(8, #rows) do
+		local r = rows[i]
+		table.insert(lines, string.format("%d. %s  %d-%d", i, r.Name, r.Kills, r.Deaths))
+	end
+	if #rows == 0 then
+		table.insert(lines, "Waiting for players…")
+	end
+	local text = table.concat(lines, "\n")
+	for _, label in ipairs(boardLabels) do
+		if label.Parent then
+			label.Text = text
+		end
+	end
+end
+
+local function placeWorldScoreboard()
+	local old = workspace:FindFirstChild("XSFScoreboard")
+	if old then
+		old:Destroy()
+	end
+	boardLabels = {}
+
+	local folder = workspace:FindFirstChild("XSFArenaExpand")
+	local cx, cy, cz = 0, 8, 0
+	if folder then
+		local floor = folder:FindFirstChild("FightFloor")
+		if floor and floor:IsA("BasePart") then
+			cx = floor.Position.X
+			cy = floor.Position.Y + floor.Size.Y * 0.5 + 10
+			cz = floor.Position.Z
+		end
+	end
+
+	local root = Instance.new("Model")
+	root.Name = "XSFScoreboard"
+	root.Parent = workspace
+
+	local board = Instance.new("Part")
+	board.Name = "Board"
+	board.Size = Vector3.new(18, 12, 0.6)
+	board.Anchored = true
+	board.CanCollide = false
+	board.Color = Color3.fromRGB(28, 30, 34)
+	board.Material = Enum.Material.SmoothPlastic
+	board.CFrame = CFrame.new(cx, cy, cz)
+	board.Parent = root
+
+	local function face(side)
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = side
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 25
+		gui.Parent = board
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 28
+		label.TextColor3 = Color3.fromRGB(240, 240, 245)
+		label.TextStrokeTransparency = 0.4
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.Text = "FFA SCOREBOARD"
+		label.Parent = gui
+		table.insert(boardLabels, label)
+	end
+	face(Enum.NormalId.Front)
+	face(Enum.NormalId.Back)
+	refreshWorldBoard()
+	log("world scoreboard placed")
+end
+
+local function onCharacter(player, char)
+	ensureLeaderstats(player)
+	applyHealth(char)
+	task.delay(1, function()
+		if player.Parent and char.Parent then
+			giveLoadout(player)
+		end
 	end)
 end
 
-print("[XSFArenaBoot] ready — loadout " .. table.concat(LOADOUT, ", "))
+local function setupPlayer(player)
+	sessionKills[player.UserId] = sessionKills[player.UserId] or 0
+	unlocked[player.UserId] = unlocked[player.UserId] or {}
+	local killsStat, _, unlockStat = ensureLeaderstats(player)
+	killsStat.Value = sessionKills[player.UserId]
+	local n = 0
+	for _ in pairs(unlocked[player.UserId]) do
+		n = n + 1
+	end
+	unlockStat.Value = n
+	checkUnlocks(player, sessionKills[player.UserId], false)
+
+	player.CharacterAdded:Connect(function(char)
+		onCharacter(player, char)
+	end)
+	if player.Character then
+		onCharacter(player, player.Character)
+	end
+	refreshWorldBoard()
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+for _, player in ipairs(Players:GetPlayers()) do
+	task.spawn(setupPlayer, player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	-- Keep session progress only while the server is up; clear tables to avoid leaks.
+	sessionKills[player.UserId] = nil
+	unlocked[player.UserId] = nil
+	task.defer(refreshWorldBoard)
+end)
+
+local function bumpKill(attacker)
+	if not attacker then
+		return
+	end
+	local uid = attacker.UserId
+	sessionKills[uid] = (sessionKills[uid] or 0) + 1
+	local killsStat = ensureLeaderstats(attacker)
+	killsStat.Value = sessionKills[uid]
+	checkUnlocks(attacker, sessionKills[uid], true)
+	refreshWorldBoard()
+end
+
+local function bumpDeath(victimPlayer)
+	if not victimPlayer then
+		return
+	end
+	local _, deathsStat = ensureLeaderstats(victimPlayer)
+	deathsStat.Value = deathsStat.Value + 1
+	refreshWorldBoard()
+end
+
+if XSF and XSF.Killed then
+	XSF.Killed:Connect(function(victimHum, attacker, _weapon)
+		local victimModel = victimHum and victimHum.Parent
+		local victimPlayer = victimModel and Players:GetPlayerFromCharacter(victimModel)
+		if victimPlayer then
+			bumpDeath(victimPlayer)
+		end
+		if attacker and attacker:IsA("Player") and attacker ~= victimPlayer then
+			bumpKill(attacker)
+		end
+	end)
+	log("hooked XSF.Killed for scoreboard + unlocks")
+else
+	-- Fallback if API has no Killed signal yet.
+	local function hookDied(player, char)
+		local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 8)
+		if not (hum and hum:IsA("Humanoid")) then
+			return
+		end
+		hum.Died:Connect(function()
+			bumpDeath(player)
+			local tag = hum:FindFirstChild("creator") or hum:FindFirstChild("Creator")
+			if tag and tag:IsA("ObjectValue") and tag.Value then
+				local killer = tag.Value
+				if killer:IsA("Player") then
+					bumpKill(killer)
+				elseif killer:IsA("Model") then
+					local kp = Players:GetPlayerFromCharacter(killer)
+					if kp then
+						bumpKill(kp)
+					end
+				end
+			end
+		end)
+	end
+	Players.PlayerAdded:Connect(function(player)
+		player.CharacterAdded:Connect(function(char)
+			hookDied(player, char)
+		end)
+		if player.Character then
+			hookDied(player, player.Character)
+		end
+	end)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Character then
+			hookDied(player, player.Character)
+		end
+	end
+	warn("[XSFArenaBoot] XSF.Killed missing — using Humanoid.Died fallback")
+end
+
+task.defer(function()
+	-- Wait for XSFArenaFFA to build the floor, then hang the board above it.
+	for _ = 1, 30 do
+		if workspace:FindFirstChild("XSFArenaExpand") then
+			break
+		end
+		task.wait(0.2)
+	end
+	placeWorldScoreboard()
+end)
+
+log(
+	"ready — HP "
+		.. tostring(MAX_HEALTH)
+		.. " | starter "
+		.. table.concat(STARTER, ", ")
+		.. " | "
+		.. tostring(#UNLOCKS)
+		.. " unlock guns"
+)

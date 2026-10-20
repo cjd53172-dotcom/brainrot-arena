@@ -16,7 +16,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local HUB_PLACE_ID = 92909397469421
 local XSF_PLACE_ID = 105098537406613
-local GIT_REF = "cursor/shooter-portal-cycle-9893"
+-- Feature branch until this PR merges; then set back to "main".
+local GIT_REF = "cursor/xsf-ffa-progression-9893"
 local BASE_URL = "https://raw.githubusercontent.com/cjd53172-dotcom/brainrot-arena/" .. GIT_REF .. "/src/"
 
 -- New FFA script name so a stale XSFExpandArena cannot stick around.
@@ -41,7 +42,7 @@ local button = toolbar:CreateButton(
 button.ClickableWhenViewportHidden = true
 
 local function fetch(path: string): string?
-	local url = BASE_URL .. path .. "?t=" .. tostring(os.time()) .. "&v=3"
+	local url = BASE_URL .. path .. "?t=" .. tostring(os.time()) .. "&v=5"
 	local ok, result = pcall(function()
 		return HttpService:GetAsync(url)
 	end)
@@ -141,4 +142,4 @@ button.Click:Connect(function()
 	end
 end)
 
-print("[XSFSync] Plugin loaded (v3). Plugins → XSF Sync from GitHub.")
+print("[XSFSync] Plugin loaded (v5 — FFA progression). Plugins → XSF Sync from GitHub.")
