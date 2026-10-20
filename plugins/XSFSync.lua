@@ -176,4 +176,4 @@ button.Click:Connect(function()
 	end
 end)
 
-print("[XSFSync] Plugin loaded (v6 — HUD scoreboard). Plugins → XSF Sync from GitHub.")
+print("[XSFSync] Plugin loaded (v7 — no floor flicker). Plugins → XSF Sync from GitHub.")
