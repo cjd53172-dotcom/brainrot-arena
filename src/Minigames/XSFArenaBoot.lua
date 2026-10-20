@@ -2,7 +2,8 @@
 	XSFArenaBoot — FFA match rules for the XSF Shooter Arena place.
 
 	  • Double health (200 MaxHealth)
-	  • leaderstats: Kills / Deaths / Unlocks (HUD reads these)
+	  • HUD scoreboard only (no physical world board)
+	  • Match ends at 10 minutes OR 25 kills → winner → return to hub
 	  • Bigger starter loadout (5 hotbar weapons, includes sniper)
 	  • Kill milestones unlock extra guns (kept on respawn)
 ]]
@@ -12,10 +13,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local StarterPlayer = game:GetService("StarterPlayer")
 local TextChat = game:GetService("TextChatService")
+local TeleportService = game:GetService("TeleportService")
 
 print("[XSFArenaBoot] waiting for XSFUnpack...")
 
 local MAX_HEALTH = 200
+local HUB_PLACE_ID = 92909397469421
+local MATCH_SECONDS = 10 * 60
+local KILL_LIMIT = 25
 
 -- First five sit on number keys 1–5. Slot 4 is a sniper (not knife).
 local STARTER = { "HK416", "MP5", "USP", "R700", "M67" }
@@ -32,12 +37,56 @@ local UNLOCKS = {
 
 local sessionKills = {} -- [userId] = number
 local unlocked = {} -- [userId] = { [weaponName] = true }
+local returnPlaceByUser = {}
+local matchOver = false
+local matchEndsAt = os.clock() + MATCH_SECONDS
 
--- Remove old floating world board if a previous sync left one behind.
-local oldBoard = workspace:FindFirstChild("XSFScoreboard")
-if oldBoard then
-	oldBoard:Destroy()
+local function stripPhysicalScoreboards()
+	for _, d in ipairs(workspace:GetDescendants()) do
+		if d.Name == "XSFScoreboard" then
+			d:Destroy()
+		end
+	end
+	local root = workspace:FindFirstChild("XSFScoreboard")
+	if root then
+		root:Destroy()
+	end
 end
+stripPhysicalScoreboards()
+workspace.ChildAdded:Connect(function(child)
+	if child.Name == "XSFScoreboard" then
+		task.defer(function()
+			if child.Parent then
+				child:Destroy()
+			end
+		end)
+	end
+end)
+
+-- Match state the HUD reads.
+local matchFolder = ReplicatedStorage:FindFirstChild("XSFMatch")
+if matchFolder then
+	matchFolder:Destroy()
+end
+matchFolder = Instance.new("Folder")
+matchFolder.Name = "XSFMatch"
+matchFolder.Parent = ReplicatedStorage
+local secondsLeftVal = Instance.new("IntValue")
+secondsLeftVal.Name = "SecondsLeft"
+secondsLeftVal.Value = MATCH_SECONDS
+secondsLeftVal.Parent = matchFolder
+local killLimitVal = Instance.new("IntValue")
+killLimitVal.Name = "KillLimit"
+killLimitVal.Value = KILL_LIMIT
+killLimitVal.Parent = matchFolder
+local statusVal = Instance.new("StringValue")
+statusVal.Name = "Status"
+statusVal.Value = "live"
+statusVal.Parent = matchFolder
+local winnerVal = Instance.new("StringValue")
+winnerVal.Name = "Winner"
+winnerVal.Value = ""
+winnerVal.Parent = matchFolder
 
 local function log(msg)
 	print("[XSFArenaBoot] " .. msg)
@@ -121,20 +170,77 @@ local function loadoutFor(player)
 	return list
 end
 
-local function announce(player, text)
+local function announceAll(text)
+	log(text)
 	pcall(function()
 		if TextChat.ChatVersion == Enum.ChatVersion.TextChatService then
 			local channels = TextChat:FindFirstChild("TextChannels")
-			local sys = channels and channels:FindFirstChild("RBXSystem")
+			local sys = channels and (channels:FindFirstChild("RBXSystem") or channels:FindFirstChild("RBXGeneral"))
 			if sys and sys:IsA("TextChannel") then
 				sys:DisplaySystemMessage(text)
-				return
 			end
 		end
 	end)
-	-- Fallback: attribute toast other UIs can read; also print.
-	player:SetAttribute("XSFUnlockMsg", text)
-	log(text)
+	for _, player in ipairs(Players:GetPlayers()) do
+		player:SetAttribute("XSFUnlockMsg", text)
+	end
+end
+
+local function announce(player, text)
+	announceAll(text)
+end
+
+local function hubIdFor(player)
+	return returnPlaceByUser[player.UserId] or HUB_PLACE_ID
+end
+
+local function leadingPlayer()
+	local best = nil
+	local bestKills = -1
+	local bestDeaths = math.huge
+	for _, player in ipairs(Players:GetPlayers()) do
+		local k = sessionKills[player.UserId] or 0
+		local ls = player:FindFirstChild("leaderstats")
+		local dStat = ls and ls:FindFirstChild("Deaths")
+		local d = (dStat and dStat.Value) or 0
+		if k > bestKills or (k == bestKills and d < bestDeaths) then
+			best = player
+			bestKills = k
+			bestDeaths = d
+		end
+	end
+	return best, bestKills
+end
+
+local function endMatch(reason)
+	if matchOver then
+		return
+	end
+	matchOver = true
+	statusVal.Value = "over"
+	stripPhysicalScoreboards()
+
+	local winner, kills = leadingPlayer()
+	local winnerName = winner and (winner.DisplayName ~= "" and winner.DisplayName or winner.Name) or "Nobody"
+	winnerVal.Value = winnerName
+	local msg = string.format(
+		"MATCH OVER (%s) — Winner: %s (%d kills). Returning to Arena…",
+		reason,
+		winnerName,
+		kills or 0
+	)
+	announceAll(msg)
+
+	task.delay(6, function()
+		for _, player in ipairs(Players:GetPlayers()) do
+			local placeId = hubIdFor(player)
+			if placeId > 0 then
+				pcall(function()
+					TeleportService:TeleportAsync(placeId, { player })
+				end)
+			end
+		end
+	end)
 end
 
 local function applyHealth(char)
@@ -213,6 +319,12 @@ local function onCharacter(player, char)
 end
 
 local function setupPlayer(player)
+	local join = player:GetJoinData()
+	local data = join and join.TeleportData
+	if type(data) == "table" and type(data.ReturnPlaceId) == "number" and data.ReturnPlaceId > 0 then
+		returnPlaceByUser[player.UserId] = data.ReturnPlaceId
+	end
+
 	sessionKills[player.UserId] = sessionKills[player.UserId] or 0
 	unlocked[player.UserId] = unlocked[player.UserId] or {}
 	local killsStat, _, unlockStat = ensureLeaderstats(player)
@@ -225,9 +337,12 @@ local function setupPlayer(player)
 	checkUnlocks(player, sessionKills[player.UserId], false)
 
 	player.CharacterAdded:Connect(function(char)
+		if matchOver then
+			return
+		end
 		onCharacter(player, char)
 	end)
-	if player.Character then
+	if player.Character and not matchOver then
 		onCharacter(player, player.Character)
 	end
 end
@@ -240,10 +355,11 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	sessionKills[player.UserId] = nil
 	unlocked[player.UserId] = nil
+	returnPlaceByUser[player.UserId] = nil
 end)
 
 local function bumpKill(attacker)
-	if not attacker then
+	if matchOver or not attacker then
 		return
 	end
 	local uid = attacker.UserId
@@ -251,10 +367,13 @@ local function bumpKill(attacker)
 	local killsStat = ensureLeaderstats(attacker)
 	killsStat.Value = sessionKills[uid]
 	checkUnlocks(attacker, sessionKills[uid], true)
+	if sessionKills[uid] >= KILL_LIMIT then
+		endMatch(tostring(KILL_LIMIT) .. " kills")
+	end
 end
 
 local function bumpDeath(victimPlayer)
-	if not victimPlayer then
+	if matchOver or not victimPlayer then
 		return
 	end
 	local _, deathsStat = ensureLeaderstats(victimPlayer)
@@ -312,12 +431,33 @@ else
 	warn("[XSFArenaBoot] XSF.Killed missing — using Humanoid.Died fallback")
 end
 
+task.spawn(function()
+	while not matchOver do
+		local left = math.max(0, math.ceil(matchEndsAt - os.clock()))
+		secondsLeftVal.Value = left
+		if left <= 0 then
+			endMatch("time up")
+			break
+		end
+		task.wait(0.5)
+	end
+end)
+
+-- Keep killing any leftover physical boards from older syncs.
+task.spawn(function()
+	for _ = 1, 40 do
+		stripPhysicalScoreboards()
+		task.wait(0.5)
+	end
+end)
+
 log(
 	"ready — HP "
 		.. tostring(MAX_HEALTH)
-		.. " | starter "
-		.. table.concat(STARTER, ", ")
 		.. " | "
-		.. tostring(#UNLOCKS)
-		.. " unlock guns | HUD scoreboard"
+		.. tostring(MATCH_SECONDS)
+		.. "s / "
+		.. tostring(KILL_LIMIT)
+		.. " kills | starter "
+		.. table.concat(STARTER, ", ")
 )
