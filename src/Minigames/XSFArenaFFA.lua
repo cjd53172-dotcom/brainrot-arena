@@ -215,6 +215,34 @@ local function placeReturnPortal(parent, at, index)
 	prompt.Triggered:Connect(goHome)
 end
 
+-- Push old ground under the new slab so coplanar faces can't z-fight / flicker.
+local function buryOldGround(floorY, minX, maxX, minZ, maxZ)
+	local buried = 0
+	for _, d in ipairs(workspace:GetDescendants()) do
+		if d:IsA("BasePart") and d.Anchored and not d:IsA("SpawnLocation") then
+			local n = string.lower(d.Name)
+			local isGroundName = n == "baseplate"
+				or n == "ground"
+				or n == "floor"
+				or n == "terrain"
+				or string.find(n, "baseplate", 1, true)
+			local flat = d.Size.Y <= 4 and (d.Size.X * d.Size.Z) >= 800
+			local nearY = math.abs(d.Position.Y - floorY) <= 3
+			local inFootprint = d.Position.X >= minX - 20
+				and d.Position.X <= maxX + 20
+				and d.Position.Z >= minZ - 20
+				and d.Position.Z <= maxZ + 20
+			if nearY and inFootprint and (isGroundName or (flat and d.Parent == workspace)) then
+				d.CFrame = d.CFrame + Vector3.new(0, -12, 0)
+				buried = buried + 1
+			end
+		end
+	end
+	if buried > 0 then
+		log("buried overlapping ground parts: " .. tostring(buried))
+	end
+end
+
 local function buildArena(minV, maxV, floorY)
 	local old = workspace:FindFirstChild("XSFArenaExpand")
 	if old then
@@ -234,13 +262,18 @@ local function buildArena(minV, maxV, floorY)
 	minX, maxX = cx - width * 0.5, cx + width * 0.5
 	minZ, maxZ = cz - depth * 0.5, cz + depth * 0.5
 
+	-- Lift the walkable top slightly above the old map floor so Roblox
+	-- never has two faces on the same plane (that causes the flicker).
+	local SURFACE_LIFT = 0.4
 	local floorThickness = 2
 	local wallH = 12
 	local wallT = 2
-	local y = floorY
+	local y = floorY + SURFACE_LIFT
 	local wallColor = Color3.fromRGB(55, 58, 64)
 
-	part(
+	buryOldGround(floorY, minX, maxX, minZ, maxZ)
+
+	local fightFloor = part(
 		"FightFloor",
 		Vector3.new(width, floorThickness, depth),
 		CFrame.new(cx, y - floorThickness * 0.5, cz),
@@ -248,6 +281,7 @@ local function buildArena(minV, maxV, floorY)
 		folder,
 		Enum.Material.Concrete
 	)
+	fightFloor.CastShadow = false
 
 	local gap = 18
 	local function splitWall(name, alongX, edge)
