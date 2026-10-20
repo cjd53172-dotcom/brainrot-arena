@@ -13,19 +13,23 @@
 
 local HttpService = game:GetService("HttpService")
 local ServerScriptService = game:GetService("ServerScriptService")
+local StarterPlayer = game:GetService("StarterPlayer")
 
 local HUB_PLACE_ID = 92909397469421
 local XSF_PLACE_ID = 105098537406613
 -- Feature branch until this PR merges; then set back to "main".
-local GIT_REF = "cursor/xsf-ffa-progression-9893"
+local GIT_REF = "cursor/xsf-scoreboard-hud-9893"
 local BASE_URL = "https://raw.githubusercontent.com/cjd53172-dotcom/brainrot-arena/" .. GIT_REF .. "/src/"
 
--- New FFA script name so a stale XSFExpandArena cannot stick around.
-local FILES: { { string } } = {
+local SERVER_FILES: { { string } } = {
 	{ "Minigames/XSFUnpack.lua", "XSFUnpack" },
 	{ "Minigames/XSFReturn.lua", "XSFReturn" },
 	{ "Minigames/XSFArenaBoot.lua", "XSFArenaBoot" },
 	{ "Minigames/XSFArenaFFA.lua", "XSFArenaFFA" },
+}
+
+local CLIENT_FILES: { { string } } = {
+	{ "StarterPlayerScripts/XSFScoreboardHUD.lua", "XSFScoreboardHUD" },
 }
 
 if not plugin then
@@ -42,7 +46,7 @@ local button = toolbar:CreateButton(
 button.ClickableWhenViewportHidden = true
 
 local function fetch(path: string): string?
-	local url = BASE_URL .. path .. "?t=" .. tostring(os.time()) .. "&v=5"
+	local url = BASE_URL .. path .. "?t=" .. tostring(os.time()) .. "&v=6"
 	local ok, result = pcall(function()
 		return HttpService:GetAsync(url)
 	end)
@@ -53,7 +57,7 @@ local function fetch(path: string): string?
 	return result
 end
 
-local function install(name: string, source: string)
+local function installServer(name: string, source: string)
 	local old = ServerScriptService:FindFirstChild(name)
 	if old then
 		old:Destroy()
@@ -63,8 +67,25 @@ local function install(name: string, source: string)
 	scr.Source = source
 	scr.Enabled = true
 	scr.Parent = ServerScriptService
-	local marker = string.sub(source, 1, 40)
-	print("[XSFSync] installed " .. name .. " (" .. tostring(#source) .. " chars) start=" .. marker)
+	print("[XSFSync] installed SSS." .. name .. " (" .. tostring(#source) .. " chars)")
+end
+
+local function installClient(name: string, source: string)
+	local sps = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+	if not sps then
+		warn("[XSFSync] StarterPlayerScripts missing — cannot install " .. name)
+		return
+	end
+	local old = sps:FindFirstChild(name)
+	if old then
+		old:Destroy()
+	end
+	local scr = Instance.new("LocalScript")
+	scr.Name = name
+	scr.Source = source
+	scr.Enabled = true
+	scr.Parent = sps
+	print("[XSFSync] installed SPS." .. name .. " (" .. tostring(#source) .. " chars)")
 end
 
 local function sync()
@@ -84,7 +105,7 @@ local function sync()
 		"ClientUI",
 		"Portal",
 		"Systems",
-		"XSFExpandArena", -- old broken script — replaced by XSFArenaFFA
+		"XSFExpandArena",
 	}
 	for _, name in ipairs(junkNames) do
 		local junk = ServerScriptService:FindFirstChild(name)
@@ -94,7 +115,7 @@ local function sync()
 		end
 	end
 
-	local sps = game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts")
+	local sps = StarterPlayer:FindFirstChild("StarterPlayerScripts")
 	if sps then
 		local cui = sps:FindFirstChild("ClientUI")
 		if cui then
@@ -108,12 +129,21 @@ local function sync()
 	end
 
 	local failed = 0
-	for _, entry in ipairs(FILES) do
+	for _, entry in ipairs(SERVER_FILES) do
 		local source = fetch(entry[1])
 		if not source then
 			failed += 1
 		else
-			install(entry[2], source)
+			installServer(entry[2], source)
+		end
+		task.wait(0.05)
+	end
+	for _, entry in ipairs(CLIENT_FILES) do
+		local source = fetch(entry[1])
+		if not source then
+			failed += 1
+		else
+			installClient(entry[2], source)
 		end
 		task.wait(0.05)
 	end
@@ -122,16 +152,20 @@ local function sync()
 	for _, child in ipairs(ServerScriptService:GetChildren()) do
 		table.insert(names, child.Name)
 	end
-	print("[XSFSync] ServerScriptService now has: " .. table.concat(names, ", "))
+	print("[XSFSync] ServerScriptService: " .. table.concat(names, ", "))
 
 	if not ServerScriptService:FindFirstChild("XSFArenaFFA") then
 		warn("[XSFSync] XSFArenaFFA MISSING — sync failed. Check HTTP Requests.")
+	end
+	local sps2 = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+	if not (sps2 and sps2:FindFirstChild("XSFScoreboardHUD")) then
+		warn("[XSFSync] XSFScoreboardHUD MISSING in StarterPlayerScripts")
 	end
 
 	if failed > 0 then
 		warn("[XSFSync] " .. tostring(failed) .. " file(s) failed")
 	else
-		print("[XSFSync] Done. Confirm Explorer shows XSFArenaFFA, then Press Play.")
+		print("[XSFSync] Done. Press Play — left scoreboard + R700 starter.")
 	end
 end
 
@@ -142,4 +176,4 @@ button.Click:Connect(function()
 	end
 end)
 
-print("[XSFSync] Plugin loaded (v5 — FFA progression). Plugins → XSF Sync from GitHub.")
+print("[XSFSync] Plugin loaded (v6 — HUD scoreboard). Plugins → XSF Sync from GitHub.")
