@@ -18,7 +18,7 @@ local StarterPlayer = game:GetService("StarterPlayer")
 local HUB_PLACE_ID = 92909397469421
 local XSF_PLACE_ID = 105098537406613
 -- Feature branch until this PR merges; then set back to "main".
-local GIT_REF = "cursor/xsf-scoreboard-hud-9893"
+local GIT_REF = "cursor/xsf-floor-noflicker-9893"
 local BASE_URL = "https://raw.githubusercontent.com/cjd53172-dotcom/brainrot-arena/" .. GIT_REF .. "/src/"
 
 local SERVER_FILES: { { string } } = {
@@ -46,7 +46,7 @@ local button = toolbar:CreateButton(
 button.ClickableWhenViewportHidden = true
 
 local function fetch(path: string): string?
-	local url = BASE_URL .. path .. "?t=" .. tostring(os.time()) .. "&v=6"
+	local url = BASE_URL .. path .. "?t=" .. tostring(os.time()) .. "&v=7"
 	local ok, result = pcall(function()
 		return HttpService:GetAsync(url)
 	end)
@@ -176,4 +176,4 @@ button.Click:Connect(function()
 	end
 end)
 
-print("[XSFSync] Plugin loaded (v6 — HUD scoreboard). Plugins → XSF Sync from GitHub.")
+print("[XSFSync] Plugin loaded (v7 — no floor flicker). Plugins → XSF Sync from GitHub.")

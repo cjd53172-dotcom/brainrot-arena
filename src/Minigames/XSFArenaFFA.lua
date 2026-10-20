@@ -215,6 +215,53 @@ local function placeReturnPortal(parent, at, index)
 	prompt.Triggered:Connect(goHome)
 end
 
+-- Hide every flat ground surface under the arena so only FightFloor draws.
+-- (Two coplanar floors = the bad flicker / z-fighting.)
+local function neutralizeOldGround(floorY, minX, maxX, minZ, maxZ, keepFolder)
+	local n = 0
+	for _, d in ipairs(workspace:GetDescendants()) do
+		local skip = false
+		if not (d:IsA("BasePart") and d.Anchored) then
+			skip = true
+		elseif d:IsA("SpawnLocation") then
+			skip = true
+		elseif keepFolder and d:IsDescendantOf(keepFolder) then
+			skip = true
+		end
+		if not skip then
+			local size = d.Size
+			local topY = d.Position.Y + size.Y * 0.5
+			local halfX = size.X * 0.5
+			local halfZ = size.Z * 0.5
+			local overlaps = (d.Position.X - halfX) < maxX
+				and (d.Position.X + halfX) > minX
+				and (d.Position.Z - halfZ) < maxZ
+				and (d.Position.Z + halfZ) > minZ
+			local flat = size.Y <= 5
+			local near = topY >= floorY - 3 and topY <= floorY + 4
+			if flat and near and overlaps then
+				d.Transparency = 1
+				d.CanCollide = false
+				d.CanQuery = false
+				d.CanTouch = false
+				d.CastShadow = false
+				n = n + 1
+			end
+		end
+	end
+	-- Clear terrain voxels in the fight volume so Terrain can't z-fight either.
+	pcall(function()
+		local terrain = workspace.Terrain
+		local r = Region3.new(
+			Vector3.new(minX, floorY - 8, minZ),
+			Vector3.new(maxX, floorY + 2, maxZ)
+		)
+		r = r:ExpandToGrid(4)
+		terrain:FillRegion(r, 4, Enum.Material.Air)
+	end)
+	log("neutralized old ground parts: " .. tostring(n))
+end
+
 local function buildArena(minV, maxV, floorY)
 	local old = workspace:FindFirstChild("XSFArenaExpand")
 	if old then
@@ -234,13 +281,17 @@ local function buildArena(minV, maxV, floorY)
 	minX, maxX = cx - width * 0.5, cx + width * 0.5
 	minZ, maxZ = cz - depth * 0.5, cz + depth * 0.5
 
-	local floorThickness = 2
+	-- One walkable slab only. Old floors are hidden first (see above).
+	local SURFACE_LIFT = 0.5
+	local floorThickness = 3
 	local wallH = 12
 	local wallT = 2
-	local y = floorY
+	local y = floorY + SURFACE_LIFT
 	local wallColor = Color3.fromRGB(55, 58, 64)
 
-	part(
+	neutralizeOldGround(floorY, minX, maxX, minZ, maxZ, folder)
+
+	local fightFloor = part(
 		"FightFloor",
 		Vector3.new(width, floorThickness, depth),
 		CFrame.new(cx, y - floorThickness * 0.5, cz),
@@ -248,6 +299,7 @@ local function buildArena(minV, maxV, floorY)
 		folder,
 		Enum.Material.Concrete
 	)
+	fightFloor.CastShadow = false
 
 	local gap = 18
 	local function splitWall(name, alongX, edge)
