@@ -1,11 +1,13 @@
 --[[
 	XSFScoreboardHUD — small left-side translucent scoreboard.
 
-	Shows Name / Kills / Deaths from each player's leaderstats.
+	Shows Name / Kills / Deaths from each player's leaderstats,
+	plus match clock (10:00) and kill limit (25).
 	Toggle with M (or D-Pad Down on controller). Always starts visible.
 ]]
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local localPlayer = Players.LocalPlayer
@@ -58,12 +60,24 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 13
 title.TextColor3 = Color3.fromRGB(230, 230, 235)
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.Text = "SCOREBOARD  ·  M"
+title.Text = "SCORE  ·  M"
 title.Parent = panel
+
+local clock = Instance.new("TextLabel")
+clock.Name = "Clock"
+clock.LayoutOrder = 1
+clock.Size = UDim2.new(1, 0, 0, 14)
+clock.BackgroundTransparency = 1
+clock.Font = Enum.Font.GothamMedium
+clock.TextSize = 11
+clock.TextColor3 = Color3.fromRGB(180, 200, 140)
+clock.TextXAlignment = Enum.TextXAlignment.Left
+clock.Text = "10:00  ·  first to 25"
+clock.Parent = panel
 
 local header = Instance.new("TextLabel")
 header.Name = "Header"
-header.LayoutOrder = 1
+header.LayoutOrder = 2
 header.Size = UDim2.new(1, 0, 0, 14)
 header.BackgroundTransparency = 1
 header.Font = Enum.Font.GothamMedium
@@ -83,7 +97,7 @@ end
 local function makeRow(order)
 	local row = Instance.new("TextLabel")
 	row.Name = "Row" .. tostring(order)
-	row.LayoutOrder = order + 1
+	row.LayoutOrder = order + 2
 	row.Size = UDim2.new(1, 0, 0, 16)
 	row.BackgroundTransparency = 1
 	row.Font = Enum.Font.Gotham
@@ -211,6 +225,49 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if input.KeyCode == Enum.KeyCode.M or input.KeyCode == Enum.KeyCode.DPadDown then
 		setVisible(not visible)
 	end
+end)
+
+local function formatTime(sec)
+	sec = math.max(0, math.floor(sec))
+	local m = math.floor(sec / 60)
+	local s = sec % 60
+	return string.format("%d:%02d", m, s)
+end
+
+task.spawn(function()
+	local match = ReplicatedStorage:WaitForChild("XSFMatch", 30)
+	if not match then
+		return
+	end
+	local secondsLeft = match:WaitForChild("SecondsLeft", 5)
+	local killLimit = match:FindFirstChild("KillLimit")
+	local status = match:FindFirstChild("Status")
+	local winner = match:FindFirstChild("Winner")
+	local limit = (killLimit and killLimit.Value) or 25
+
+	local function updateClock()
+		if status and status.Value == "over" then
+			local w = (winner and winner.Value ~= "" and winner.Value) or "—"
+			clock.Text = "OVER  ·  " .. w
+			clock.TextColor3 = Color3.fromRGB(255, 200, 100)
+			return
+		end
+		local left = (secondsLeft and secondsLeft.Value) or 0
+		clock.Text = formatTime(left) .. "  ·  first to " .. tostring(limit)
+		if left <= 30 then
+			clock.TextColor3 = Color3.fromRGB(255, 140, 120)
+		else
+			clock.TextColor3 = Color3.fromRGB(180, 200, 140)
+		end
+	end
+
+	if secondsLeft then
+		secondsLeft.Changed:Connect(updateClock)
+	end
+	if status then
+		status.Changed:Connect(updateClock)
+	end
+	updateClock()
 end)
 
 print("[XSFScoreboardHUD] left scoreboard ready (toggle M)")
