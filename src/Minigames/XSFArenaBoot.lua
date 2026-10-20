@@ -2,10 +2,9 @@
 	XSFArenaBoot — FFA match rules for the XSF Shooter Arena place.
 
 	  • Double health (200 MaxHealth)
-	  • Tab scoreboard: Kills / Deaths / Unlocks
-	  • Bigger starter loadout (5 hotbar weapons)
+	  • leaderstats: Kills / Deaths / Unlocks (HUD reads these)
+	  • Bigger starter loadout (5 hotbar weapons, includes sniper)
 	  • Kill milestones unlock extra guns (kept on respawn)
-	  • Live arena scoreboard board in the world
 ]]
 
 local Players = game:GetService("Players")
@@ -18,8 +17,8 @@ print("[XSFArenaBoot] waiting for XSFUnpack...")
 
 local MAX_HEALTH = 200
 
--- First five sit on number keys 1–5.
-local STARTER = { "HK416", "MP5", "USP", "Knife", "M67" }
+-- First five sit on number keys 1–5. Slot 4 is a sniper (not knife).
+local STARTER = { "HK416", "MP5", "USP", "R700", "M67" }
 
 -- Session kills → unlock weapon (added to loadout + given mid-life).
 local UNLOCKS = {
@@ -33,7 +32,12 @@ local UNLOCKS = {
 
 local sessionKills = {} -- [userId] = number
 local unlocked = {} -- [userId] = { [weaponName] = true }
-local boardLabels = {} -- SurfaceGui TextLabels to refresh
+
+-- Remove old floating world board if a previous sync left one behind.
+local oldBoard = workspace:FindFirstChild("XSFScoreboard")
+if oldBoard then
+	oldBoard:Destroy()
+end
 
 local function log(msg)
 	print("[XSFArenaBoot] " .. msg)
@@ -198,97 +202,6 @@ local function checkUnlocks(player, kills, midLife)
 	end
 end
 
-local function refreshWorldBoard()
-	local rows = {}
-	for _, player in ipairs(Players:GetPlayers()) do
-		local ls = player:FindFirstChild("leaderstats")
-		local k = ls and ls:FindFirstChild("Kills")
-		local d = ls and ls:FindFirstChild("Deaths")
-		table.insert(rows, {
-			Name = player.DisplayName ~= "" and player.DisplayName or player.Name,
-			Kills = (k and k.Value) or (sessionKills[player.UserId] or 0),
-			Deaths = (d and d.Value) or 0,
-		})
-	end
-	table.sort(rows, function(a, b)
-		if a.Kills == b.Kills then
-			return a.Deaths < b.Deaths
-		end
-		return a.Kills > b.Kills
-	end)
-	local lines = { "FFA SCOREBOARD", "─────────────" }
-	for i = 1, math.min(8, #rows) do
-		local r = rows[i]
-		table.insert(lines, string.format("%d. %s  %d-%d", i, r.Name, r.Kills, r.Deaths))
-	end
-	if #rows == 0 then
-		table.insert(lines, "Waiting for players…")
-	end
-	local text = table.concat(lines, "\n")
-	for _, label in ipairs(boardLabels) do
-		if label.Parent then
-			label.Text = text
-		end
-	end
-end
-
-local function placeWorldScoreboard()
-	local old = workspace:FindFirstChild("XSFScoreboard")
-	if old then
-		old:Destroy()
-	end
-	boardLabels = {}
-
-	local folder = workspace:FindFirstChild("XSFArenaExpand")
-	local cx, cy, cz = 0, 8, 0
-	if folder then
-		local floor = folder:FindFirstChild("FightFloor")
-		if floor and floor:IsA("BasePart") then
-			cx = floor.Position.X
-			cy = floor.Position.Y + floor.Size.Y * 0.5 + 10
-			cz = floor.Position.Z
-		end
-	end
-
-	local root = Instance.new("Model")
-	root.Name = "XSFScoreboard"
-	root.Parent = workspace
-
-	local board = Instance.new("Part")
-	board.Name = "Board"
-	board.Size = Vector3.new(18, 12, 0.6)
-	board.Anchored = true
-	board.CanCollide = false
-	board.Color = Color3.fromRGB(28, 30, 34)
-	board.Material = Enum.Material.SmoothPlastic
-	board.CFrame = CFrame.new(cx, cy, cz)
-	board.Parent = root
-
-	local function face(side)
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = side
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 25
-		gui.Parent = board
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBold
-		label.TextSize = 28
-		label.TextColor3 = Color3.fromRGB(240, 240, 245)
-		label.TextStrokeTransparency = 0.4
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextYAlignment = Enum.TextYAlignment.Top
-		label.Text = "FFA SCOREBOARD"
-		label.Parent = gui
-		table.insert(boardLabels, label)
-	end
-	face(Enum.NormalId.Front)
-	face(Enum.NormalId.Back)
-	refreshWorldBoard()
-	log("world scoreboard placed")
-end
-
 local function onCharacter(player, char)
 	ensureLeaderstats(player)
 	applyHealth(char)
@@ -317,7 +230,6 @@ local function setupPlayer(player)
 	if player.Character then
 		onCharacter(player, player.Character)
 	end
-	refreshWorldBoard()
 end
 
 Players.PlayerAdded:Connect(setupPlayer)
@@ -326,10 +238,8 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 Players.PlayerRemoving:Connect(function(player)
-	-- Keep session progress only while the server is up; clear tables to avoid leaks.
 	sessionKills[player.UserId] = nil
 	unlocked[player.UserId] = nil
-	task.defer(refreshWorldBoard)
 end)
 
 local function bumpKill(attacker)
@@ -341,7 +251,6 @@ local function bumpKill(attacker)
 	local killsStat = ensureLeaderstats(attacker)
 	killsStat.Value = sessionKills[uid]
 	checkUnlocks(attacker, sessionKills[uid], true)
-	refreshWorldBoard()
 end
 
 local function bumpDeath(victimPlayer)
@@ -350,7 +259,6 @@ local function bumpDeath(victimPlayer)
 	end
 	local _, deathsStat = ensureLeaderstats(victimPlayer)
 	deathsStat.Value = deathsStat.Value + 1
-	refreshWorldBoard()
 end
 
 if XSF and XSF.Killed then
@@ -404,17 +312,6 @@ else
 	warn("[XSFArenaBoot] XSF.Killed missing — using Humanoid.Died fallback")
 end
 
-task.defer(function()
-	-- Wait for XSFArenaFFA to build the floor, then hang the board above it.
-	for _ = 1, 30 do
-		if workspace:FindFirstChild("XSFArenaExpand") then
-			break
-		end
-		task.wait(0.2)
-	end
-	placeWorldScoreboard()
-end)
-
 log(
 	"ready — HP "
 		.. tostring(MAX_HEALTH)
@@ -422,5 +319,5 @@ log(
 		.. table.concat(STARTER, ", ")
 		.. " | "
 		.. tostring(#UNLOCKS)
-		.. " unlock guns"
+		.. " unlock guns | HUD scoreboard"
 )
